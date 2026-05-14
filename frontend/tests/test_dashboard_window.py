@@ -230,3 +230,39 @@ def test_settings_populates_operational_summary(qtbot) -> None:
     assert "Empresa: PRO CORE Lab" in summary
     assert "Tema: Escuro" in summary
     assert "Backup automatico: Ativo" in summary
+
+
+def test_admin_forms_populate_complete_summaries(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.current_user_role = "admin"
+    window.set_user_sectors([{"id": "sector-id", "name": "Laboratorio"}])
+
+    window._populate_sector_form(
+        {"id": "sector-id", "name": "Laboratorio", "description": "Bancada tecnica"}
+    )
+    window._populate_user_form(
+        {
+            "id": "user-id",
+            "full_name": "Tecnico Teste",
+            "email": "tecnico@example.com",
+            "role": "technician",
+            "sector_id": "sector-id",
+            "is_active": True,
+            "must_change_password": True,
+        }
+    )
+    window._populate_password_reset_form(
+        {
+            "id": "request-id",
+            "requester_full_name": "Tecnico Teste",
+            "requester_email": "tecnico@example.com",
+            "requester_role": "technician",
+            "status": "pending",
+            "created_at": "2026-05-14T10:00:00",
+        }
+    )
+
+    assert "Nome: Laboratorio" in window.sector_full_summary.toPlainText()
+    assert "Setor: Laboratorio" in window.user_full_summary.toPlainText()
+    assert "Status: Pendente" in window.password_reset_full_summary.toPlainText()

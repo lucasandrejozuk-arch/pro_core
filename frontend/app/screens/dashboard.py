@@ -1170,7 +1170,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Gestao de setores")
+        title = QLabel("EDITAR REGISTRO - Setor")
         title.setObjectName("sectionTitle")
 
         self.sector_name_input = QLineEdit()
@@ -1183,6 +1183,24 @@ class DashboardWindow(QWidget):
         form_layout.setSpacing(10)
         form_layout.addRow("Nome", self.sector_name_input)
         form_layout.addRow("Descricao", self.sector_description_input)
+
+        sector_fields_panel = QFrame()
+        sector_fields_panel.setObjectName("formSubPanel")
+        sector_fields_panel_layout = QVBoxLayout(sector_fields_panel)
+        sector_fields_panel_layout.setContentsMargins(12, 12, 12, 12)
+        sector_fields_panel_layout.setSpacing(8)
+        sector_fields_title = QLabel("DADOS DO SETOR")
+        sector_fields_title.setObjectName("formGroupTitle")
+        sector_fields_panel_layout.addWidget(sector_fields_title)
+        sector_fields_panel_layout.addLayout(form_layout)
+
+        sector_details_title = QLabel("DADOS COMPLETOS")
+        sector_details_title.setObjectName("formGroupTitle")
+        self.sector_full_summary = QTextEdit()
+        self.sector_full_summary.setObjectName("summaryText")
+        self.sector_full_summary.setReadOnly(True)
+        self.sector_full_summary.setMinimumHeight(78)
+        self.sector_full_summary.setMaximumHeight(110)
 
         self.sector_form_status = QLabel("")
         self.sector_form_status.setObjectName("mutedText")
@@ -1203,7 +1221,9 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addWidget(sector_fields_panel)
+        layout.addWidget(sector_details_title)
+        layout.addWidget(self.sector_full_summary)
         layout.addWidget(self.sector_form_status)
         layout.addLayout(actions)
 
@@ -1213,7 +1233,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Gestao de usuarios")
+        title = QLabel("EDITAR REGISTRO - Usuario")
         title.setObjectName("sectionTitle")
 
         self.user_full_name_input = QLineEdit()
@@ -1241,15 +1261,53 @@ class DashboardWindow(QWidget):
         self.user_reset_password_input.setPlaceholderText("Nova senha")
         self.user_reset_password_input.setEchoMode(QLineEdit.EchoMode.Password)
 
-        form_layout = QFormLayout()
-        form_layout.setSpacing(10)
-        form_layout.addRow("Nome", self.user_full_name_input)
-        form_layout.addRow("Email", self.user_email_input)
-        form_layout.addRow("Perfil", self.user_role_combo)
-        form_layout.addRow("Setor", self.user_sector_combo)
-        form_layout.addRow("Senha inicial", self.user_initial_password_input)
-        form_layout.addRow("", self.user_active_checkbox)
-        form_layout.addRow("Redefinir senha", self.user_reset_password_input)
+        identity_layout = QFormLayout()
+        identity_layout.setSpacing(10)
+        identity_layout.addRow("Nome", self.user_full_name_input)
+        identity_layout.addRow("Email", self.user_email_input)
+        identity_layout.addRow("Perfil", self.user_role_combo)
+        identity_layout.addRow("Setor", self.user_sector_combo)
+        identity_layout.addRow("", self.user_active_checkbox)
+
+        identity_panel = QFrame()
+        identity_panel.setObjectName("formSubPanel")
+        identity_panel_layout = QVBoxLayout(identity_panel)
+        identity_panel_layout.setContentsMargins(12, 12, 12, 12)
+        identity_panel_layout.setSpacing(8)
+        identity_title = QLabel("CONTA E ACESSO")
+        identity_title.setObjectName("formGroupTitle")
+        identity_panel_layout.addWidget(identity_title)
+        identity_panel_layout.addLayout(identity_layout)
+
+        security_layout = QFormLayout()
+        security_layout.setSpacing(10)
+        security_layout.addRow("Senha inicial", self.user_initial_password_input)
+        security_layout.addRow("Redefinir senha", self.user_reset_password_input)
+
+        security_panel = QFrame()
+        security_panel.setObjectName("formSubPanel")
+        security_panel_layout = QVBoxLayout(security_panel)
+        security_panel_layout.setContentsMargins(12, 12, 12, 12)
+        security_panel_layout.setSpacing(8)
+        security_title = QLabel("SEGURANCA")
+        security_title.setObjectName("formGroupTitle")
+        security_panel_layout.addWidget(security_title)
+        security_panel_layout.addLayout(security_layout)
+
+        fields_layout = QGridLayout()
+        fields_layout.setSpacing(12)
+        fields_layout.addWidget(identity_panel, 0, 0)
+        fields_layout.addWidget(security_panel, 0, 1)
+        fields_layout.setColumnStretch(0, 1)
+        fields_layout.setColumnStretch(1, 1)
+
+        user_details_title = QLabel("DADOS COMPLETOS")
+        user_details_title.setObjectName("formGroupTitle")
+        self.user_full_summary = QTextEdit()
+        self.user_full_summary.setObjectName("summaryText")
+        self.user_full_summary.setReadOnly(True)
+        self.user_full_summary.setMinimumHeight(84)
+        self.user_full_summary.setMaximumHeight(120)
 
         self.user_form_status = QLabel("")
         self.user_form_status.setObjectName("mutedText")
@@ -1275,7 +1333,9 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addLayout(fields_layout)
+        layout.addWidget(user_details_title)
+        layout.addWidget(self.user_full_summary)
         layout.addWidget(self.user_form_status)
         layout.addLayout(actions)
 
@@ -1285,7 +1345,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Solicitacoes de redefinicao de senha")
+        title = QLabel("SOLICITACOES DE REDEFINICAO DE SENHA")
         title.setObjectName("sectionTitle")
 
         self.password_reset_requester_label = QLabel("Selecione uma solicitacao.")
@@ -1299,6 +1359,25 @@ class DashboardWindow(QWidget):
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
         form_layout.addRow("Nova senha", self.password_reset_new_password_input)
+
+        password_reset_panel = QFrame()
+        password_reset_panel.setObjectName("formSubPanel")
+        password_reset_panel_layout = QVBoxLayout(password_reset_panel)
+        password_reset_panel_layout.setContentsMargins(12, 12, 12, 12)
+        password_reset_panel_layout.setSpacing(8)
+        password_reset_title = QLabel("ATENDIMENTO DA SOLICITACAO")
+        password_reset_title.setObjectName("formGroupTitle")
+        password_reset_panel_layout.addWidget(password_reset_title)
+        password_reset_panel_layout.addWidget(self.password_reset_requester_label)
+        password_reset_panel_layout.addLayout(form_layout)
+
+        password_reset_details_title = QLabel("DADOS COMPLETOS")
+        password_reset_details_title.setObjectName("formGroupTitle")
+        self.password_reset_full_summary = QTextEdit()
+        self.password_reset_full_summary.setObjectName("summaryText")
+        self.password_reset_full_summary.setReadOnly(True)
+        self.password_reset_full_summary.setMinimumHeight(78)
+        self.password_reset_full_summary.setMaximumHeight(110)
 
         self.password_reset_form_status = QLabel("")
         self.password_reset_form_status.setObjectName("mutedText")
@@ -1314,8 +1393,9 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addWidget(self.password_reset_requester_label)
-        layout.addLayout(form_layout)
+        layout.addWidget(password_reset_panel)
+        layout.addWidget(password_reset_details_title)
+        layout.addWidget(self.password_reset_full_summary)
         layout.addWidget(self.password_reset_form_status)
         layout.addLayout(actions)
 
@@ -1738,6 +1818,7 @@ class DashboardWindow(QWidget):
         self.selected_sector_id = None
         self.sector_name_input.clear()
         self.sector_description_input.clear()
+        self.sector_full_summary.setPlainText("Novo registro de setor.")
         self.sector_form_status.setText("Novo setor.")
         is_admin = self.current_user_role == "admin"
         self.sector_new_button.setEnabled(is_admin)
@@ -1776,6 +1857,7 @@ class DashboardWindow(QWidget):
         self.user_reset_password_input.clear()
         self.user_reset_password_input.setEnabled(False)
         self.user_reset_password_button.setEnabled(False)
+        self.user_full_summary.setPlainText("Novo registro de usuario.")
         self.user_form_status.setText("Novo usuario.")
         self.table.clearSelection()
 
@@ -1808,6 +1890,7 @@ class DashboardWindow(QWidget):
         self.password_reset_requester_label.setText("Selecione uma solicitacao.")
         self.password_reset_new_password_input.clear()
         self.password_reset_resolve_button.setEnabled(False)
+        self.password_reset_full_summary.setPlainText("Nenhuma solicitacao selecionada.")
         self.password_reset_form_status.setText("")
         self.table.clearSelection()
 
@@ -2475,6 +2558,7 @@ class DashboardWindow(QWidget):
             if is_admin
             else "Setor disponivel apenas para consulta."
         )
+        self.sector_full_summary.setPlainText(self._format_sector_summary(sector))
         self.set_sector_form_status(status_message)
 
     def _request_sector_save(self) -> None:
@@ -2507,6 +2591,7 @@ class DashboardWindow(QWidget):
         self.user_reset_password_input.clear()
         self.user_reset_password_input.setEnabled(True)
         self.user_reset_password_button.setEnabled(True)
+        self.user_full_summary.setPlainText(self._format_user_summary(user))
         self.set_user_form_status("Editando usuario selecionado.")
 
     def _request_user_save(self) -> None:
@@ -2574,6 +2659,9 @@ class DashboardWindow(QWidget):
         )
         self.password_reset_new_password_input.clear()
         self.password_reset_resolve_button.setEnabled(True)
+        self.password_reset_full_summary.setPlainText(
+            self._format_password_reset_summary(request)
+        )
         self.set_password_reset_form_status("Informe uma nova senha temporaria.")
 
     def _request_password_reset_resolve(self) -> None:
@@ -2866,6 +2954,43 @@ class DashboardWindow(QWidget):
             f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
             f"Destino: {self._format_value(settings.get('backup_storage_path')) or 'backups'}",
             f"Ultimo backup: {self._format_value(settings.get('backup_last_run_at')) or 'nunca'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_sector_summary(self, sector: dict[str, Any]) -> str:
+        lines = [
+            f"Nome: {self._format_value(sector.get('name')) or '-'}",
+            f"Descricao: {self._format_value(sector.get('description')) or '-'}",
+            f"Criado em: {self._format_value(sector.get('created_at')) or '-'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_user_summary(self, user: dict[str, Any]) -> str:
+        sector_name = self._lookup_label(
+            self.user_sectors,
+            user.get("sector_id"),
+            "name",
+            "Sem setor",
+        )
+        active = "Ativo" if user.get("is_active", True) else "Inativo"
+        must_change = "Sim" if user.get("must_change_password", False) else "Nao"
+        lines = [
+            f"Nome: {self._format_value(user.get('full_name')) or '-'}",
+            f"Email: {self._format_value(user.get('email')) or '-'}",
+            f"Perfil: {self._format_value(user.get('role')) or '-'}",
+            f"Setor: {sector_name}",
+            f"Status: {active}",
+            f"Exige troca de senha: {must_change}",
+        ]
+        return "\n".join(lines)
+
+    def _format_password_reset_summary(self, request: dict[str, Any]) -> str:
+        lines = [
+            f"Solicitante: {self._format_value(request.get('requester_full_name')) or '-'}",
+            f"Email: {self._format_value(request.get('requester_email')) or '-'}",
+            f"Perfil: {self._format_value(request.get('requester_role')) or '-'}",
+            f"Status: {self._format_value(request.get('status')) or '-'}",
+            f"Criada em: {self._format_value(request.get('created_at')) or '-'}",
         ]
         return "\n".join(lines)
 
