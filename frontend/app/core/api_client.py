@@ -1,0 +1,332 @@
+from __future__ import annotations
+
+from typing import Any
+
+import httpx
+
+
+class ApiError(Exception):
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
+class ApiClient:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 10.0,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self._client = httpx.Client(
+            base_url=base_url.rstrip("/") + "/",
+            timeout=timeout,
+            transport=transport,
+        )
+
+    def close(self) -> None:
+        self._client.close()
+
+    def login(self, email: str, password: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "auth/login",
+            json={
+                "email": email,
+                "password": password,
+            },
+        )
+
+    def me(self, access_token: str) -> dict[str, Any]:
+        return self._request("GET", "auth/me", access_token=access_token)
+
+    def change_password(
+        self,
+        access_token: str,
+        current_password: str,
+        new_password: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "auth/change-password",
+            access_token=access_token,
+            json={
+                "current_password": current_password,
+                "new_password": new_password,
+            },
+        )
+
+    def list_customers(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "customers", access_token=access_token)
+
+    def create_customer(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "customers",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_customer(
+        self,
+        access_token: str,
+        customer_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"customers/{customer_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def list_equipment(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "equipment", access_token=access_token)
+
+    def create_equipment(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "equipment",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_equipment(
+        self,
+        access_token: str,
+        equipment_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"equipment/{equipment_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def list_inventory(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "inventory", access_token=access_token)
+
+    def create_inventory_item(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "inventory",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_inventory_item(
+        self,
+        access_token: str,
+        item_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"inventory/{item_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def list_service_orders(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "service-orders", access_token=access_token)
+
+    def create_service_order(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "service-orders",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_service_order(
+        self,
+        access_token: str,
+        service_order_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"service-orders/{service_order_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def register_service_order_diagnosis(
+        self,
+        access_token: str,
+        service_order_id: str,
+        technical_diagnosis: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/diagnosis",
+            access_token=access_token,
+            json={"technical_diagnosis": technical_diagnosis},
+        )
+
+    def add_service_order_budget_item(
+        self,
+        access_token: str,
+        service_order_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/budget-items",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def submit_service_order_quote(
+        self,
+        access_token: str,
+        service_order_id: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/submit-quote",
+            access_token=access_token,
+        )
+
+    def approve_service_order(self, access_token: str, service_order_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/approve",
+            access_token=access_token,
+        )
+
+    def reject_service_order(
+        self,
+        access_token: str,
+        service_order_id: str,
+        rejection_reason: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/reject",
+            access_token=access_token,
+            json={"rejection_reason": rejection_reason},
+        )
+
+    def start_service_order(self, access_token: str, service_order_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/start",
+            access_token=access_token,
+        )
+
+    def complete_service_order(self, access_token: str, service_order_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"service-orders/{service_order_id}/complete",
+            access_token=access_token,
+        )
+
+    def list_technicians(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "users/technicians", access_token=access_token)
+
+    def list_users(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "users", access_token=access_token)
+
+    def create_user(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "users",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_user(
+        self,
+        access_token: str,
+        user_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"users/{user_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def reset_user_password(
+        self,
+        access_token: str,
+        user_id: str,
+        new_password: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"users/{user_id}/reset-password",
+            access_token=access_token,
+            json={"new_password": new_password},
+        )
+
+    def get_settings(self, access_token: str) -> dict[str, Any]:
+        return self._request("GET", "settings", access_token=access_token)
+
+    def update_settings(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            "settings",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def _request_list(
+        self,
+        method: str,
+        path: str,
+        access_token: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        data = self._request(method, path, access_token=access_token, **kwargs)
+        if not isinstance(data, list):
+            raise ApiError("Resposta inesperada do backend.")
+
+        return data
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        access_token: str | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        headers = dict(kwargs.pop("headers", {}))
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
+
+        try:
+            response = self._client.request(method, path, headers=headers, **kwargs)
+        except httpx.ConnectError as exc:
+            raise ApiError("Nao foi possivel conectar ao backend.") from exc
+        except httpx.TimeoutException as exc:
+            raise ApiError("Tempo limite excedido ao conectar ao backend.") from exc
+        except httpx.HTTPError as exc:
+            raise ApiError(f"Falha de comunicacao com o backend: {exc}") from exc
+
+        if response.is_error:
+            raise ApiError(self._extract_error_message(response), response.status_code)
+
+        return response.json()
+
+    @staticmethod
+    def _extract_error_message(response: httpx.Response) -> str:
+        try:
+            body = response.json()
+        except ValueError:
+            return response.text or "Erro inesperado do backend."
+
+        detail = body.get("detail")
+        if isinstance(detail, str):
+            return detail
+
+        if isinstance(detail, list) and detail:
+            first_error = detail[0]
+            if isinstance(first_error, dict) and "msg" in first_error:
+                return str(first_error["msg"])
+
+        return "Erro inesperado do backend."

@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "charliermarsh.ruff",
+    "ms-azuretools.vscode-docker",
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+    "mikestead.dotenv",
+    "humao.rest-client",
+    "eamodio.gitlens",
+    "tamasfe.even-better-toml"
+  ]
+}
+

@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from backend.app.core.security import hash_password, verify_password
+from backend.app.models.enums import UserRole
+from backend.app.models.user import User
+from backend.app.schemas.user import UserCreate, UserUpdate
+from backend.app.services.crud import apply_updates
+
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def get_user_by_id(db: Session, user_id: uuid.UUID) -> User | None:
+    return db.get(User, user_id)
+
+
+def get_user_by_email(db: Session, email: str) -> User | None:
+    statement = select(User).where(User.email == normalize_email(email))
+    return db.scalars(statement).first()
+
+
+def get_company_user(db: Session, company_id: uuid.UUID, user_id: uuid.UUID) -> User | None:
+    statement = select(User).where(
+        User.id == user_id,
+        User.company_id == company_id,
+    )
+    return db.scalars(statement).first()
+
+
+def get_company_user_by_email(db: Session, company_id: uuid.UUID, email: str) -> User | None:
+    statement = select(User).where(
+        User.company_id == company_id,
+        User.email == normalize_email(email),
+    )
+    return db.scalars(statement).first()
+
+
+def list_company_users(db: Session, company_id: uuid.UUID) -> list[User]:
+    statement = (
+        select(User)
+        .where(User.company_id == company_id)
+        .order_by(User.full_name)
+    )
+    return list(db.scalars(statement))
+
+
+def list_users_by_role(db: Session, company_id: uuid.UUID, role: UserRole) -> list[User]:
+    statement = (
+        select(User)
+        .where(
+            User.company_id == company_id,
+            User.role == role,
+            User.is_active.is_(True),
+        )
+        .order_by(User.full_name)
+    )
+    return list(db.scalars(statement))
+
+
+def create_user_account(db: Session, company_id: uuid.UUID, payload: UserCreate) -> User:
+    if get_company_user_by_email(db, company_id, payload.email):
+        raise ValueError("Email already registered for this company.")
+
+    user = User(
+        company_id=company_id,
+        sector_id=payload.sector_id,
+        full_name=payload.full_name,
+        email=normalize_email(payload.email),
+        password_hash=hash_password(payload.password),
+        role=payload.role,
+        is_active=True,
+        must_change_password=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_user_account(
+    db: Session,
+    company_id: uuid.UUID,
+    user: User,
+    payload: UserUpdate,
+) -> User:
+    update_data = payload.model_dump(exclude_unset=True)
+    new_email = update_data.get("email")
+    if new_email:
+        existing_user = get_company_user_by_email(db, company_id, new_email)
+        if existing_user and existing_user.id != user.id:
+            raise ValueError("Email already registered for this company.")
+
+    apply_updates(user, payload)
+    if user.email:
+        user.email = normalize_email(user.email)
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def reset_user_password(db: Session, user: User, new_password: str) -> User:
+    user.password_hash = hash_password(new_password)
+    user.must_change_password = True
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def authenticate_user(db: Session, email: str, password: str) -> User | None:
+    user = get_user_by_email(db, email)
+    if user is None or not user.is_active:
+        return None
+
+    if not verify_password(password, user.password_hash):
+        return None
+
+    return user
+
+
+def change_user_password(db: Session, user: User, current_password: str, new_password: str) -> User:
+    if not verify_password(current_password, user.password_hash):
+        raise ValueError("Current password is invalid.")
+
+    if verify_password(new_password, user.password_hash):
+        raise ValueError("New password must be different from the current password.")
+
+    user.password_hash = hash_password(new_password)
+    user.must_change_password = False
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user

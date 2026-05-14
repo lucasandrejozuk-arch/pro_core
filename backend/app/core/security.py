@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import bcrypt
+import jwt
+from jwt import InvalidTokenError
+
+from backend.app.core.config import get_settings
+
+JWT_ALGORITHM = "HS256"
+
+
+def hash_password(password: str) -> str:
+    password_bytes = password.encode("utf-8")
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt(rounds=12)).decode("utf-8")
+
+
+def verify_password(plain_password: str, password_hash: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+
+
+def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
+    settings = get_settings()
+    expires_at = datetime.now(UTC) + timedelta(
+        minutes=settings.pro_core_access_token_expire_minutes
+    )
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "exp": expires_at,
+        "iat": datetime.now(UTC),
+        "type": "access",
+    }
+
+    if extra_claims:
+        payload.update(extra_claims)
+
+    return jwt.encode(payload, settings.pro_core_secret_key, algorithm=JWT_ALGORITHM)
+
+
+def decode_access_token(token: str) -> dict[str, Any]:
+    settings = get_settings()
+
+    try:
+        payload = jwt.decode(token, settings.pro_core_secret_key, algorithms=[JWT_ALGORITHM])
+    except InvalidTokenError as exc:
+        raise ValueError("Invalid access token.") from exc
+
+    if payload.get("type") != "access":
+        raise ValueError("Invalid token type.")
+
+    return payload
+
