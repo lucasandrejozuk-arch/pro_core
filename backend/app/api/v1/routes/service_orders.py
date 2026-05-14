@@ -31,9 +31,63 @@ from backend.app.services.service_orders import (
     submit_quote,
     update_service_order,
 )
+from backend.app.services.users import list_users_by_role
 
 router = APIRouter(prefix="/service-orders", tags=["service-orders"])
 staff_user = require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.TECHNICIAN)
+
+
+def _scoped_technician_ids(db: Session, current_user: User) -> set[uuid.UUID] | None:
+    if current_user.role == UserRole.ADMIN:
+        return None
+
+    if current_user.role == UserRole.TECHNICIAN:
+        return {current_user.id}
+
+    if current_user.sector_id is None:
+        return set()
+
+    technicians = list_users_by_role(
+        db,
+        current_user.company_id,
+        UserRole.TECHNICIAN,
+        sector_id=current_user.sector_id,
+    )
+    return {technician.id for technician in technicians}
+
+
+def _ensure_service_order_access(
+    db: Session,
+    current_user: User,
+    service_order,
+) -> None:
+    allowed_technician_ids = _scoped_technician_ids(db, current_user)
+    if allowed_technician_ids is None:
+        return
+
+    if service_order.assigned_technician_id in allowed_technician_ids:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Service order is outside the current user's operational scope.",
+    )
+
+
+def _ensure_assignment_scope(
+    db: Session,
+    current_user: User,
+    assigned_technician_id: uuid.UUID | None,
+) -> None:
+    if current_user.role == UserRole.ADMIN or assigned_technician_id is None:
+        return
+
+    allowed_technician_ids = _scoped_technician_ids(db, current_user)
+    if assigned_technician_id not in (allowed_technician_ids or set()):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Assigned technician is outside the current user's operational scope.",
+        )
 
 
 @router.get("", response_model=list[ServiceOrderResponse])
@@ -43,11 +97,18 @@ def list_service_order_records(
     current_user: User = Depends(staff_user),
     db: Session = Depends(get_db),
 ) -> list[ServiceOrderResponse]:
+    assigned_technician_ids = _scoped_technician_ids(db, current_user)
+    if assigned_technician_ids is not None and assigned_technician_id is not None:
+        if assigned_technician_id not in assigned_technician_ids:
+            return []
+        assigned_technician_ids = None
+
     return list_service_orders(
         db=db,
         company_id=current_user.company_id,
         status=status_filter,
         assigned_technician_id=assigned_technician_id,
+        assigned_technician_ids=assigned_technician_ids,
     )
 
 
@@ -57,6 +118,7 @@ def create_service_order_record(
     current_user: User = Depends(staff_user),
     db: Session = Depends(get_db),
 ) -> ServiceOrderResponse:
+    _ensure_assignment_scope(db, current_user, payload.assigned_technician_id)
     try:
         return create_service_order(db, current_user.company_id, payload)
     except ValueError as exc:
@@ -73,6 +135,7 @@ def get_service_order_record(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return service_order
 
 
@@ -86,6 +149,10 @@ def update_service_order_record(
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+
+    _ensure_service_order_access(db, current_user, service_order)
+    if "assigned_technician_id" in payload.model_dump(exclude_unset=True):
+        _ensure_assignment_scope(db, current_user, payload.assigned_technician_id)
 
     try:
         return update_service_order(db, current_user.company_id, service_order, payload)
@@ -104,6 +171,7 @@ def register_service_order_diagnosis(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return register_diagnosis(db, service_order, payload)
 
 
@@ -122,6 +190,7 @@ def add_service_order_budget_item(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     try:
         return add_budget_item(db, current_user.company_id, service_order, payload)
     except ValueError as exc:
@@ -138,6 +207,7 @@ def submit_service_order_quote(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return submit_quote(db, service_order)
 
 
@@ -151,6 +221,7 @@ def approve_service_order_record(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return approve_service_order(db, service_order)
 
 
@@ -165,6 +236,7 @@ def reject_service_order_record(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return reject_service_order(db, service_order, payload)
 
 
@@ -178,6 +250,7 @@ def start_service_order_record(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return start_service_order(db, service_order)
 
 
@@ -191,5 +264,5 @@ def complete_service_order_record(
     if service_order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
 
+    _ensure_service_order_access(db, current_user, service_order)
     return complete_service_order(db, service_order)
-

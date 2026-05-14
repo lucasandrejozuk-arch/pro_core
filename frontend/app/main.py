@@ -45,6 +45,8 @@ class ProCoreApplication:
         self.dashboard_window.equipment_update_requested.connect(self.handle_equipment_update)
         self.dashboard_window.inventory_create_requested.connect(self.handle_inventory_create)
         self.dashboard_window.inventory_update_requested.connect(self.handle_inventory_update)
+        self.dashboard_window.sector_create_requested.connect(self.handle_sector_create)
+        self.dashboard_window.sector_update_requested.connect(self.handle_sector_update)
         self.dashboard_window.service_order_create_requested.connect(self.handle_service_order_create)
         self.dashboard_window.service_order_update_requested.connect(self.handle_service_order_update)
         self.dashboard_window.service_order_diagnosis_requested.connect(
@@ -176,6 +178,11 @@ class ProCoreApplication:
                 self.dashboard_window.render_report(report)
                 return
 
+            user_sectors = (
+                self.api_client.list_sectors(self.session.access_token)
+                if module_key == "users"
+                else None
+            )
             equipment_customers = (
                 self.api_client.list_customers(self.session.access_token)
                 if module_key == "equipment"
@@ -195,6 +202,14 @@ class ProCoreApplication:
             self.dashboard_window.render_error(title, exc.message, module_key)
             return
 
+        if user_sectors is not None:
+            sector_names = {
+                str(sector["id"]): str(sector.get("name") or "")
+                for sector in user_sectors
+            }
+            for row in rows:
+                row["sector_name"] = sector_names.get(str(row.get("sector_id")), "")
+            self.dashboard_window.set_user_sectors(user_sectors)
         if equipment_customers is not None:
             self.dashboard_window.set_equipment_customers(equipment_customers)
         if service_order_dependencies is not None:
@@ -303,6 +318,40 @@ class ProCoreApplication:
         self.dashboard_window.set_inventory_form_loading(False)
         self.dashboard_window.set_inventory_form_status("Item de estoque atualizado.")
         self.load_module("inventory")
+
+    def handle_sector_create(self, payload: dict) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_sector_form_loading(True)
+        try:
+            self.api_client.create_sector(self.session.access_token, payload)
+        except ApiError as exc:
+            self.dashboard_window.set_sector_form_loading(False)
+            self.dashboard_window.set_sector_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_sector_form_loading(False)
+        self.dashboard_window.set_sector_form_status("Setor criado.")
+        self.load_module("sectors")
+
+    def handle_sector_update(self, sector_id: str, payload: dict) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_sector_form_loading(True)
+        try:
+            self.api_client.update_sector(self.session.access_token, sector_id, payload)
+        except ApiError as exc:
+            self.dashboard_window.set_sector_form_loading(False)
+            self.dashboard_window.set_sector_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_sector_form_loading(False)
+        self.dashboard_window.set_sector_form_status("Setor atualizado.")
+        self.load_module("sectors")
 
     def handle_service_order_create(self, payload: dict) -> None:
         if not self.session.access_token:
@@ -610,6 +659,8 @@ class ProCoreApplication:
             return self.api_client.list_inventory(access_token)
         if module_key == "users":
             return self.api_client.list_users(access_token)
+        if module_key == "sectors":
+            return self.api_client.list_sectors(access_token)
         return self.api_client.list_service_orders(access_token)
 
     @staticmethod
@@ -655,8 +706,19 @@ class ProCoreApplication:
                     ("Nome", "full_name"),
                     ("Email", "email"),
                     ("Perfil", "role"),
+                    ("Setor", "sector_name"),
                     ("Ativo", "is_active"),
                     ("Troca senha", "must_change_password"),
+                ],
+            )
+
+        if module_key == "sectors":
+            return (
+                "Setores",
+                [
+                    ("Nome", "name"),
+                    ("Descricao", "description"),
+                    ("Criado em", "created_at"),
                 ],
             )
 

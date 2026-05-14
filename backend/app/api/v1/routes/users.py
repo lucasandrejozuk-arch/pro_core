@@ -31,11 +31,56 @@ admin_or_manager_user = require_roles(UserRole.ADMIN, UserRole.MANAGER)
 admin_user = require_roles(UserRole.ADMIN)
 
 
-def _validate_manager_scope(current_user: User, role: UserRole | None) -> None:
-    if current_user.role == UserRole.MANAGER and role not in {None, UserRole.TECHNICIAN}:
+def _require_manager_sector(current_user: User) -> uuid.UUID:
+    if current_user.sector_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Managers can only manage technician users in this MVP.",
+            detail="Managers must belong to a sector to manage users.",
+        )
+
+    return current_user.sector_id
+
+
+def _scope_manager_create_payload(current_user: User, payload: UserCreate) -> UserCreate:
+    if current_user.role != UserRole.MANAGER:
+        return payload
+
+    manager_sector_id = _require_manager_sector(current_user)
+    if payload.role != UserRole.TECHNICIAN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers can only create technician users in their own sector.",
+        )
+
+    return payload.model_copy(update={"sector_id": manager_sector_id})
+
+
+def _validate_manager_update_scope(
+    current_user: User,
+    user: User,
+    payload: UserUpdate,
+) -> None:
+    if current_user.role != UserRole.MANAGER:
+        return
+
+    manager_sector_id = _require_manager_sector(current_user)
+    if user.role != UserRole.TECHNICIAN or user.sector_id != manager_sector_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers can only manage technician users in their own sector.",
+        )
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if update_data.get("role") not in {None, UserRole.TECHNICIAN}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers can only manage technician users in their own sector.",
+        )
+
+    if "sector_id" in update_data and update_data["sector_id"] != manager_sector_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers can only manage technician users in their own sector.",
         )
 
 
@@ -44,11 +89,17 @@ def list_user_records(
     current_user: User = Depends(admin_or_manager_user),
     db: Session = Depends(get_db),
 ) -> list[User]:
-    users = list_company_users(db, current_user.company_id)
     if current_user.role == UserRole.MANAGER:
-        return [user for user in users if user.role == UserRole.TECHNICIAN]
+        if current_user.sector_id is None:
+            return []
+        return list_company_users(
+            db,
+            current_user.company_id,
+            sector_id=current_user.sector_id,
+            role=UserRole.TECHNICIAN,
+        )
 
-    return users
+    return list_company_users(db, current_user.company_id)
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -57,7 +108,7 @@ def create_user_record(
     current_user: User = Depends(admin_or_manager_user),
     db: Session = Depends(get_db),
 ) -> User:
-    _validate_manager_scope(current_user, payload.role)
+    payload = _scope_manager_create_payload(current_user, payload)
     try:
         return create_user_account(db, current_user.company_id, payload)
     except ValueError as exc:
@@ -71,16 +122,11 @@ def update_user_record(
     current_user: User = Depends(admin_or_manager_user),
     db: Session = Depends(get_db),
 ) -> User:
-    _validate_manager_scope(current_user, payload.role)
     user = get_company_user(db, current_user.company_id, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
-    if current_user.role == UserRole.MANAGER and user.role != UserRole.TECHNICIAN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Managers can only manage technician users in this MVP.",
-        )
+    _validate_manager_update_scope(current_user, user, payload)
 
     try:
         return update_user_account(db, current_user.company_id, user, payload)
@@ -107,4 +153,14 @@ def list_technicians(
     current_user: User = Depends(staff_user),
     db: Session = Depends(get_db),
 ) -> list[User]:
+    if current_user.role in {UserRole.MANAGER, UserRole.TECHNICIAN}:
+        if current_user.sector_id is None:
+            return []
+        return list_users_by_role(
+            db,
+            current_user.company_id,
+            UserRole.TECHNICIAN,
+            sector_id=current_user.sector_id,
+        )
+
     return list_users_by_role(db, current_user.company_id, UserRole.TECHNICIAN)

@@ -15,6 +15,7 @@ from backend.app.db.session import get_db
 from backend.app.main import create_app
 from backend.app.models.company import Company
 from backend.app.models.enums import UserRole
+from backend.app.models.sector import Sector
 from backend.app.models.user import User
 
 
@@ -64,9 +65,11 @@ def create_user(
     role: UserRole,
     email: str,
     full_name: str,
+    sector: Sector | None = None,
 ) -> User:
     user = User(
         company_id=company.id,
+        sector_id=sector.id if sector else None,
         full_name=full_name,
         email=email,
         password_hash=hash_password("OldPassword123"),
@@ -109,4 +112,3 @@ def auth_headers(client: TestClient, admin_user: User) -> dict[str, str]:
     )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
-

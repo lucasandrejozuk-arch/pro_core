@@ -28,6 +28,7 @@ def list_service_orders(
     company_id: uuid.UUID,
     status: ServiceOrderStatus | None = None,
     assigned_technician_id: uuid.UUID | None = None,
+    assigned_technician_ids: set[uuid.UUID] | None = None,
 ) -> list[ServiceOrder]:
     statement = (
         select(ServiceOrder)
@@ -44,6 +45,11 @@ def list_service_orders(
 
     if assigned_technician_id is not None:
         statement = statement.where(ServiceOrder.assigned_technician_id == assigned_technician_id)
+
+    if assigned_technician_ids is not None:
+        if not assigned_technician_ids:
+            return []
+        statement = statement.where(ServiceOrder.assigned_technician_id.in_(assigned_technician_ids))
 
     return list(db.scalars(statement))
 

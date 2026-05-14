@@ -10,6 +10,7 @@ from backend.app.models.enums import UserRole
 from backend.app.models.user import User
 from backend.app.schemas.user import UserCreate, UserUpdate
 from backend.app.services.crud import apply_updates
+from backend.app.services.sectors import get_sector
 
 
 def normalize_email(email: str) -> str:
@@ -41,23 +42,39 @@ def get_company_user_by_email(db: Session, company_id: uuid.UUID, email: str) ->
     return db.scalars(statement).first()
 
 
-def list_company_users(db: Session, company_id: uuid.UUID) -> list[User]:
-    statement = (
-        select(User)
-        .where(User.company_id == company_id)
-        .order_by(User.full_name)
-    )
+def list_company_users(
+    db: Session,
+    company_id: uuid.UUID,
+    sector_id: uuid.UUID | None = None,
+    role: UserRole | None = None,
+) -> list[User]:
+    filters = [User.company_id == company_id]
+    if sector_id is not None:
+        filters.append(User.sector_id == sector_id)
+    if role is not None:
+        filters.append(User.role == role)
+
+    statement = select(User).where(*filters).order_by(User.full_name)
     return list(db.scalars(statement))
 
 
-def list_users_by_role(db: Session, company_id: uuid.UUID, role: UserRole) -> list[User]:
+def list_users_by_role(
+    db: Session,
+    company_id: uuid.UUID,
+    role: UserRole,
+    sector_id: uuid.UUID | None = None,
+) -> list[User]:
+    filters = [
+        User.company_id == company_id,
+        User.role == role,
+        User.is_active.is_(True),
+    ]
+    if sector_id is not None:
+        filters.append(User.sector_id == sector_id)
+
     statement = (
         select(User)
-        .where(
-            User.company_id == company_id,
-            User.role == role,
-            User.is_active.is_(True),
-        )
+        .where(*filters)
         .order_by(User.full_name)
     )
     return list(db.scalars(statement))
@@ -66,6 +83,8 @@ def list_users_by_role(db: Session, company_id: uuid.UUID, role: UserRole) -> li
 def create_user_account(db: Session, company_id: uuid.UUID, payload: UserCreate) -> User:
     if get_company_user_by_email(db, company_id, payload.email):
         raise ValueError("Email already registered for this company.")
+
+    _validate_user_sector(db, company_id, payload.sector_id)
 
     user = User(
         company_id=company_id,
@@ -96,6 +115,9 @@ def update_user_account(
         if existing_user and existing_user.id != user.id:
             raise ValueError("Email already registered for this company.")
 
+    if "sector_id" in update_data:
+        _validate_user_sector(db, company_id, update_data["sector_id"])
+
     apply_updates(user, payload)
     if user.email:
         user.email = normalize_email(user.email)
@@ -104,6 +126,18 @@ def update_user_account(
     db.commit()
     db.refresh(user)
     return user
+
+
+def _validate_user_sector(
+    db: Session,
+    company_id: uuid.UUID,
+    sector_id: uuid.UUID | None,
+) -> None:
+    if sector_id is None:
+        return
+
+    if get_sector(db, company_id, sector_id) is None:
+        raise ValueError("Sector not found for this company.")
 
 
 def reset_user_password(db: Session, user: User, new_password: str) -> User:

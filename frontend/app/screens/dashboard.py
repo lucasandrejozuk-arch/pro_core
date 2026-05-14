@@ -35,6 +35,8 @@ class DashboardWindow(QWidget):
     equipment_update_requested = Signal(str, dict)
     inventory_create_requested = Signal(dict)
     inventory_update_requested = Signal(str, dict)
+    sector_create_requested = Signal(dict)
+    sector_update_requested = Signal(str, dict)
     service_order_create_requested = Signal(dict)
     service_order_update_requested = Signal(str, dict)
     service_order_diagnosis_requested = Signal(str, str)
@@ -61,13 +63,16 @@ class DashboardWindow(QWidget):
         self.selected_equipment_id: str | None = None
         self.selected_inventory_item_id: str | None = None
         self.selected_service_order_id: str | None = None
+        self.selected_sector_id: str | None = None
         self.selected_user_id: str | None = None
         self.selected_service_order_document_path: str | None = None
         self.current_report_module_key = "service_orders"
+        self.current_user_role = ""
         self.equipment_customers: list[dict[str, Any]] = []
         self.service_order_customers: list[dict[str, Any]] = []
         self.service_order_equipment: list[dict[str, Any]] = []
         self.service_order_technicians: list[dict[str, Any]] = []
+        self.user_sectors: list[dict[str, Any]] = []
 
         self.setWindowTitle("PRO CORE - Dashboard")
         self.setMinimumSize(1120, 720)
@@ -96,6 +101,7 @@ class DashboardWindow(QWidget):
             "customers": "Clientes",
             "equipment": "Equipamentos",
             "inventory": "Estoque",
+            "sectors": "Setores",
             "users": "Usuarios",
             "settings": "Configuracoes",
             "reports": "Relatorios",
@@ -182,6 +188,8 @@ class DashboardWindow(QWidget):
         self.inventory_form_panel.hide()
         self.service_order_form_panel = self._build_service_order_form()
         self.service_order_form_panel.hide()
+        self.sector_form_panel = self._build_sector_form()
+        self.sector_form_panel.hide()
         self.user_form_panel = self._build_user_form()
         self.user_form_panel.hide()
         self.settings_form_panel = self._build_settings_form()
@@ -199,6 +207,7 @@ class DashboardWindow(QWidget):
         content_layout.addWidget(self.equipment_form_panel)
         content_layout.addWidget(self.inventory_form_panel)
         content_layout.addWidget(self.service_order_form_panel)
+        content_layout.addWidget(self.sector_form_panel)
         content_layout.addWidget(self.user_form_panel)
         content_layout.addWidget(self.settings_form_panel)
         content_layout.addWidget(self.report_form_panel)
@@ -217,12 +226,15 @@ class DashboardWindow(QWidget):
 
     def set_user(self, user: dict[str, Any]) -> None:
         role_key = str(user.get("role", ""))
+        self.current_user_role = role_key
         role = role_key.replace("_", " ").title()
         full_name = user.get("full_name", "Usuario")
         email = user.get("email", "")
         self.user_label.setText(f"{full_name} | {email} | Perfil: {role}")
         if "users" in self.module_buttons:
             self.module_buttons["users"].setVisible(role_key in {"admin", "manager"})
+        if "sectors" in self.module_buttons:
+            self.module_buttons["sectors"].setVisible(role_key in {"admin", "manager"})
         if "settings" in self.module_buttons:
             self.module_buttons["settings"].setVisible(role_key == "admin")
         if "reports" in self.module_buttons:
@@ -281,6 +293,8 @@ class DashboardWindow(QWidget):
         elif module_key == "inventory":
             self.table.selectRow(0)
         elif module_key == "service_orders":
+            self.table.selectRow(0)
+        elif module_key == "sectors":
             self.table.selectRow(0)
         elif module_key == "users":
             self.table.selectRow(0)
@@ -685,6 +699,49 @@ class DashboardWindow(QWidget):
 
         return panel
 
+    def _build_sector_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+
+        title = QLabel("Gestao de setores")
+        title.setObjectName("sectionTitle")
+
+        self.sector_name_input = QLineEdit()
+        self.sector_name_input.setPlaceholderText("Nome do setor")
+
+        self.sector_description_input = QLineEdit()
+        self.sector_description_input.setPlaceholderText("Descricao")
+
+        form_layout = QFormLayout()
+        form_layout.setSpacing(10)
+        form_layout.addRow("Nome", self.sector_name_input)
+        form_layout.addRow("Descricao", self.sector_description_input)
+
+        self.sector_form_status = QLabel("")
+        self.sector_form_status.setObjectName("mutedText")
+
+        self.sector_new_button = QPushButton("Novo")
+        self.sector_new_button.setObjectName("secondaryButton")
+        self.sector_new_button.clicked.connect(self.clear_sector_form)
+
+        self.sector_save_button = QPushButton("Salvar setor")
+        self.sector_save_button.clicked.connect(self._request_sector_save)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.sector_new_button)
+        actions.addWidget(self.sector_save_button)
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addLayout(form_layout)
+        layout.addWidget(self.sector_form_status)
+        layout.addLayout(actions)
+
+        return panel
+
     def _build_user_form(self) -> QFrame:
         panel = QFrame()
         panel.setObjectName("formPanel")
@@ -704,6 +761,8 @@ class DashboardWindow(QWidget):
         self.user_role_combo.addItem("Tecnico", "technician")
         self.user_role_combo.addItem("Cliente", "customer")
 
+        self.user_sector_combo = QComboBox()
+
         self.user_initial_password_input = QLineEdit()
         self.user_initial_password_input.setPlaceholderText("Senha inicial")
         self.user_initial_password_input.setEchoMode(QLineEdit.EchoMode.Password)
@@ -720,6 +779,7 @@ class DashboardWindow(QWidget):
         form_layout.addRow("Nome", self.user_full_name_input)
         form_layout.addRow("Email", self.user_email_input)
         form_layout.addRow("Perfil", self.user_role_combo)
+        form_layout.addRow("Setor", self.user_sector_combo)
         form_layout.addRow("Senha inicial", self.user_initial_password_input)
         form_layout.addRow("", self.user_active_checkbox)
         form_layout.addRow("Redefinir senha", self.user_reset_password_input)
@@ -1070,12 +1130,59 @@ class DashboardWindow(QWidget):
         self.service_order_select_document_button.setEnabled(enabled)
         self.service_order_upload_document_button.setEnabled(enabled)
 
+    def set_user_sectors(self, sectors: list[dict[str, Any]]) -> None:
+        current_sector_id = self.user_sector_combo.currentData()
+        self.user_sectors = sectors
+        self.user_sector_combo.clear()
+        self.user_sector_combo.addItem("Sem setor", "")
+
+        for sector in sectors:
+            self.user_sector_combo.addItem(
+                str(sector.get("name") or "Setor sem nome"),
+                str(sector["id"]),
+            )
+
+        if current_sector_id:
+            self._select_combo_value(self.user_sector_combo, str(current_sector_id))
+        elif len(sectors) == 1:
+            self.user_sector_combo.setCurrentIndex(1)
+
+    def clear_sector_form(self) -> None:
+        self.selected_sector_id = None
+        self.sector_name_input.clear()
+        self.sector_description_input.clear()
+        self.sector_form_status.setText("Novo setor.")
+        is_admin = self.current_user_role == "admin"
+        self.sector_new_button.setEnabled(is_admin)
+        self.sector_save_button.setEnabled(is_admin)
+        self.sector_name_input.setEnabled(is_admin)
+        self.sector_description_input.setEnabled(is_admin)
+        if not is_admin:
+            self.sector_form_status.setText("Setor disponivel apenas para consulta.")
+        self.table.clearSelection()
+
+    def set_sector_form_status(self, message: str, is_error: bool = False) -> None:
+        self.sector_form_status.setObjectName("errorText" if is_error else "mutedText")
+        self.sector_form_status.setText(message)
+        self.sector_form_status.style().unpolish(self.sector_form_status)
+        self.sector_form_status.style().polish(self.sector_form_status)
+
+    def set_sector_form_loading(self, is_loading: bool) -> None:
+        is_admin = self.current_user_role == "admin"
+        self.sector_save_button.setEnabled(is_admin and not is_loading)
+        self.sector_new_button.setEnabled(is_admin and not is_loading)
+        self.sector_save_button.setText("Salvando..." if is_loading else "Salvar setor")
+
     def clear_user_form(self) -> None:
         self.selected_user_id = None
         self.user_full_name_input.clear()
         self.user_email_input.clear()
         if self.user_role_combo.count() > 0:
             self.user_role_combo.setCurrentIndex(2)
+        if self.user_sector_combo.count() > 1:
+            self.user_sector_combo.setCurrentIndex(1)
+        elif self.user_sector_combo.count() > 0:
+            self.user_sector_combo.setCurrentIndex(0)
         self.user_initial_password_input.clear()
         self.user_initial_password_input.setEnabled(True)
         self.user_active_checkbox.setChecked(True)
@@ -1175,6 +1282,7 @@ class DashboardWindow(QWidget):
         self.equipment_form_panel.setVisible(module_key == "equipment")
         self.inventory_form_panel.setVisible(module_key == "inventory")
         self.service_order_form_panel.setVisible(module_key == "service_orders")
+        self.sector_form_panel.setVisible(module_key == "sectors")
         self.user_form_panel.setVisible(module_key == "users")
         self.settings_form_panel.setVisible(module_key == "settings")
         self.report_form_panel.setVisible(module_key == "reports")
@@ -1186,6 +1294,8 @@ class DashboardWindow(QWidget):
             self.clear_inventory_form()
         elif module_key == "service_orders":
             self.clear_service_order_form()
+        elif module_key == "sectors":
+            self.clear_sector_form()
         elif module_key == "users":
             self.clear_user_form()
         elif module_key == "settings":
@@ -1199,6 +1309,7 @@ class DashboardWindow(QWidget):
             "equipment",
             "inventory",
             "service_orders",
+            "sectors",
             "users",
         }:
             return
@@ -1225,6 +1336,10 @@ class DashboardWindow(QWidget):
 
         if self.active_module_key == "service_orders":
             self._populate_service_order_form(self.current_rows[row_index])
+            return
+
+        if self.active_module_key == "sectors":
+            self._populate_sector_form(self.current_rows[row_index])
             return
 
         self._populate_user_form(self.current_rows[row_index])
@@ -1533,11 +1648,46 @@ class DashboardWindow(QWidget):
         self.set_service_order_form_status("Selecione uma OS.", is_error=True)
         return False
 
+    def _populate_sector_form(self, sector: dict[str, Any]) -> None:
+        self.selected_sector_id = str(sector["id"])
+        self.sector_name_input.setText(str(sector.get("name") or ""))
+        self.sector_description_input.setText(str(sector.get("description") or ""))
+        is_admin = self.current_user_role == "admin"
+        self.sector_new_button.setEnabled(is_admin)
+        self.sector_save_button.setEnabled(is_admin)
+        self.sector_name_input.setEnabled(is_admin)
+        self.sector_description_input.setEnabled(is_admin)
+        status_message = (
+            "Editando setor selecionado."
+            if is_admin
+            else "Setor disponivel apenas para consulta."
+        )
+        self.set_sector_form_status(status_message)
+
+    def _request_sector_save(self) -> None:
+        name = self.sector_name_input.text().strip()
+        if not name:
+            self.set_sector_form_status("Informe o nome do setor.", is_error=True)
+            return
+
+        payload = {
+            "name": name,
+            "description": self._optional_text(self.sector_description_input),
+        }
+
+        self.set_sector_form_status("")
+        if self.selected_sector_id:
+            self.sector_update_requested.emit(self.selected_sector_id, payload)
+            return
+
+        self.sector_create_requested.emit(payload)
+
     def _populate_user_form(self, user: dict[str, Any]) -> None:
         self.selected_user_id = str(user["id"])
         self.user_full_name_input.setText(str(user.get("full_name") or ""))
         self.user_email_input.setText(str(user.get("email") or ""))
         self._select_combo_value(self.user_role_combo, str(user.get("role") or "technician"))
+        self._select_combo_value(self.user_sector_combo, str(user.get("sector_id") or ""))
         self.user_initial_password_input.clear()
         self.user_initial_password_input.setEnabled(False)
         self.user_active_checkbox.setChecked(bool(user.get("is_active", True)))
@@ -1550,6 +1700,7 @@ class DashboardWindow(QWidget):
         full_name = self.user_full_name_input.text().strip()
         email = self.user_email_input.text().strip().lower()
         role = self.user_role_combo.currentData()
+        sector_id = self.user_sector_combo.currentData()
 
         if not full_name:
             self.set_user_form_status("Informe o nome do usuario.", is_error=True)
@@ -1567,7 +1718,7 @@ class DashboardWindow(QWidget):
             "full_name": full_name,
             "email": email,
             "role": str(role),
-            "sector_id": None,
+            "sector_id": str(sector_id) if sector_id else None,
             "is_active": self.user_active_checkbox.isChecked(),
         }
 

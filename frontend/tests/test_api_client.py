@@ -365,6 +365,63 @@ def test_reset_user_password_posts_payload() -> None:
     assert response["must_change_password"] is True
 
 
+def test_list_sectors_returns_list_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/sectors"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[{"name": "Laboratorio"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.list_sectors("token")
+
+    assert response == [{"name": "Laboratorio"}]
+
+
+def test_create_sector_posts_payload() -> None:
+    payload = {"name": "Laboratorio", "description": "Bancada tecnica"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/sectors"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == payload
+        return httpx.Response(201, json=payload | {"id": "sector-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.create_sector("token", payload)
+
+    assert response["id"] == "sector-id"
+
+
+def test_update_sector_patches_payload() -> None:
+    payload = {"name": "Laboratorio", "description": "Atendimento interno"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PATCH"
+        assert request.url.path == "/api/v1/sectors/sector-id"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == payload
+        return httpx.Response(200, json=payload | {"id": "sector-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.update_sector("token", "sector-id", payload)
+
+    assert response["description"] == "Atendimento interno"
+
+
 def test_get_settings_returns_payload() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"

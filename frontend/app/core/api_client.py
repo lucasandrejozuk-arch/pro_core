@@ -317,6 +317,30 @@ class ApiClient:
             json={"new_password": new_password},
         )
 
+    def list_sectors(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "sectors", access_token=access_token)
+
+    def create_sector(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "sectors",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_sector(
+        self,
+        access_token: str,
+        sector_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"sectors/{sector_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
     def get_settings(self, access_token: str) -> dict[str, Any]:
         return self._request("GET", "settings", access_token=access_token)
 

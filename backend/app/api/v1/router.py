@@ -7,6 +7,7 @@ from backend.app.api.v1.routes import (
     equipment,
     inventory,
     reports,
+    sectors,
     service_orders,
     settings,
     users,
@@ -19,6 +20,7 @@ api_router.include_router(documents.router)
 api_router.include_router(equipment.router)
 api_router.include_router(inventory.router)
 api_router.include_router(reports.router)
+api_router.include_router(sectors.router)
 api_router.include_router(service_orders.router)
 api_router.include_router(settings.router)
 api_router.include_router(users.router)

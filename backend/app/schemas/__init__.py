@@ -14,6 +14,7 @@ from backend.app.schemas.inventory import (
     InventoryItemResponse,
     InventoryItemUpdate,
 )
+from backend.app.schemas.sector import SectorCreate, SectorResponse, SectorUpdate
 from backend.app.schemas.service_order import (
     BudgetItemCreate,
     BudgetItemResponse,
@@ -41,6 +42,9 @@ __all__ = [
     "LoginRequest",
     "PasswordChangeRequest",
     "RejectServiceOrderRequest",
+    "SectorCreate",
+    "SectorResponse",
+    "SectorUpdate",
     "ServiceOrderCreate",
     "ServiceOrderResponse",
     "ServiceOrderUpdate",
