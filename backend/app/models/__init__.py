@@ -7,6 +7,7 @@ from backend.app.models.document import DocumentAttachment
 from backend.app.models.equipment import Equipment
 from backend.app.models.enums import BudgetItemType, DocumentType, ServiceOrderStatus, UserRole
 from backend.app.models.inventory import InventoryItem
+from backend.app.models.password_reset import PasswordResetRequest
 from backend.app.models.sector import Sector
 from backend.app.models.service_order import ServiceOrder, ServiceOrderBudgetItem
 from backend.app.models.user import User
@@ -21,6 +22,7 @@ __all__ = [
     "DocumentType",
     "Equipment",
     "InventoryItem",
+    "PasswordResetRequest",
     "Sector",
     "ServiceOrder",
     "ServiceOrderBudgetItem",

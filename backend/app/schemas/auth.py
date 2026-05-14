@@ -43,4 +43,3 @@ class PasswordChangeRequest(BaseModel):
 
 class UserProfileResponse(TokenUser):
     is_active: bool
-

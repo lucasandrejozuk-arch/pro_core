@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from backend.app.models.enums import UserRole
+
+
+class PasswordResetRequestCreate(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class PasswordResetRequestPublicResponse(BaseModel):
+    message: str
+
+
+class PasswordResetResolveRequest(BaseModel):
+    new_password: str = Field(min_length=8, max_length=255)
+
+
+class PasswordResetRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    company_id: uuid.UUID
+    requester_user_id: uuid.UUID
+    requester_email: str
+    requester_full_name: str
+    requester_role: UserRole
+    recipient_role: UserRole
+    recipient_sector_id: uuid.UUID | None
+    status: str
+    resolved_by_user_id: uuid.UUID | None
+    resolved_at: datetime | None
+    created_at: datetime
+    updated_at: datetime

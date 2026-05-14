@@ -14,6 +14,11 @@ from backend.app.schemas.auth import (
     TokenUser,
     UserProfileResponse,
 )
+from backend.app.schemas.password_reset import (
+    PasswordResetRequestCreate,
+    PasswordResetRequestPublicResponse,
+)
+from backend.app.services.password_resets import create_password_reset_request
 from backend.app.services.users import authenticate_user, change_user_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -44,6 +49,17 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
     )
 
 
+@router.post("/password-reset-requests", response_model=PasswordResetRequestPublicResponse)
+def request_password_reset(
+    payload: PasswordResetRequestCreate,
+    db: Session = Depends(get_db),
+) -> PasswordResetRequestPublicResponse:
+    create_password_reset_request(db, payload.email)
+    return PasswordResetRequestPublicResponse(
+        message="Se a conta existir, a solicitacao foi enviada ao responsavel.",
+    )
+
+
 @router.get("/me", response_model=UserProfileResponse)
 def me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
@@ -67,4 +83,3 @@ def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
-

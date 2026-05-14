@@ -16,6 +16,7 @@ PRO CORE is a desktop management platform for small and medium technical assista
 - Splash screen with functional progress bar
 - Login screen
 - Required password change on first access
+- Remembered login email and password reset request workflow
 - Dashboard
 - Service orders
 - Equipment

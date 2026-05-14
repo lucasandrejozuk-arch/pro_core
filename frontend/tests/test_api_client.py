@@ -72,6 +72,23 @@ def test_change_password_posts_expected_payload() -> None:
     assert response["must_change_password"] is False
 
 
+def test_request_password_reset_posts_email() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/auth/password-reset-requests"
+        assert json.loads(request.content) == {"email": "user@example.com"}
+        return httpx.Response(200, json={"message": "Solicitacao enviada."})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.request_password_reset("user@example.com")
+
+    assert response["message"] == "Solicitacao enviada."
+
+
 def test_error_response_raises_api_error_with_backend_detail() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"detail": "Invalid email or password."})
@@ -363,6 +380,45 @@ def test_reset_user_password_posts_payload() -> None:
     response = client.reset_user_password("token", "user-id", "NovaSenha123")
 
     assert response["must_change_password"] is True
+
+
+def test_list_password_reset_requests_returns_list_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/password-reset-requests"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[{"requester_email": "tecnico@example.com"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.list_password_reset_requests("token")
+
+    assert response == [{"requester_email": "tecnico@example.com"}]
+
+
+def test_resolve_password_reset_request_posts_new_password() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/password-reset-requests/request-id/resolve"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == {"new_password": "NovaSenha123"}
+        return httpx.Response(200, json={"id": "request-id", "status": "resolved"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.resolve_password_reset_request(
+        "token",
+        "request-id",
+        "NovaSenha123",
+    )
+
+    assert response["status"] == "resolved"
 
 
 def test_list_sectors_returns_list_payload() -> None:

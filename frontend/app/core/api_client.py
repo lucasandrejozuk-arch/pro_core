@@ -58,6 +58,13 @@ class ApiClient:
             },
         )
 
+    def request_password_reset(self, email: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "auth/password-reset-requests",
+            json={"email": email},
+        )
+
     def list_customers(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "customers", access_token=access_token)
 
@@ -313,6 +320,26 @@ class ApiClient:
         return self._request(
             "POST",
             f"users/{user_id}/reset-password",
+            access_token=access_token,
+            json={"new_password": new_password},
+        )
+
+    def list_password_reset_requests(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list(
+            "GET",
+            "password-reset-requests",
+            access_token=access_token,
+        )
+
+    def resolve_password_reset_request(
+        self,
+        access_token: str,
+        request_id: str,
+        new_password: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"password-reset-requests/{request_id}/resolve",
             access_token=access_token,
             json={"new_password": new_password},
         )

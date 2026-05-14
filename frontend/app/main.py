@@ -35,6 +35,7 @@ class ProCoreApplication:
 
         self.splash.finished.connect(self.show_login)
         self.login_window.login_requested.connect(self.handle_login)
+        self.login_window.password_reset_requested.connect(self.handle_password_reset_request)
         self.password_window.password_change_requested.connect(self.handle_password_change)
         self.dashboard_window.logout_requested.connect(self.handle_logout)
         self.dashboard_window.module_selected.connect(self.load_module)
@@ -74,6 +75,9 @@ class ProCoreApplication:
         self.dashboard_window.user_create_requested.connect(self.handle_user_create)
         self.dashboard_window.user_update_requested.connect(self.handle_user_update)
         self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
+        self.dashboard_window.password_reset_resolve_requested.connect(
+            self.handle_password_reset_resolve
+        )
         self.dashboard_window.settings_update_requested.connect(self.handle_settings_update)
         self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
         self.dashboard_window.report_view_requested.connect(self.handle_report_view)
@@ -107,6 +111,7 @@ class ProCoreApplication:
             access_token=auth_response["access_token"],
             user=auth_response["user"],
         )
+        self.login_window.persist_remembered_user(email.strip().lower())
         self.login_window.hide()
         self.login_window.set_loading(False)
 
@@ -553,6 +558,39 @@ class ProCoreApplication:
         self.dashboard_window.set_user_form_status("Senha redefinida.")
         self.load_module("users")
 
+    def handle_password_reset_request(self, email: str) -> None:
+        self.login_window.set_password_reset_loading(True)
+        try:
+            response = self.api_client.request_password_reset(email)
+        except ApiError as exc:
+            self.login_window.set_password_reset_loading(False)
+            self.login_window.set_error(exc.message)
+            return
+
+        self.login_window.set_password_reset_loading(False)
+        self.login_window.set_info(str(response.get("message") or "Solicitacao enviada."))
+
+    def handle_password_reset_resolve(self, request_id: str, new_password: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_password_reset_form_loading(True)
+        try:
+            self.api_client.resolve_password_reset_request(
+                self.session.access_token,
+                request_id,
+                new_password,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_password_reset_form_loading(False)
+            self.dashboard_window.set_password_reset_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_password_reset_form_loading(False)
+        self.dashboard_window.set_password_reset_form_status("Senha redefinida.")
+        self.load_module("password_resets")
+
     def handle_settings_update(self, payload: dict) -> None:
         if not self.session.access_token:
             self.show_login()
@@ -659,6 +697,8 @@ class ProCoreApplication:
             return self.api_client.list_inventory(access_token)
         if module_key == "users":
             return self.api_client.list_users(access_token)
+        if module_key == "password_resets":
+            return self.api_client.list_password_reset_requests(access_token)
         if module_key == "sectors":
             return self.api_client.list_sectors(access_token)
         return self.api_client.list_service_orders(access_token)
@@ -719,6 +759,18 @@ class ProCoreApplication:
                     ("Nome", "name"),
                     ("Descricao", "description"),
                     ("Criado em", "created_at"),
+                ],
+            )
+
+        if module_key == "password_resets":
+            return (
+                "Solicitacoes de Senha",
+                [
+                    ("Solicitante", "requester_full_name"),
+                    ("Email", "requester_email"),
+                    ("Perfil", "requester_role"),
+                    ("Status", "status"),
+                    ("Criada em", "created_at"),
                 ],
             )
 

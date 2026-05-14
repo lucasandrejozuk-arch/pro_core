@@ -14,6 +14,12 @@ from backend.app.schemas.inventory import (
     InventoryItemResponse,
     InventoryItemUpdate,
 )
+from backend.app.schemas.password_reset import (
+    PasswordResetRequestCreate,
+    PasswordResetRequestPublicResponse,
+    PasswordResetRequestResponse,
+    PasswordResetResolveRequest,
+)
 from backend.app.schemas.sector import SectorCreate, SectorResponse, SectorUpdate
 from backend.app.schemas.service_order import (
     BudgetItemCreate,
@@ -41,6 +47,10 @@ __all__ = [
     "InventoryItemUpdate",
     "LoginRequest",
     "PasswordChangeRequest",
+    "PasswordResetRequestCreate",
+    "PasswordResetRequestPublicResponse",
+    "PasswordResetRequestResponse",
+    "PasswordResetResolveRequest",
     "RejectServiceOrderRequest",
     "SectorCreate",
     "SectorResponse",

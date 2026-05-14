@@ -50,6 +50,7 @@ class DashboardWindow(QWidget):
     user_create_requested = Signal(dict)
     user_update_requested = Signal(str, dict)
     user_password_reset_requested = Signal(str, str)
+    password_reset_resolve_requested = Signal(str, str)
     settings_update_requested = Signal(dict)
     backup_run_requested = Signal()
     report_view_requested = Signal(str)
@@ -65,6 +66,7 @@ class DashboardWindow(QWidget):
         self.selected_service_order_id: str | None = None
         self.selected_sector_id: str | None = None
         self.selected_user_id: str | None = None
+        self.selected_password_reset_request_id: str | None = None
         self.selected_service_order_document_path: str | None = None
         self.current_report_module_key = "service_orders"
         self.current_user_role = ""
@@ -103,6 +105,7 @@ class DashboardWindow(QWidget):
             "inventory": "Estoque",
             "sectors": "Setores",
             "users": "Usuarios",
+            "password_resets": "Solicitacoes de senha",
             "settings": "Configuracoes",
             "reports": "Relatorios",
         }
@@ -192,6 +195,8 @@ class DashboardWindow(QWidget):
         self.sector_form_panel.hide()
         self.user_form_panel = self._build_user_form()
         self.user_form_panel.hide()
+        self.password_reset_form_panel = self._build_password_reset_form()
+        self.password_reset_form_panel.hide()
         self.settings_form_panel = self._build_settings_form()
         self.settings_form_panel.hide()
         self.report_form_panel = self._build_report_form()
@@ -209,6 +214,7 @@ class DashboardWindow(QWidget):
         content_layout.addWidget(self.service_order_form_panel)
         content_layout.addWidget(self.sector_form_panel)
         content_layout.addWidget(self.user_form_panel)
+        content_layout.addWidget(self.password_reset_form_panel)
         content_layout.addWidget(self.settings_form_panel)
         content_layout.addWidget(self.report_form_panel)
         content_layout.addStretch()
@@ -233,6 +239,8 @@ class DashboardWindow(QWidget):
         self.user_label.setText(f"{full_name} | {email} | Perfil: {role}")
         if "users" in self.module_buttons:
             self.module_buttons["users"].setVisible(role_key in {"admin", "manager"})
+        if "password_resets" in self.module_buttons:
+            self.module_buttons["password_resets"].setVisible(role_key in {"admin", "manager"})
         if "sectors" in self.module_buttons:
             self.module_buttons["sectors"].setVisible(role_key in {"admin", "manager"})
         if "settings" in self.module_buttons:
@@ -297,6 +305,8 @@ class DashboardWindow(QWidget):
         elif module_key == "sectors":
             self.table.selectRow(0)
         elif module_key == "users":
+            self.table.selectRow(0)
+        elif module_key == "password_resets":
             self.table.selectRow(0)
 
     def render_settings(self, settings: dict[str, Any]) -> None:
@@ -814,6 +824,46 @@ class DashboardWindow(QWidget):
 
         return panel
 
+    def _build_password_reset_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+
+        title = QLabel("Solicitacoes de redefinicao de senha")
+        title.setObjectName("sectionTitle")
+
+        self.password_reset_requester_label = QLabel("Selecione uma solicitacao.")
+        self.password_reset_requester_label.setObjectName("mutedText")
+        self.password_reset_requester_label.setWordWrap(True)
+
+        self.password_reset_new_password_input = QLineEdit()
+        self.password_reset_new_password_input.setPlaceholderText("Nova senha temporaria")
+        self.password_reset_new_password_input.setEchoMode(QLineEdit.EchoMode.Password)
+
+        form_layout = QFormLayout()
+        form_layout.setSpacing(10)
+        form_layout.addRow("Nova senha", self.password_reset_new_password_input)
+
+        self.password_reset_form_status = QLabel("")
+        self.password_reset_form_status.setObjectName("mutedText")
+
+        self.password_reset_resolve_button = QPushButton("Redefinir senha")
+        self.password_reset_resolve_button.clicked.connect(self._request_password_reset_resolve)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.password_reset_resolve_button)
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addWidget(self.password_reset_requester_label)
+        layout.addLayout(form_layout)
+        layout.addWidget(self.password_reset_form_status)
+        layout.addLayout(actions)
+
+        return panel
+
     def _build_settings_form(self) -> QFrame:
         panel = QFrame()
         panel.setObjectName("formPanel")
@@ -1216,6 +1266,28 @@ class DashboardWindow(QWidget):
             "Redefinindo..." if is_loading else "Redefinir senha"
         )
 
+    def clear_password_reset_form(self) -> None:
+        self.selected_password_reset_request_id = None
+        self.password_reset_requester_label.setText("Selecione uma solicitacao.")
+        self.password_reset_new_password_input.clear()
+        self.password_reset_resolve_button.setEnabled(False)
+        self.password_reset_form_status.setText("")
+        self.table.clearSelection()
+
+    def set_password_reset_form_status(self, message: str, is_error: bool = False) -> None:
+        self.password_reset_form_status.setObjectName("errorText" if is_error else "mutedText")
+        self.password_reset_form_status.setText(message)
+        self.password_reset_form_status.style().unpolish(self.password_reset_form_status)
+        self.password_reset_form_status.style().polish(self.password_reset_form_status)
+
+    def set_password_reset_form_loading(self, is_loading: bool) -> None:
+        self.password_reset_resolve_button.setEnabled(
+            not is_loading and bool(self.selected_password_reset_request_id)
+        )
+        self.password_reset_resolve_button.setText(
+            "Redefinindo..." if is_loading else "Redefinir senha"
+        )
+
     def clear_settings_form(self) -> None:
         self.settings_company_name_input.clear()
         self.settings_trade_name_input.clear()
@@ -1284,6 +1356,7 @@ class DashboardWindow(QWidget):
         self.service_order_form_panel.setVisible(module_key == "service_orders")
         self.sector_form_panel.setVisible(module_key == "sectors")
         self.user_form_panel.setVisible(module_key == "users")
+        self.password_reset_form_panel.setVisible(module_key == "password_resets")
         self.settings_form_panel.setVisible(module_key == "settings")
         self.report_form_panel.setVisible(module_key == "reports")
         if module_key == "customers":
@@ -1298,6 +1371,8 @@ class DashboardWindow(QWidget):
             self.clear_sector_form()
         elif module_key == "users":
             self.clear_user_form()
+        elif module_key == "password_resets":
+            self.clear_password_reset_form()
         elif module_key == "settings":
             self.clear_settings_form()
         elif module_key == "reports":
@@ -1311,6 +1386,7 @@ class DashboardWindow(QWidget):
             "service_orders",
             "sectors",
             "users",
+            "password_resets",
         }:
             return
 
@@ -1340,6 +1416,10 @@ class DashboardWindow(QWidget):
 
         if self.active_module_key == "sectors":
             self._populate_sector_form(self.current_rows[row_index])
+            return
+
+        if self.active_module_key == "password_resets":
+            self._populate_password_reset_form(self.current_rows[row_index])
             return
 
         self._populate_user_form(self.current_rows[row_index])
@@ -1750,6 +1830,38 @@ class DashboardWindow(QWidget):
         self.set_user_form_status("")
         self.user_password_reset_requested.emit(self.selected_user_id, new_password)
 
+    def _populate_password_reset_form(self, request: dict[str, Any]) -> None:
+        self.selected_password_reset_request_id = str(request["id"])
+        full_name = self._format_value(request.get("requester_full_name"))
+        email = self._format_value(request.get("requester_email"))
+        role = self._format_value(request.get("requester_role"))
+        created_at = self._format_value(request.get("created_at"))
+        self.password_reset_requester_label.setText(
+            f"Solicitante: {full_name} | {email} | Perfil: {role} | Criada em: {created_at}"
+        )
+        self.password_reset_new_password_input.clear()
+        self.password_reset_resolve_button.setEnabled(True)
+        self.set_password_reset_form_status("Informe uma nova senha temporaria.")
+
+    def _request_password_reset_resolve(self) -> None:
+        if not self.selected_password_reset_request_id:
+            self.set_password_reset_form_status(
+                "Selecione uma solicitacao.",
+                is_error=True,
+            )
+            return
+
+        new_password = self.password_reset_new_password_input.text()
+        if not new_password:
+            self.set_password_reset_form_status("Informe a nova senha.", is_error=True)
+            return
+
+        self.set_password_reset_form_status("")
+        self.password_reset_resolve_requested.emit(
+            self.selected_password_reset_request_id,
+            new_password,
+        )
+
     def _populate_settings_form(self, settings: dict[str, Any]) -> None:
         self.settings_company_name_input.setText(str(settings.get("company_name") or ""))
         self.settings_trade_name_input.setText(str(settings.get("trade_name") or ""))
@@ -1885,6 +1997,8 @@ class DashboardWindow(QWidget):
             "manager": "Gestor/Lider",
             "technician": "Tecnico",
             "customer": "Cliente",
+            "pending": "Pendente",
+            "resolved": "Resolvida",
             "service": "Servico",
             "part": "Peca",
             "other": "Outro",
