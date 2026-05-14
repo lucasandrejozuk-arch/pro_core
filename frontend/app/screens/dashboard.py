@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
-from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -20,69 +19,15 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
-    QTextEdit,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-
-class DashboardKpiCard(QFrame):
-    clicked = Signal(str)
-
-    def __init__(
-        self,
-        key: str,
-        marker: str,
-        label: str,
-        accent: str,
-        module_key: str | None = None,
-    ) -> None:
-        super().__init__()
-        self.key = key
-        self.module_key = module_key
-        self.setObjectName("dashboardKpiCard")
-        self.setMinimumHeight(112)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setProperty("accent", accent)
-        if module_key:
-            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-
-        marker_label = QLabel(marker)
-        marker_label.setObjectName("dashboardCardMarker")
-        marker_label.setStyleSheet(f"color: {accent};")
-
-        self.value_label = QLabel("0")
-        self.value_label.setObjectName("dashboardCardValue")
-        self.value_label.setStyleSheet(f"color: {accent};")
-
-        label_widget = QLabel(label)
-        label_widget.setObjectName("dashboardCardLabel")
-        label_widget.setWordWrap(True)
-
-        top_layout = QHBoxLayout()
-        top_layout.setSpacing(8)
-        top_layout.addWidget(marker_label)
-        top_layout.addStretch()
-        top_layout.addWidget(self.value_label)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(8)
-        layout.addLayout(top_layout)
-        layout.addWidget(label_widget)
-
-    def set_value(self, value: Any) -> None:
-        self.value_label.setText(str(value))
-
-    def mousePressEvent(self, event) -> None:  # type: ignore[override]
-        if self.module_key:
-            self.clicked.emit(self.module_key)
-        super().mousePressEvent(event)
+from frontend.app.widgets import DashboardKpiCard, create_summary_text
 
 
 class DashboardWindow(QWidget):
@@ -638,11 +583,7 @@ class DashboardWindow(QWidget):
         details_title = QLabel("DADOS COMPLETOS")
         details_title.setObjectName("formGroupTitle")
 
-        self.customer_full_summary = QTextEdit()
-        self.customer_full_summary.setObjectName("summaryText")
-        self.customer_full_summary.setReadOnly(True)
-        self.customer_full_summary.setMinimumHeight(84)
-        self.customer_full_summary.setMaximumHeight(120)
+        self.customer_full_summary = create_summary_text()
 
         actions = QHBoxLayout()
         actions.addStretch()
@@ -716,11 +657,7 @@ class DashboardWindow(QWidget):
 
         equipment_details_title = QLabel("DADOS COMPLETOS")
         equipment_details_title.setObjectName("formGroupTitle")
-        self.equipment_full_summary = QTextEdit()
-        self.equipment_full_summary.setObjectName("summaryText")
-        self.equipment_full_summary.setReadOnly(True)
-        self.equipment_full_summary.setMinimumHeight(84)
-        self.equipment_full_summary.setMaximumHeight(120)
+        self.equipment_full_summary = create_summary_text()
 
         self.equipment_form_status = QLabel("")
         self.equipment_form_status.setObjectName("mutedText")
@@ -911,11 +848,7 @@ class DashboardWindow(QWidget):
 
         inventory_details_title = QLabel("DADOS COMPLETOS")
         inventory_details_title.setObjectName("formGroupTitle")
-        self.inventory_full_summary = QTextEdit()
-        self.inventory_full_summary.setObjectName("summaryText")
-        self.inventory_full_summary.setReadOnly(True)
-        self.inventory_full_summary.setMinimumHeight(84)
-        self.inventory_full_summary.setMaximumHeight(120)
+        self.inventory_full_summary = create_summary_text()
 
         self.inventory_form_status = QLabel("")
         self.inventory_form_status.setObjectName("mutedText")
@@ -1077,11 +1010,7 @@ class DashboardWindow(QWidget):
         details_title = QLabel("DADOS COMPLETOS")
         details_title.setObjectName("formGroupTitle")
 
-        self.service_order_full_summary = QTextEdit()
-        self.service_order_full_summary.setObjectName("summaryText")
-        self.service_order_full_summary.setReadOnly(True)
-        self.service_order_full_summary.setMinimumHeight(96)
-        self.service_order_full_summary.setMaximumHeight(130)
+        self.service_order_full_summary = create_summary_text(96, 130)
 
         self.service_order_new_button = QPushButton("Nova")
         self.service_order_new_button.setObjectName("secondaryButton")
@@ -1197,11 +1126,7 @@ class DashboardWindow(QWidget):
 
         sector_details_title = QLabel("DADOS COMPLETOS")
         sector_details_title.setObjectName("formGroupTitle")
-        self.sector_full_summary = QTextEdit()
-        self.sector_full_summary.setObjectName("summaryText")
-        self.sector_full_summary.setReadOnly(True)
-        self.sector_full_summary.setMinimumHeight(78)
-        self.sector_full_summary.setMaximumHeight(110)
+        self.sector_full_summary = create_summary_text(78, 110)
 
         self.sector_form_status = QLabel("")
         self.sector_form_status.setObjectName("mutedText")
@@ -1304,11 +1229,7 @@ class DashboardWindow(QWidget):
 
         user_details_title = QLabel("DADOS COMPLETOS")
         user_details_title.setObjectName("formGroupTitle")
-        self.user_full_summary = QTextEdit()
-        self.user_full_summary.setObjectName("summaryText")
-        self.user_full_summary.setReadOnly(True)
-        self.user_full_summary.setMinimumHeight(84)
-        self.user_full_summary.setMaximumHeight(120)
+        self.user_full_summary = create_summary_text()
 
         self.user_form_status = QLabel("")
         self.user_form_status.setObjectName("mutedText")
@@ -1374,11 +1295,7 @@ class DashboardWindow(QWidget):
 
         password_reset_details_title = QLabel("DADOS COMPLETOS")
         password_reset_details_title.setObjectName("formGroupTitle")
-        self.password_reset_full_summary = QTextEdit()
-        self.password_reset_full_summary.setObjectName("summaryText")
-        self.password_reset_full_summary.setReadOnly(True)
-        self.password_reset_full_summary.setMinimumHeight(78)
-        self.password_reset_full_summary.setMaximumHeight(110)
+        self.password_reset_full_summary = create_summary_text(78, 110)
 
         self.password_reset_form_status = QLabel("")
         self.password_reset_form_status.setObjectName("mutedText")
@@ -1484,11 +1401,7 @@ class DashboardWindow(QWidget):
 
         settings_details_title = QLabel("RESUMO OPERACIONAL")
         settings_details_title.setObjectName("formGroupTitle")
-        self.settings_full_summary = QTextEdit()
-        self.settings_full_summary.setObjectName("summaryText")
-        self.settings_full_summary.setReadOnly(True)
-        self.settings_full_summary.setMinimumHeight(84)
-        self.settings_full_summary.setMaximumHeight(120)
+        self.settings_full_summary = create_summary_text()
 
         self.settings_form_status = QLabel("")
         self.settings_form_status.setObjectName("mutedText")
@@ -1552,11 +1465,7 @@ class DashboardWindow(QWidget):
 
         report_details_title = QLabel("VISAO GERAL")
         report_details_title.setObjectName("formGroupTitle")
-        self.report_full_summary = QTextEdit()
-        self.report_full_summary.setObjectName("summaryText")
-        self.report_full_summary.setReadOnly(True)
-        self.report_full_summary.setMinimumHeight(84)
-        self.report_full_summary.setMaximumHeight(120)
+        self.report_full_summary = create_summary_text()
 
         self.report_status_label = QLabel("")
         self.report_status_label.setObjectName("mutedText")
