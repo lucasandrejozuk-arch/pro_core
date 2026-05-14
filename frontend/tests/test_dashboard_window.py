@@ -143,3 +143,46 @@ def test_customer_populates_complete_summary(qtbot) -> None:
     assert "Nome: Cliente Teste" in summary
     assert "Email: cliente@example.com" in summary
     assert "Telefone: (11) 99999-9999" in summary
+
+
+def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_equipment_customers([{"id": "customer-id", "name": "Cliente Teste"}])
+
+    window._populate_equipment_form(
+        {
+            "id": "equipment-id",
+            "customer_id": "customer-id",
+            "category": "Notebook",
+            "brand": "Dell",
+            "model": "Latitude",
+            "special_number": "NE-01",
+            "serial_number": "SER-01",
+            "description": "Nao liga",
+            "boards": [
+                {
+                    "id": "board-id",
+                    "name": "Placa Principal",
+                    "special_number": "PL-01",
+                    "model": "MAIN",
+                    "revision": "A",
+                    "components": [
+                        {
+                            "id": "component-id",
+                            "name": "C100",
+                            "category": "Capacitor",
+                            "part_number": "10uF",
+                            "location": "Entrada",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    summary = window.equipment_full_summary.toPlainText()
+    assert "Cliente: Cliente Teste" in summary
+    assert "Placas vinculadas: 1" in summary
+    assert "Componentes cadastrados: 1" in summary
+    assert window.equipment_objects_tree.topLevelItemCount() == 1

@@ -670,7 +670,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Cadastro de equipamento")
+        title = QLabel("EDITAR REGISTRO - Equipamento")
         title.setObjectName("sectionTitle")
 
         self.equipment_customer_combo = QComboBox()
@@ -703,6 +703,24 @@ class DashboardWindow(QWidget):
         form_layout.addRow("Serie", self.equipment_serial_input)
         form_layout.addRow("Descricao", self.equipment_description_input)
 
+        equipment_fields_title = QLabel("DADOS DO EQUIPAMENTO")
+        equipment_fields_title.setObjectName("formGroupTitle")
+        equipment_fields_panel = QFrame()
+        equipment_fields_panel.setObjectName("formSubPanel")
+        equipment_fields_panel_layout = QVBoxLayout(equipment_fields_panel)
+        equipment_fields_panel_layout.setContentsMargins(12, 12, 12, 12)
+        equipment_fields_panel_layout.setSpacing(8)
+        equipment_fields_panel_layout.addWidget(equipment_fields_title)
+        equipment_fields_panel_layout.addLayout(form_layout)
+
+        equipment_details_title = QLabel("DADOS COMPLETOS")
+        equipment_details_title.setObjectName("formGroupTitle")
+        self.equipment_full_summary = QTextEdit()
+        self.equipment_full_summary.setObjectName("summaryText")
+        self.equipment_full_summary.setReadOnly(True)
+        self.equipment_full_summary.setMinimumHeight(84)
+        self.equipment_full_summary.setMaximumHeight(120)
+
         self.equipment_form_status = QLabel("")
         self.equipment_form_status.setObjectName("mutedText")
 
@@ -713,8 +731,8 @@ class DashboardWindow(QWidget):
         self.equipment_save_button = QPushButton("Salvar equipamento")
         self.equipment_save_button.clicked.connect(self._request_equipment_save)
 
-        linked_title = QLabel("Objetos vinculados")
-        linked_title.setObjectName("sectionTitle")
+        linked_title = QLabel("OBJETOS VINCULADOS")
+        linked_title.setObjectName("formGroupTitle")
 
         self.equipment_objects_tree = QTreeWidget()
         self.equipment_objects_tree.setHeaderLabels(["Placa / Componente", "Codigo", "Modelo/PN", "Local"])
@@ -751,6 +769,16 @@ class DashboardWindow(QWidget):
         self.board_add_button = QPushButton("Adicionar placa")
         self.board_add_button.clicked.connect(self._request_equipment_board_create)
 
+        board_panel = QFrame()
+        board_panel.setObjectName("formSubPanel")
+        board_panel_layout = QVBoxLayout(board_panel)
+        board_panel_layout.setContentsMargins(12, 12, 12, 12)
+        board_panel_layout.setSpacing(8)
+        board_title = QLabel("NOVA PLACA")
+        board_title.setObjectName("formGroupTitle")
+        board_panel_layout.addWidget(board_title)
+        board_panel_layout.addLayout(board_form_layout)
+
         self.component_board_combo = QComboBox()
 
         self.component_category_input = QLineEdit()
@@ -784,6 +812,16 @@ class DashboardWindow(QWidget):
         self.component_add_button = QPushButton("Adicionar componente")
         self.component_add_button.clicked.connect(self._request_equipment_component_create)
 
+        component_panel = QFrame()
+        component_panel.setObjectName("formSubPanel")
+        component_panel_layout = QVBoxLayout(component_panel)
+        component_panel_layout.setContentsMargins(12, 12, 12, 12)
+        component_panel_layout.setSpacing(8)
+        component_title = QLabel("NOVO COMPONENTE")
+        component_title.setObjectName("formGroupTitle")
+        component_panel_layout.addWidget(component_title)
+        component_panel_layout.addLayout(component_form_layout)
+
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.equipment_new_button)
@@ -797,16 +835,24 @@ class DashboardWindow(QWidget):
         component_actions.addStretch()
         component_actions.addWidget(self.component_add_button)
 
+        linked_forms_layout = QGridLayout()
+        linked_forms_layout.setSpacing(12)
+        linked_forms_layout.addWidget(board_panel, 0, 0)
+        linked_forms_layout.addWidget(component_panel, 0, 1)
+        linked_forms_layout.setColumnStretch(0, 1)
+        linked_forms_layout.setColumnStretch(1, 1)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addWidget(equipment_fields_panel)
+        layout.addWidget(equipment_details_title)
+        layout.addWidget(self.equipment_full_summary)
         layout.addWidget(linked_title)
         layout.addWidget(self.equipment_objects_tree)
-        layout.addLayout(board_form_layout)
+        layout.addLayout(linked_forms_layout)
         layout.addLayout(board_actions)
-        layout.addLayout(component_form_layout)
         layout.addLayout(component_actions)
         layout.addWidget(self.equipment_form_status)
         layout.addLayout(actions)
@@ -1445,6 +1491,7 @@ class DashboardWindow(QWidget):
         self.equipment_special_number_input.clear()
         self.equipment_serial_input.clear()
         self.equipment_description_input.clear()
+        self.equipment_full_summary.setPlainText("Novo registro de equipamento.")
         self.equipment_objects_tree.clear()
         self.component_board_combo.clear()
         self._clear_equipment_board_inputs()
@@ -1934,6 +1981,7 @@ class DashboardWindow(QWidget):
         self.equipment_special_number_input.setText(str(equipment.get("special_number") or ""))
         self.equipment_serial_input.setText(str(equipment.get("serial_number") or ""))
         self.equipment_description_input.setText(str(equipment.get("description") or ""))
+        self.equipment_full_summary.setPlainText(self._format_equipment_full_summary(equipment))
         self._populate_equipment_objects(equipment)
         self.board_add_button.setEnabled(True)
         self.component_add_button.setEnabled(bool(self.component_board_combo.currentData()))
@@ -2683,6 +2731,28 @@ class DashboardWindow(QWidget):
             f"Endereco: {self._format_value(customer.get('address')) or '-'}",
             f"Ativo: {active}",
             f"Observacoes: {self._format_value(customer.get('notes')) or '-'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_equipment_full_summary(self, equipment: dict[str, Any]) -> str:
+        customer_name = self._lookup_label(
+            self.equipment_customers,
+            equipment.get("customer_id"),
+            "name",
+            "Cliente nao identificado",
+        )
+        boards = equipment.get("boards") or []
+        components_count = sum(len(board.get("components") or []) for board in boards)
+        lines = [
+            f"Cliente: {customer_name}",
+            f"Categoria: {self._format_value(equipment.get('category')) or '-'}",
+            f"Marca: {self._format_value(equipment.get('brand')) or '-'}",
+            f"Modelo: {self._format_value(equipment.get('model')) or '-'}",
+            f"N especial: {self._format_value(equipment.get('special_number')) or '-'}",
+            f"Serie: {self._format_value(equipment.get('serial_number')) or '-'}",
+            f"Placas vinculadas: {len(boards)}",
+            f"Componentes cadastrados: {components_count}",
+            f"Descricao: {self._format_value(equipment.get('description')) or '-'}",
         ]
         return "\n".join(lines)
 
