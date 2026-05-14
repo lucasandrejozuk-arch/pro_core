@@ -286,3 +286,101 @@ def test_report_renders_overview_summary(qtbot) -> None:
     assert "Titulo: Relatorio de Clientes" in summary
     assert "Modulo: Clientes" in summary
     assert "Formatos disponiveis: CSV, XLSX e PDF" in summary
+
+
+def test_customer_save_emits_create_payload(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.customer_create_requested.connect(lambda payload: emitted.append(payload))
+
+    window.customer_name_input.setText("Cliente Novo")
+    window.customer_email_input.setText("cliente@example.com")
+    window.customer_phone_input.setText("(11) 99999-9999")
+    window.customer_address_input.setText("Rua Central")
+    window.customer_notes_input.setText("Observacao")
+
+    window._request_customer_save()
+
+    assert emitted == [
+        {
+            "name": "Cliente Novo",
+            "email": "cliente@example.com",
+            "phone": "(11) 99999-9999",
+            "address": "Rua Central",
+            "notes": "Observacao",
+            "is_active": True,
+        }
+    ]
+
+
+def test_customer_save_rejects_incomplete_phone(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.customer_create_requested.connect(lambda payload: emitted.append(payload))
+
+    window.customer_name_input.setText("Cliente Novo")
+    window.customer_email_input.setText("cliente@example.com")
+    window.customer_phone_input.setText("(11) 9999")
+
+    window._request_customer_save()
+
+    assert emitted == []
+    assert "telefone" in window.customer_form_status.text().lower()
+
+
+def test_service_order_budget_item_emits_payload(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[tuple[str, dict]] = []
+    window.service_order_budget_item_requested.connect(
+        lambda service_order_id, payload: emitted.append((service_order_id, payload))
+    )
+    window.selected_service_order_id = "service-order-id"
+    window.service_order_budget_description_input.setText("Troca de SSD")
+    window.service_order_budget_quantity_input.setText("2")
+    window.service_order_budget_unit_price_input.setText("150.00")
+
+    window._request_service_order_budget_item()
+
+    assert emitted == [
+        (
+            "service-order-id",
+            {
+                "inventory_item_id": None,
+                "item_type": "service",
+                "description": "Troca de SSD",
+                "quantity": "2",
+                "unit_price": "150.00",
+            },
+        )
+    ]
+
+
+def test_settings_save_rejects_invalid_backup_interval(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.settings_update_requested.connect(lambda payload: emitted.append(payload))
+
+    window.settings_company_name_input.setText("PRO CORE Lab")
+    window.settings_backup_interval_input.setText("0")
+    window.settings_backup_path_input.setText("backups")
+
+    window._request_settings_save()
+
+    assert emitted == []
+    assert "1 e 720" in window.settings_form_status.text()
+
+
+def test_report_view_emits_selected_module(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[str] = []
+    window.report_view_requested.connect(lambda module_key: emitted.append(module_key))
+    window._select_combo_value(window.report_module_combo, "inventory")
+
+    window._request_report_view()
+
+    assert emitted == ["inventory"]
