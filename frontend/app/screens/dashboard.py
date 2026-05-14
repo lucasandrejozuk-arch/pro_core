@@ -50,6 +50,8 @@ class DashboardWindow(QWidget):
     user_password_reset_requested = Signal(str, str)
     settings_update_requested = Signal(dict)
     backup_run_requested = Signal()
+    report_view_requested = Signal(str)
+    report_export_requested = Signal(str, str, str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -61,6 +63,7 @@ class DashboardWindow(QWidget):
         self.selected_service_order_id: str | None = None
         self.selected_user_id: str | None = None
         self.selected_service_order_document_path: str | None = None
+        self.current_report_module_key = "service_orders"
         self.equipment_customers: list[dict[str, Any]] = []
         self.service_order_customers: list[dict[str, Any]] = []
         self.service_order_equipment: list[dict[str, Any]] = []
@@ -95,6 +98,7 @@ class DashboardWindow(QWidget):
             "inventory": "Estoque",
             "users": "Usuarios",
             "settings": "Configuracoes",
+            "reports": "Relatorios",
         }
 
         for module_key, label in modules.items():
@@ -182,6 +186,8 @@ class DashboardWindow(QWidget):
         self.user_form_panel.hide()
         self.settings_form_panel = self._build_settings_form()
         self.settings_form_panel.hide()
+        self.report_form_panel = self._build_report_form()
+        self.report_form_panel.hide()
 
         content_layout.addLayout(header_layout)
         content_layout.addWidget(section_title)
@@ -195,6 +201,7 @@ class DashboardWindow(QWidget):
         content_layout.addWidget(self.service_order_form_panel)
         content_layout.addWidget(self.user_form_panel)
         content_layout.addWidget(self.settings_form_panel)
+        content_layout.addWidget(self.report_form_panel)
         content_layout.addStretch()
 
         scroll_area = QScrollArea()
@@ -218,6 +225,8 @@ class DashboardWindow(QWidget):
             self.module_buttons["users"].setVisible(role_key in {"admin", "manager"})
         if "settings" in self.module_buttons:
             self.module_buttons["settings"].setVisible(role_key == "admin")
+        if "reports" in self.module_buttons:
+            self.module_buttons["reports"].setVisible(role_key == "admin")
 
     def render_loading(self, title: str, module_key: str) -> None:
         self._set_active_module(module_key)
@@ -283,6 +292,36 @@ class DashboardWindow(QWidget):
         self.empty_label.hide()
         self.table.hide()
         self._populate_settings_form(settings)
+
+    def render_report(self, report: dict[str, Any]) -> None:
+        self._set_active_module("reports")
+        self.current_rows = report.get("rows") or []
+        self.current_report_module_key = str(report.get("module") or self.current_report_module_key)
+        self._select_combo_value(self.report_module_combo, self.current_report_module_key)
+        self.data_title.setText(str(report.get("title") or "Relatorios"))
+        self.report_summary_label.setText(
+            f"Total de registros: {report.get('total_records', 0)}"
+        )
+        self.empty_label.hide()
+        self.table.show()
+
+        columns = [
+            (str(column.get("label")), str(column.get("key")))
+            for column in report.get("columns", [])
+        ]
+        self.table.clear()
+        self.table.setColumnCount(len(columns))
+        self.table.setHorizontalHeaderLabels([label for label, _key in columns])
+        self.table.setRowCount(len(self.current_rows))
+        for row_index, row in enumerate(self.current_rows):
+            for column_index, (_label, key) in enumerate(columns):
+                item = QTableWidgetItem(self._format_value(row.get(key)))
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(row_index, column_index, item)
+
+        if not self.current_rows:
+            self.empty_label.setText("Nenhum registro encontrado.")
+            self.empty_label.show()
 
     @staticmethod
     def _build_module_card(title: str, description: str) -> QFrame:
@@ -791,6 +830,64 @@ class DashboardWindow(QWidget):
 
         return panel
 
+    def _build_report_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+
+        title = QLabel("Relatorios e exportacoes")
+        title.setObjectName("sectionTitle")
+
+        self.report_module_combo = QComboBox()
+        self.report_module_combo.addItem("Ordens de Servico", "service_orders")
+        self.report_module_combo.addItem("Clientes", "customers")
+        self.report_module_combo.addItem("Equipamentos", "equipment")
+        self.report_module_combo.addItem("Estoque", "inventory")
+        self.report_module_combo.addItem("Usuarios", "users")
+
+        form_layout = QFormLayout()
+        form_layout.setSpacing(10)
+        form_layout.addRow("Modulo", self.report_module_combo)
+
+        self.report_summary_label = QLabel("Total de registros: 0")
+        self.report_summary_label.setObjectName("mutedText")
+
+        self.report_status_label = QLabel("")
+        self.report_status_label.setObjectName("mutedText")
+
+        self.report_load_button = QPushButton("Carregar relatorio")
+        self.report_load_button.setObjectName("secondaryButton")
+        self.report_load_button.clicked.connect(self._request_report_view)
+
+        self.report_export_csv_button = QPushButton("CSV")
+        self.report_export_csv_button.setObjectName("secondaryButton")
+        self.report_export_csv_button.clicked.connect(lambda: self._request_report_export("csv"))
+
+        self.report_export_xlsx_button = QPushButton("XLSX")
+        self.report_export_xlsx_button.setObjectName("secondaryButton")
+        self.report_export_xlsx_button.clicked.connect(lambda: self._request_report_export("xlsx"))
+
+        self.report_export_pdf_button = QPushButton("PDF")
+        self.report_export_pdf_button.setObjectName("secondaryButton")
+        self.report_export_pdf_button.clicked.connect(lambda: self._request_report_export("pdf"))
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.report_load_button)
+        actions.addWidget(self.report_export_csv_button)
+        actions.addWidget(self.report_export_xlsx_button)
+        actions.addWidget(self.report_export_pdf_button)
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addLayout(form_layout)
+        layout.addWidget(self.report_summary_label)
+        layout.addWidget(self.report_status_label)
+        layout.addLayout(actions)
+
+        return panel
+
     def clear_customer_form(self) -> None:
         self.selected_customer_id = None
         self.customer_name_input.clear()
@@ -1046,6 +1143,30 @@ class DashboardWindow(QWidget):
             "Executando..." if is_loading else "Executar backup agora"
         )
 
+    def clear_report_form(self) -> None:
+        self._select_combo_value(self.report_module_combo, self.current_report_module_key)
+        self.report_summary_label.setText("Total de registros: 0")
+        self.report_status_label.setText("")
+
+    def set_report_status(self, message: str, is_error: bool = False) -> None:
+        self.report_status_label.setObjectName("errorText" if is_error else "mutedText")
+        self.report_status_label.setText(message)
+        self.report_status_label.style().unpolish(self.report_status_label)
+        self.report_status_label.style().polish(self.report_status_label)
+
+    def set_report_loading(self, is_loading: bool) -> None:
+        self.report_load_button.setEnabled(not is_loading)
+        self.report_export_csv_button.setEnabled(not is_loading)
+        self.report_export_xlsx_button.setEnabled(not is_loading)
+        self.report_export_pdf_button.setEnabled(not is_loading)
+        self.report_load_button.setText("Carregando..." if is_loading else "Carregar relatorio")
+
+    def set_report_export_loading(self, is_loading: bool) -> None:
+        self.report_load_button.setEnabled(not is_loading)
+        self.report_export_csv_button.setEnabled(not is_loading)
+        self.report_export_xlsx_button.setEnabled(not is_loading)
+        self.report_export_pdf_button.setEnabled(not is_loading)
+
     def _set_active_module(self, module_key: str) -> None:
         self.active_module_key = module_key
         self.current_rows = []
@@ -1056,6 +1177,7 @@ class DashboardWindow(QWidget):
         self.service_order_form_panel.setVisible(module_key == "service_orders")
         self.user_form_panel.setVisible(module_key == "users")
         self.settings_form_panel.setVisible(module_key == "settings")
+        self.report_form_panel.setVisible(module_key == "reports")
         if module_key == "customers":
             self.clear_customer_form()
         elif module_key == "equipment":
@@ -1068,6 +1190,8 @@ class DashboardWindow(QWidget):
             self.clear_user_form()
         elif module_key == "settings":
             self.clear_settings_form()
+        elif module_key == "reports":
+            self.clear_report_form()
 
     def _handle_table_selection(self) -> None:
         if self.active_module_key not in {
@@ -1531,6 +1655,31 @@ class DashboardWindow(QWidget):
         }
         self.set_settings_form_status("")
         self.settings_update_requested.emit(payload)
+
+    def _request_report_view(self) -> None:
+        module_key = str(self.report_module_combo.currentData() or "service_orders")
+        self.current_report_module_key = module_key
+        self.set_report_status("")
+        self.report_view_requested.emit(module_key)
+
+    def _request_report_export(self, report_format: str) -> None:
+        module_key = str(self.report_module_combo.currentData() or self.current_report_module_key)
+        extension = report_format.lower()
+        file_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Salvar relatorio",
+            f"{module_key}.{extension}",
+            f"{extension.upper()} (*.{extension})",
+        )
+        if not file_path:
+            return
+
+        if not file_path.lower().endswith(f".{extension}"):
+            file_path = f"{file_path}.{extension}"
+
+        self.current_report_module_key = module_key
+        self.set_report_status("")
+        self.report_export_requested.emit(module_key, report_format, file_path)
 
     def _refresh_service_order_equipment_combo(self) -> None:
         if not hasattr(self, "service_order_equipment_combo"):

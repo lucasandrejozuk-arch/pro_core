@@ -74,6 +74,8 @@ class ProCoreApplication:
         self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
         self.dashboard_window.settings_update_requested.connect(self.handle_settings_update)
         self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
+        self.dashboard_window.report_view_requested.connect(self.handle_report_view)
+        self.dashboard_window.report_export_requested.connect(self.handle_report_export)
 
     def run(self) -> int:
         self.splash.start()
@@ -165,6 +167,13 @@ class ProCoreApplication:
             if module_key == "settings":
                 settings = self.api_client.get_settings(self.session.access_token)
                 self.dashboard_window.render_settings(settings)
+                return
+            if module_key == "reports":
+                report = self.api_client.get_report(
+                    self.session.access_token,
+                    self.dashboard_window.current_report_module_key,
+                )
+                self.dashboard_window.render_report(report)
                 return
 
             equipment_customers = (
@@ -533,6 +542,54 @@ class ProCoreApplication:
             f"Backup validado: {backup.get('file_name')}"
         )
 
+    def handle_report_view(self, module_key: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_report_loading(True)
+        try:
+            report = self.api_client.get_report(self.session.access_token, module_key)
+        except ApiError as exc:
+            self.dashboard_window.set_report_loading(False)
+            self.dashboard_window.set_report_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_report_loading(False)
+        self.dashboard_window.render_report(report)
+        self.dashboard_window.set_report_status("Relatorio carregado.")
+
+    def handle_report_export(self, module_key: str, report_format: str, file_path: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_report_export_loading(True)
+        try:
+            content = self.api_client.export_report(
+                self.session.access_token,
+                module_key,
+                report_format,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_report_export_loading(False)
+            self.dashboard_window.set_report_status(exc.message, is_error=True)
+            return
+
+        try:
+            with open(file_path, "wb") as output_file:
+                output_file.write(content)
+        except OSError as exc:
+            self.dashboard_window.set_report_export_loading(False)
+            self.dashboard_window.set_report_status(
+                f"Nao foi possivel salvar o relatorio: {exc}",
+                is_error=True,
+            )
+            return
+
+        self.dashboard_window.set_report_export_loading(False)
+        self.dashboard_window.set_report_status(f"Relatorio salvo em {file_path}.")
+
     def _apply_saved_theme(self) -> None:
         if not self.session.access_token or self.session.user.get("role") != "admin":
             return
@@ -605,6 +662,8 @@ class ProCoreApplication:
 
         if module_key == "settings":
             return ("Configuracoes", [])
+        if module_key == "reports":
+            return ("Relatorios", [])
 
         return (
             "Ordens de Servico",

@@ -335,6 +335,22 @@ class ApiClient:
             access_token=access_token,
         )
 
+    def get_report(self, access_token: str, module_key: str) -> dict[str, Any]:
+        return self._request("GET", f"reports/{module_key}", access_token=access_token)
+
+    def export_report(
+        self,
+        access_token: str,
+        module_key: str,
+        report_format: str,
+    ) -> bytes:
+        return self._download(
+            "GET",
+            f"reports/{module_key}/export",
+            access_token=access_token,
+            params={"format": report_format},
+        )
+
     def _request_list(
         self,
         method: str,
@@ -372,6 +388,31 @@ class ApiClient:
             raise ApiError(self._extract_error_message(response), response.status_code)
 
         return response.json()
+
+    def _download(
+        self,
+        method: str,
+        path: str,
+        access_token: str | None = None,
+        **kwargs: Any,
+    ) -> bytes:
+        headers = dict(kwargs.pop("headers", {}))
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
+
+        try:
+            response = self._client.request(method, path, headers=headers, **kwargs)
+        except httpx.ConnectError as exc:
+            raise ApiError("Nao foi possivel conectar ao backend.") from exc
+        except httpx.TimeoutException as exc:
+            raise ApiError("Tempo limite excedido ao conectar ao backend.") from exc
+        except httpx.HTTPError as exc:
+            raise ApiError(f"Falha de comunicacao com o backend: {exc}") from exc
+
+        if response.is_error:
+            raise ApiError(self._extract_error_message(response), response.status_code)
+
+        return response.content
 
     @staticmethod
     def _extract_error_message(response: httpx.Response) -> str:

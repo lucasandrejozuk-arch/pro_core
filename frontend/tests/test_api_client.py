@@ -445,6 +445,50 @@ def test_run_backup_posts_to_settings_endpoint() -> None:
     assert response["validated"] is True
 
 
+def test_get_report_returns_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/reports/customers"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(
+            200,
+            json={
+                "module": "customers",
+                "title": "Relatorio de Clientes",
+                "total_records": 1,
+                "columns": [{"key": "name", "label": "Nome"}],
+                "rows": [{"name": "Cliente"}],
+            },
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.get_report("token", "customers")
+
+    assert response["rows"][0]["name"] == "Cliente"
+
+
+def test_export_report_downloads_bytes() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/reports/customers/export"
+        assert request.url.params["format"] == "csv"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, content=b"Nome\nCliente\n")
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.export_report("token", "customers", "csv")
+
+    assert response == b"Nome\nCliente\n"
+
+
 def test_create_service_order_posts_payload() -> None:
     payload = {
         "customer_id": "customer-id",
