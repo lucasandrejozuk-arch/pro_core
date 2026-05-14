@@ -25,6 +25,8 @@ def test_admin_can_read_and_update_system_settings(
     settings = get_response.json()
     assert settings["company_name"] == "PRO CORE Test"
     assert settings["theme"] == "light"
+    assert settings["brand_name"] is None
+    assert settings["primary_color"] == "#0969da"
     assert settings["backup_interval_hours"] == 24
     assert settings["backup_storage_path"] == "backups"
 
@@ -37,6 +39,9 @@ def test_admin_can_read_and_update_system_settings(
             "document_number": "12345678000199",
             "email": "contato@example.com",
             "phone": "1133334444",
+            "brand_name": "Pro Assist",
+            "brand_subtitle": "Laboratorio tecnico",
+            "primary_color": "#0f766e",
             "theme": "dark",
             "backup_enabled": False,
             "backup_interval_hours": 12,
@@ -46,6 +51,9 @@ def test_admin_can_read_and_update_system_settings(
     assert update_response.status_code == 200
     updated_settings = update_response.json()
     assert updated_settings["company_name"] == "Assistencia Atualizada"
+    assert updated_settings["brand_name"] == "Pro Assist"
+    assert updated_settings["brand_subtitle"] == "Laboratorio tecnico"
+    assert updated_settings["primary_color"] == "#0f766e"
     assert updated_settings["theme"] == "dark"
     assert updated_settings["backup_enabled"] is False
     assert updated_settings["backup_interval_hours"] == 12
@@ -54,6 +62,7 @@ def test_admin_can_read_and_update_system_settings(
     second_get_response = client.get("/api/v1/settings", headers=auth_headers)
     assert second_get_response.status_code == 200
     assert second_get_response.json()["theme"] == "dark"
+    assert second_get_response.json()["primary_color"] == "#0f766e"
 
 
 def test_technician_cannot_access_system_settings(
@@ -65,6 +74,33 @@ def test_technician_cannot_access_system_settings(
     response = client.get("/api/v1/settings", headers=technician_headers)
 
     assert response.status_code == 403
+
+
+def test_authenticated_users_can_read_appearance_settings(
+    client: TestClient,
+    technician_user: User,
+) -> None:
+    technician_headers = _auth_headers(client, technician_user)
+
+    response = client.get("/api/v1/settings/appearance", headers=technician_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["theme"] == "light"
+    assert body["primary_color"] == "#0969da"
+
+
+def test_settings_reject_invalid_primary_color(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.patch(
+        "/api/v1/settings",
+        headers=auth_headers,
+        json={"primary_color": "azul"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_admin_can_run_manual_backup(

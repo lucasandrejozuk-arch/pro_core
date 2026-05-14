@@ -4,9 +4,24 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
 
-def apply_theme(app: QApplication, theme: str = "light") -> None:
+def apply_theme(app: QApplication, theme: str = "light", primary_color: str | None = None) -> None:
     app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(_dark_stylesheet() if theme == "dark" else _light_stylesheet())
+    is_dark = theme == "dark"
+    default_color = "#1f6feb" if is_dark else "#0969da"
+    accent_color = _safe_hex_color(primary_color, default_color)
+    stylesheet = _dark_stylesheet() if is_dark else _light_stylesheet()
+    app.setStyleSheet(stylesheet.replace(default_color, accent_color))
+
+
+def _safe_hex_color(value: str | None, fallback: str) -> str:
+    if not value:
+        return fallback
+    color = value.strip()
+    if len(color) != 7 or not color.startswith("#"):
+        return fallback
+    if any(character not in "0123456789abcdefABCDEF" for character in color[1:]):
+        return fallback
+    return color
 
 
 def _light_stylesheet() -> str:
@@ -184,16 +199,24 @@ def _light_stylesheet() -> str:
             border-radius: 8px;
         }
         QFrame#sidebar {
-            background: #0f1117;
-            border-right: 1px solid #30363d;
+            background: #ffffff;
+            border-right: 1px solid #d0d7de;
         }
         QLabel#sidebarTitle {
-            color: #ffffff;
+            color: #24292f;
             font-size: 21px;
             font-weight: 800;
         }
         QLabel#sidebarText {
-            color: #8b949e;
+            color: #57606a;
+        }
+        QLabel#sidebarSessionInfo {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            color: #57606a;
+            font-size: 12px;
+            padding: 10px;
         }
         QLineEdit,
         QComboBox,
@@ -244,20 +267,42 @@ def _light_stylesheet() -> str:
         QPushButton#secondaryButton:hover {
             background: #d0d7de;
         }
+        QPushButton#sidebarToggleButton {
+            background: #eaeef2;
+            color: #24292f;
+            text-align: left;
+            min-height: 32px;
+            padding-left: 12px;
+        }
+        QPushButton#sidebarToggleButton:hover {
+            background: #d0d7de;
+        }
         QPushButton#navButton {
             background: transparent;
-            color: #c9d1d9;
+            color: #24292f;
             text-align: left;
             padding-left: 16px;
             min-height: 40px;
             border-radius: 8px;
         }
         QPushButton#navButton:hover {
-            background: #21262d;
+            background: #eaeef2;
         }
         QPushButton#navButton[active="true"] {
             background: #0969da;
             color: #ffffff;
+        }
+        QPushButton#adminMenuButton {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            color: #24292f;
+            text-align: left;
+            min-height: 44px;
+            padding-left: 14px;
+        }
+        QPushButton#adminMenuButton:hover {
+            border-color: #0969da;
+            background: #f6f8fa;
         }
         QTableWidget#dataTable {
             background: #ffffff;
@@ -479,6 +524,14 @@ def _dark_stylesheet() -> str:
         QLabel#sidebarText {
             color: #8b949e;
         }
+        QLabel#sidebarSessionInfo {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #8b949e;
+            font-size: 12px;
+            padding: 10px;
+        }
         QLineEdit,
         QComboBox,
         QTreeWidget,
@@ -530,6 +583,16 @@ def _dark_stylesheet() -> str:
         QPushButton#secondaryButton:hover {
             background: #30363d;
         }
+        QPushButton#sidebarToggleButton {
+            background: #21262d;
+            color: #e6edf7;
+            text-align: left;
+            min-height: 32px;
+            padding-left: 12px;
+        }
+        QPushButton#sidebarToggleButton:hover {
+            background: #30363d;
+        }
         QPushButton#navButton {
             background: transparent;
             color: #c9d1d9;
@@ -544,6 +607,18 @@ def _dark_stylesheet() -> str:
         QPushButton#navButton[active="true"] {
             background: #1f6feb;
             color: #ffffff;
+        }
+        QPushButton#adminMenuButton {
+            background: #161b22;
+            border: 1px solid #30363d;
+            color: #e6edf7;
+            text-align: left;
+            min-height: 44px;
+            padding-left: 14px;
+        }
+        QPushButton#adminMenuButton:hover {
+            border-color: #1f6feb;
+            background: #21262d;
         }
         QTableWidget#dataTable {
             background: #161b22;

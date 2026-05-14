@@ -695,7 +695,11 @@ class ProCoreApplication:
             return
 
         self.dashboard_window.set_settings_form_loading(False)
-        apply_theme(self.qt_app, str(settings.get("theme") or "light"))
+        apply_theme(
+            self.qt_app,
+            str(settings.get("theme") or "light"),
+            str(settings.get("primary_color") or ""),
+        )
         self.dashboard_window.render_settings(settings)
         self.dashboard_window.set_settings_form_status("Configuracoes salvas.")
 
@@ -768,15 +772,20 @@ class ProCoreApplication:
         self.dashboard_window.set_report_status(f"Relatorio salvo em {file_path}.")
 
     def _apply_saved_theme(self) -> None:
-        if not self.session.access_token or self.session.user.get("role") != "admin":
+        if not self.session.access_token:
             return
 
         try:
-            settings = self.api_client.get_settings(self.session.access_token)
+            settings = self.api_client.get_appearance_settings(self.session.access_token)
         except ApiError:
             return
 
-        apply_theme(self.qt_app, str(settings.get("theme") or "light"))
+        apply_theme(
+            self.qt_app,
+            str(settings.get("theme") or "light"),
+            str(settings.get("primary_color") or ""),
+        )
+        self.dashboard_window.apply_branding(settings)
 
     def _load_module_rows(self, module_key: str, access_token: str) -> list[dict]:
         if module_key == "customers":

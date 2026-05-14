@@ -562,6 +562,31 @@ def test_get_settings_returns_payload() -> None:
     assert response["theme"] == "light"
 
 
+def test_get_appearance_settings_returns_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/settings/appearance"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(
+            200,
+            json={
+                "brand_name": "Pro Assist",
+                "brand_subtitle": "Laboratorio tecnico",
+                "primary_color": "#0f766e",
+                "theme": "dark",
+            },
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.get_appearance_settings("token")
+
+    assert response["brand_name"] == "Pro Assist"
+
+
 def test_update_settings_patches_payload() -> None:
     payload = {
         "company_name": "Assistencia Atualizada",
@@ -569,6 +594,9 @@ def test_update_settings_patches_payload() -> None:
         "document_number": "12345678000199",
         "email": "contato@example.com",
         "phone": "1133334444",
+        "brand_name": "Pro Assist",
+        "brand_subtitle": "Laboratorio tecnico",
+        "primary_color": "#0f766e",
         "theme": "dark",
         "backup_enabled": True,
         "backup_interval_hours": 12,

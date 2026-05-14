@@ -62,11 +62,37 @@ def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
         }
     )
 
-    assert window.module_buttons["users"].isHidden()
-    assert window.module_buttons["password_resets"].isHidden()
-    assert window.module_buttons["sectors"].isHidden()
-    assert window.module_buttons["settings"].isHidden()
-    assert window.module_buttons["reports"].isHidden()
+    assert window.admin_menu_button.isHidden()
+
+
+def test_sidebar_collapse_does_not_resize_sidebar(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    initial_min_width = window.sidebar.minimumWidth()
+    initial_max_width = window.sidebar.maximumWidth()
+
+    window._set_sidebar_collapsed(True)
+
+    assert window.sidebar_nav_container.isHidden()
+    assert not window.sidebar_collapsed_label.isHidden()
+    assert window.sidebar.minimumWidth() == initial_min_width
+    assert window.sidebar.maximumWidth() == initial_max_width
+
+
+def test_admin_modules_open_from_dedicated_menu(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
+
+    assert "users" not in window.module_buttons
+    assert not window.admin_menu_button.isHidden()
+    assert window._allowed_admin_modules() == (
+        "sectors",
+        "users",
+        "password_resets",
+        "settings",
+        "reports",
+    )
 
 
 def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> None:
@@ -218,6 +244,9 @@ def test_settings_populates_operational_summary(qtbot) -> None:
         {
             "company_name": "PRO CORE Lab",
             "trade_name": "Assistencia Teste",
+            "brand_name": "Pro Assist",
+            "brand_subtitle": "Bancada premium",
+            "primary_color": "#0f766e",
             "theme": "dark",
             "backup_enabled": True,
             "backup_interval_hours": 12,
@@ -228,6 +257,9 @@ def test_settings_populates_operational_summary(qtbot) -> None:
 
     summary = window.settings_full_summary.toPlainText()
     assert "Empresa: PRO CORE Lab" in summary
+    assert "Nome exibido: Pro Assist" in summary
+    assert window.sidebar_title.text() == "Pro Assist"
+    assert window.sidebar_text.text() == "Bancada premium"
     assert "Tema: Escuro" in summary
     assert "Backup automatico: Ativo" in summary
 
@@ -372,6 +404,43 @@ def test_settings_save_rejects_invalid_backup_interval(qtbot) -> None:
 
     assert emitted == []
     assert "1 e 720" in window.settings_form_status.text()
+
+
+def test_settings_save_emits_branding_payload(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.settings_update_requested.connect(lambda payload: emitted.append(payload))
+
+    window.settings_company_name_input.setText("PRO CORE Lab")
+    window.settings_brand_name_input.setText("Pro Assist")
+    window.settings_brand_subtitle_input.setText("Laboratorio tecnico")
+    window.settings_primary_color_input.setText("#0f766e")
+    window.settings_backup_interval_input.setText("24")
+    window.settings_backup_path_input.setText("backups")
+
+    window._request_settings_save()
+
+    assert emitted[0]["brand_name"] == "Pro Assist"
+    assert emitted[0]["brand_subtitle"] == "Laboratorio tecnico"
+    assert emitted[0]["primary_color"] == "#0f766e"
+
+
+def test_settings_save_rejects_invalid_primary_color(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.settings_update_requested.connect(lambda payload: emitted.append(payload))
+
+    window.settings_company_name_input.setText("PRO CORE Lab")
+    window.settings_primary_color_input.setText("azul")
+    window.settings_backup_interval_input.setText("24")
+    window.settings_backup_path_input.setText("backups")
+
+    window._request_settings_save()
+
+    assert emitted == []
+    assert "#RRGGBB" in window.settings_form_status.text()
 
 
 def test_report_view_emits_selected_module(qtbot) -> None:

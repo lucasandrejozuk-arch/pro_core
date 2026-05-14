@@ -398,6 +398,9 @@ class ApiClient:
     def get_settings(self, access_token: str) -> dict[str, Any]:
         return self._request("GET", "settings", access_token=access_token)
 
+    def get_appearance_settings(self, access_token: str) -> dict[str, Any]:
+        return self._request("GET", "settings/appearance", access_token=access_token)
+
     def update_settings(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request(
             "PATCH",

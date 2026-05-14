@@ -10,15 +10,17 @@ from backend.app.models.configuration import AppSetting, BackupPolicy
 from backend.app.schemas.configuration import SystemSettingsUpdate
 
 THEME_SETTING_KEY = "ui.theme"
+BRAND_NAME_SETTING_KEY = "ui.brand_name"
+BRAND_SUBTITLE_SETTING_KEY = "ui.brand_subtitle"
+PRIMARY_COLOR_SETTING_KEY = "ui.primary_color"
 DEFAULT_THEME = "light"
+DEFAULT_PRIMARY_COLOR = "#0969da"
 
 
 def get_system_settings(db: Session, company_id: uuid.UUID) -> dict:
     company = _get_company(db, company_id)
     backup_policy = get_or_create_backup_policy(db, company)
-    theme = get_setting_value(db, company_id, THEME_SETTING_KEY) or DEFAULT_THEME
-    if theme not in {"light", "dark"}:
-        theme = DEFAULT_THEME
+    appearance = get_appearance_settings(db, company_id)
 
     return {
         "company_id": company.id,
@@ -27,7 +29,7 @@ def get_system_settings(db: Session, company_id: uuid.UUID) -> dict:
         "document_number": company.document_number,
         "email": company.email,
         "phone": company.phone,
-        "theme": theme,
+        **appearance,
         "backup_enabled": backup_policy.enabled,
         "backup_interval_hours": backup_policy.interval_hours,
         "backup_storage_path": backup_policy.storage_path,
@@ -70,11 +72,53 @@ def update_system_settings(
             update_data["theme"],
             "Tema visual padrao da empresa.",
         )
+    if "brand_name" in update_data:
+        set_setting_value(
+            db,
+            company_id,
+            BRAND_NAME_SETTING_KEY,
+            update_data["brand_name"] or "",
+            "Nome exibido na interface do sistema.",
+        )
+    if "brand_subtitle" in update_data:
+        set_setting_value(
+            db,
+            company_id,
+            BRAND_SUBTITLE_SETTING_KEY,
+            update_data["brand_subtitle"] or "",
+            "Subtitulo exibido na interface do sistema.",
+        )
+    if "primary_color" in update_data:
+        set_setting_value(
+            db,
+            company_id,
+            PRIMARY_COLOR_SETTING_KEY,
+            update_data["primary_color"] or DEFAULT_PRIMARY_COLOR,
+            "Cor principal da identidade visual.",
+        )
 
     db.add(company)
     db.add(backup_policy)
     db.commit()
     return get_system_settings(db, company_id)
+
+
+def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
+    _get_company(db, company_id)
+    theme = get_setting_value(db, company_id, THEME_SETTING_KEY) or DEFAULT_THEME
+    if theme not in {"light", "dark"}:
+        theme = DEFAULT_THEME
+
+    primary_color = get_setting_value(db, company_id, PRIMARY_COLOR_SETTING_KEY)
+    if not primary_color or not _is_hex_color(primary_color):
+        primary_color = DEFAULT_PRIMARY_COLOR
+
+    return {
+        "brand_name": get_setting_value(db, company_id, BRAND_NAME_SETTING_KEY) or None,
+        "brand_subtitle": get_setting_value(db, company_id, BRAND_SUBTITLE_SETTING_KEY) or None,
+        "primary_color": primary_color,
+        "theme": theme,
+    }
 
 
 def get_or_create_backup_policy(db: Session, company: Company) -> BackupPolicy:
@@ -136,3 +180,9 @@ def _get_company(db: Session, company_id: uuid.UUID) -> Company:
     if company is None:
         raise ValueError("Company not found.")
     return company
+
+
+def _is_hex_color(value: str) -> bool:
+    if len(value) != 7 or not value.startswith("#"):
+        return False
+    return all(character in "0123456789abcdefABCDEF" for character in value[1:])

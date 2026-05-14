@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -85,27 +86,52 @@ class DashboardWindow(QWidget):
         self.service_order_equipment: list[dict[str, Any]] = []
         self.service_order_technicians: list[dict[str, Any]] = []
         self.user_sectors: list[dict[str, Any]] = []
+        self.current_user: dict[str, Any] = {}
+        self.sidebar_collapsed = False
+        self.admin_module_keys = (
+            "sectors",
+            "users",
+            "password_resets",
+            "settings",
+            "reports",
+        )
 
         self.setWindowTitle("PRO CORE - Dashboard")
         self.setMinimumSize(1120, 720)
         self.setObjectName("dashboardWindow")
 
-        sidebar = QFrame()
-        sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(256)
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(256)
 
-        sidebar_title = QLabel("PRO CORE")
-        sidebar_title.setObjectName("sidebarTitle")
+        self.sidebar_title = QLabel("PRO CORE")
+        self.sidebar_title.setObjectName("sidebarTitle")
 
-        sidebar_text = QLabel("Assistencia tecnica")
-        sidebar_text.setObjectName("sidebarText")
+        self.sidebar_text = QLabel("Assistencia tecnica")
+        self.sidebar_text.setObjectName("sidebarText")
 
-        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(18, 24, 18, 24)
         sidebar_layout.setSpacing(10)
-        sidebar_layout.addWidget(sidebar_title)
-        sidebar_layout.addWidget(sidebar_text)
-        sidebar_layout.addSpacing(18)
+        sidebar_layout.addWidget(self.sidebar_title)
+        sidebar_layout.addWidget(self.sidebar_text)
+
+        self.sidebar_toggle_button = QPushButton("Ocultar menu")
+        self.sidebar_toggle_button.setObjectName("sidebarToggleButton")
+        self.sidebar_toggle_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sidebar_toggle_button.clicked.connect(self._toggle_sidebar)
+        sidebar_layout.addWidget(self.sidebar_toggle_button)
+
+        self.sidebar_collapsed_label = QLabel("Menu recolhido.\nUse o botao acima para exibir.")
+        self.sidebar_collapsed_label.setObjectName("sidebarSessionInfo")
+        self.sidebar_collapsed_label.setWordWrap(True)
+        self.sidebar_collapsed_label.hide()
+        sidebar_layout.addWidget(self.sidebar_collapsed_label)
+
+        self.sidebar_nav_container = QWidget()
+        sidebar_nav_layout = QVBoxLayout(self.sidebar_nav_container)
+        sidebar_nav_layout.setContentsMargins(0, 8, 0, 0)
+        sidebar_nav_layout.setSpacing(10)
 
         self.module_buttons: dict[str, QPushButton] = {}
         self.module_labels = {
@@ -123,27 +149,43 @@ class DashboardWindow(QWidget):
         module_groups = [
             ("OPERACAO", ("dashboard", "service_orders")),
             ("CADASTROS", ("customers", "equipment", "inventory")),
-            ("ADMINISTRACAO", ("sectors", "users", "password_resets", "settings", "reports")),
+            ("GESTAO", ("admin_menu",)),
         ]
 
         for caption, module_keys in module_groups:
             caption_label = QLabel(caption)
             caption_label.setObjectName("sidebarCaption")
-            sidebar_layout.addWidget(caption_label)
+            sidebar_nav_layout.addWidget(caption_label)
             for module_key in module_keys:
-                button = QPushButton(self.module_labels[module_key])
+                button_label = (
+                    "Area Administrativa"
+                    if module_key == "admin_menu"
+                    else self.module_labels[module_key]
+                )
+                button = QPushButton(button_label)
                 button.setObjectName("navButton")
-                button.setCheckable(True)
+                button.setCheckable(module_key != "admin_menu")
                 button.setCursor(Qt.CursorShape.PointingHandCursor)
                 button.setProperty("active", "false")
-                button.clicked.connect(
-                    lambda checked=False, key=module_key: self.module_selected.emit(key)
-                )
-                self.module_buttons[module_key] = button
-                sidebar_layout.addWidget(button)
-            sidebar_layout.addSpacing(8)
+                if module_key == "admin_menu":
+                    button.clicked.connect(self._open_admin_menu)
+                    self.admin_menu_button = button
+                else:
+                    button.clicked.connect(
+                        lambda checked=False, key=module_key: self.module_selected.emit(key)
+                    )
+                    self.module_buttons[module_key] = button
+                sidebar_nav_layout.addWidget(button)
+            sidebar_nav_layout.addSpacing(8)
+
+        sidebar_layout.addWidget(self.sidebar_nav_container)
 
         sidebar_layout.addStretch()
+
+        self.session_info_label = QLabel("")
+        self.session_info_label.setObjectName("sidebarSessionInfo")
+        self.session_info_label.setWordWrap(True)
+        sidebar_layout.addWidget(self.session_info_label)
 
         self.logout_button = QPushButton("Sair")
         self.logout_button.setObjectName("secondaryButton")
@@ -286,7 +328,7 @@ class DashboardWindow(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(sidebar)
+        layout.addWidget(self.sidebar)
         layout.addWidget(scroll_area)
         self._install_input_guards()
         self._mark_active_nav(self.active_module_key)
@@ -298,24 +340,112 @@ class DashboardWindow(QWidget):
         return super().eventFilter(watched, event)
 
     def set_user(self, user: dict[str, Any]) -> None:
+        self.current_user = dict(user)
         role_key = str(user.get("role", ""))
         self.current_user_role = role_key
         role = role_key.replace("_", " ").title()
         full_name = user.get("full_name", "Usuario")
         email = user.get("email", "")
         self.user_label.setText(f"{full_name} | {email} | Perfil: {role}")
-        if "users" in self.module_buttons:
-            self.module_buttons["users"].setVisible(role_key in {"admin", "manager"})
-        if "password_resets" in self.module_buttons:
-            self.module_buttons["password_resets"].setVisible(role_key in {"admin", "manager"})
-        if "sectors" in self.module_buttons:
-            self.module_buttons["sectors"].setVisible(role_key in {"admin", "manager"})
-        if "settings" in self.module_buttons:
-            self.module_buttons["settings"].setVisible(role_key == "admin")
-        if "reports" in self.module_buttons:
-            self.module_buttons["reports"].setVisible(role_key == "admin")
+        self.session_info_label.setText(
+            "\n".join(
+                [
+                    "Sessao ativa",
+                    str(full_name or "Usuario"),
+                    str(email or "-"),
+                    f"Perfil: {role}",
+                ]
+            )
+        )
+        self.admin_menu_button.setVisible(bool(self._allowed_admin_modules()))
         if "users_total" in self.dashboard_cards:
             self.dashboard_cards["users_total"].setVisible(role_key in {"admin", "manager"})
+
+    def apply_branding(self, settings: dict[str, Any]) -> None:
+        brand_name = str(
+            settings.get("brand_name")
+            or settings.get("trade_name")
+            or settings.get("company_name")
+            or "PRO CORE"
+        ).strip()
+        brand_subtitle = str(
+            settings.get("brand_subtitle") or settings.get("trade_name") or "Assistencia tecnica"
+        ).strip()
+        self.sidebar_title.setText(brand_name or "PRO CORE")
+        self.sidebar_text.setText(brand_subtitle or "Assistencia tecnica")
+        self.setWindowTitle(f"{brand_name or 'PRO CORE'} - {self.title_label.text()}")
+
+    def _toggle_sidebar(self) -> None:
+        self._set_sidebar_collapsed(not self.sidebar_collapsed)
+
+    def _set_sidebar_collapsed(self, collapsed: bool) -> None:
+        self.sidebar_collapsed = collapsed
+        self.sidebar_nav_container.setVisible(not collapsed)
+        self.sidebar_collapsed_label.setVisible(collapsed)
+        self.sidebar_toggle_button.setText("Mostrar menu" if collapsed else "Ocultar menu")
+
+    def _open_admin_menu(self) -> None:
+        allowed_modules = self._allowed_admin_modules()
+        if not allowed_modules:
+            return
+
+        dialog = QDialog(self)
+        dialog.setObjectName("adminMenuDialog")
+        dialog.setWindowTitle("Area Administrativa")
+        dialog.setModal(True)
+        dialog.resize(480, 420)
+
+        title = QLabel("Area Administrativa")
+        title.setObjectName("pageTitle")
+        subtitle = QLabel("Acesse configuracoes e rotinas administrativas.")
+        subtitle.setObjectName("mutedText")
+        subtitle.setWordWrap(True)
+
+        descriptions = {
+            "sectors": "Setores e estrutura operacional.",
+            "users": "Usuarios, perfis e redefinicao de senha.",
+            "password_resets": "Solicitacoes de recuperacao de acesso.",
+            "settings": "Identidade visual, empresa, tema e backup.",
+            "reports": "Relatorios operacionais e exportacoes.",
+        }
+
+        actions_layout = QVBoxLayout()
+        actions_layout.setSpacing(8)
+        for module_key in allowed_modules:
+            button = QPushButton(self.module_labels[module_key])
+            button.setObjectName("adminMenuButton")
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setToolTip(descriptions[module_key])
+            button.clicked.connect(
+                lambda checked=False, key=module_key: self._select_admin_module(dialog, key)
+            )
+            actions_layout.addWidget(button)
+
+        close_button = QPushButton("Fechar")
+        close_button.setObjectName("secondaryButton")
+        close_button.clicked.connect(dialog.reject)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(22, 22, 22, 22)
+        layout.setSpacing(14)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addLayout(actions_layout)
+        layout.addStretch()
+        layout.addWidget(close_button)
+
+        dialog.exec()
+
+    def _select_admin_module(self, dialog: QDialog, module_key: str) -> None:
+        dialog.accept()
+        self.module_selected.emit(module_key)
+
+    def _allowed_admin_modules(self) -> tuple[str, ...]:
+        if self.current_user_role == "admin":
+            return self.admin_module_keys
+        if self.current_user_role == "manager":
+            return ("sectors", "users", "password_resets")
+        return ()
 
     def render_loading(self, title: str, module_key: str) -> None:
         self._set_active_module(module_key)
@@ -493,6 +623,11 @@ class DashboardWindow(QWidget):
             button.setProperty("active", "true" if is_active else "false")
             button.style().unpolish(button)
             button.style().polish(button)
+
+        admin_active = module_key in self.admin_module_keys
+        self.admin_menu_button.setProperty("active", "true" if admin_active else "false")
+        self.admin_menu_button.style().unpolish(self.admin_menu_button)
+        self.admin_menu_button.style().polish(self.admin_menu_button)
 
     def _build_customer_form(self) -> QFrame:
         panel = QFrame()
@@ -1341,6 +1476,15 @@ class DashboardWindow(QWidget):
         self.settings_phone_input = QLineEdit()
         self.settings_phone_input.setPlaceholderText("Telefone")
 
+        self.settings_brand_name_input = QLineEdit()
+        self.settings_brand_name_input.setPlaceholderText("Nome exibido no sistema")
+
+        self.settings_brand_subtitle_input = QLineEdit()
+        self.settings_brand_subtitle_input.setPlaceholderText("Subtitulo da empresa")
+
+        self.settings_primary_color_input = QLineEdit()
+        self.settings_primary_color_input.setPlaceholderText("#0969da")
+
         self.settings_theme_combo = QComboBox()
         self.settings_theme_combo.addItem("Claro", "light")
         self.settings_theme_combo.addItem("Escuro", "dark")
@@ -1375,6 +1519,22 @@ class DashboardWindow(QWidget):
         company_panel_layout.addWidget(company_title)
         company_panel_layout.addLayout(company_layout)
 
+        branding_layout = QFormLayout()
+        branding_layout.setSpacing(10)
+        branding_layout.addRow("Nome exibido", self.settings_brand_name_input)
+        branding_layout.addRow("Subtitulo", self.settings_brand_subtitle_input)
+        branding_layout.addRow("Cor principal", self.settings_primary_color_input)
+
+        branding_panel = QFrame()
+        branding_panel.setObjectName("formSubPanel")
+        branding_panel_layout = QVBoxLayout(branding_panel)
+        branding_panel_layout.setContentsMargins(12, 12, 12, 12)
+        branding_panel_layout.setSpacing(8)
+        branding_title = QLabel("IDENTIDADE VISUAL")
+        branding_title.setObjectName("formGroupTitle")
+        branding_panel_layout.addWidget(branding_title)
+        branding_panel_layout.addLayout(branding_layout)
+
         operation_layout = QFormLayout()
         operation_layout.setSpacing(10)
         operation_layout.addRow("Tema", self.settings_theme_combo)
@@ -1387,7 +1547,7 @@ class DashboardWindow(QWidget):
         operation_panel_layout = QVBoxLayout(operation_panel)
         operation_panel_layout.setContentsMargins(12, 12, 12, 12)
         operation_panel_layout.setSpacing(8)
-        operation_title = QLabel("APARENCIA E BACKUP")
+        operation_title = QLabel("TEMA E BACKUP")
         operation_title.setObjectName("formGroupTitle")
         operation_panel_layout.addWidget(operation_title)
         operation_panel_layout.addLayout(operation_layout)
@@ -1395,7 +1555,8 @@ class DashboardWindow(QWidget):
         fields_layout = QGridLayout()
         fields_layout.setSpacing(12)
         fields_layout.addWidget(company_panel, 0, 0)
-        fields_layout.addWidget(operation_panel, 0, 1)
+        fields_layout.addWidget(branding_panel, 0, 1)
+        fields_layout.addWidget(operation_panel, 1, 0, 1, 2)
         fields_layout.setColumnStretch(0, 1)
         fields_layout.setColumnStretch(1, 1)
 
@@ -1845,6 +2006,9 @@ class DashboardWindow(QWidget):
         self.settings_document_input.clear()
         self.settings_email_input.clear()
         self.settings_phone_input.clear()
+        self.settings_brand_name_input.clear()
+        self.settings_brand_subtitle_input.clear()
+        self.settings_primary_color_input.setText("#0969da")
         if self.settings_theme_combo.count() > 0:
             self.settings_theme_combo.setCurrentIndex(0)
         self.settings_backup_enabled_checkbox.setChecked(True)
@@ -1903,6 +2067,7 @@ class DashboardWindow(QWidget):
         self.active_module_key = module_key
         self.current_rows = []
         self.title_label.setText(self.module_labels.get(module_key, "Dashboard"))
+        self.setWindowTitle(f"{self.sidebar_title.text() or 'PRO CORE'} - {self.title_label.text()}")
         self._mark_active_nav(module_key)
         self.dashboard_section_title.setVisible(module_key == "dashboard")
         self.dashboard_greeting_label.setVisible(module_key == "dashboard")
@@ -2621,6 +2786,9 @@ class DashboardWindow(QWidget):
         self.settings_document_input.setText(str(settings.get("document_number") or ""))
         self.settings_email_input.setText(str(settings.get("email") or ""))
         self.settings_phone_input.setText(str(settings.get("phone") or ""))
+        self.settings_brand_name_input.setText(str(settings.get("brand_name") or ""))
+        self.settings_brand_subtitle_input.setText(str(settings.get("brand_subtitle") or ""))
+        self.settings_primary_color_input.setText(str(settings.get("primary_color") or "#0969da"))
         self._select_combo_value(self.settings_theme_combo, str(settings.get("theme") or "light"))
         self.settings_backup_enabled_checkbox.setChecked(bool(settings.get("backup_enabled", True)))
         self.settings_backup_interval_input.setText(
@@ -2632,6 +2800,7 @@ class DashboardWindow(QWidget):
             f"Ultimo backup: {last_run}" if last_run else "Ultimo backup: nunca"
         )
         self.settings_full_summary.setPlainText(self._format_settings_summary(settings))
+        self.apply_branding(settings)
         self.set_settings_form_status("Configuracoes carregadas.")
 
     def _request_settings_save(self) -> None:
@@ -2659,12 +2828,23 @@ class DashboardWindow(QWidget):
             self.set_settings_form_status("Informe a pasta de backup.", is_error=True)
             return
 
+        primary_color = self.settings_primary_color_input.text().strip() or "#0969da"
+        if not self._is_hex_color(primary_color):
+            self.set_settings_form_status(
+                "Cor principal deve usar o formato #RRGGBB.",
+                is_error=True,
+            )
+            return
+
         payload = {
             "company_name": company_name,
             "trade_name": self._optional_text(self.settings_trade_name_input),
             "document_number": self._optional_text(self.settings_document_input),
             "email": self._optional_text(self.settings_email_input),
             "phone": self._optional_text(self.settings_phone_input),
+            "brand_name": self._optional_text(self.settings_brand_name_input),
+            "brand_subtitle": self._optional_text(self.settings_brand_subtitle_input),
+            "primary_color": primary_color,
             "theme": str(self.settings_theme_combo.currentData() or "light"),
             "backup_enabled": self.settings_backup_enabled_checkbox.isChecked(),
             "backup_interval_hours": backup_interval_hours,
@@ -2886,6 +3066,9 @@ class DashboardWindow(QWidget):
         lines = [
             f"Empresa: {self._format_value(settings.get('company_name')) or '-'}",
             f"Nome fantasia: {self._format_value(settings.get('trade_name')) or '-'}",
+            f"Nome exibido: {self._format_value(settings.get('brand_name')) or '-'}",
+            f"Subtitulo: {self._format_value(settings.get('brand_subtitle')) or '-'}",
+            f"Cor principal: {self._format_value(settings.get('primary_color')) or '#0969da'}",
             f"Tema: {theme}",
             f"Backup automatico: {backup_enabled}",
             f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
@@ -2995,6 +3178,12 @@ class DashboardWindow(QWidget):
     def _is_complete_phone(value: str) -> bool:
         digits = "".join(character for character in value if character.isdigit())
         return "_" not in value and len(digits) == 11
+
+    @staticmethod
+    def _is_hex_color(value: str) -> bool:
+        if len(value) != 7 or not value.startswith("#"):
+            return False
+        return all(character in "0123456789abcdefABCDEF" for character in value[1:])
 
     @staticmethod
     def _select_combo_value(combo: QComboBox, value: str) -> None:
