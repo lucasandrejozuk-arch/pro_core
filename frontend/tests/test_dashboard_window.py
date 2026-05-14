@@ -208,3 +208,25 @@ def test_inventory_populates_summary_and_low_stock_status(qtbot) -> None:
     assert "SKU: SSD-001" in summary
     assert "Status: Critico" in summary
     assert window.inventory_stock_status.property("level") == "error"
+
+
+def test_settings_populates_operational_summary(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._populate_settings_form(
+        {
+            "company_name": "PRO CORE Lab",
+            "trade_name": "Assistencia Teste",
+            "theme": "dark",
+            "backup_enabled": True,
+            "backup_interval_hours": 12,
+            "backup_storage_path": "D:/backups",
+            "backup_last_run_at": "2026-05-14T10:00:00",
+        }
+    )
+
+    summary = window.settings_full_summary.toPlainText()
+    assert "Empresa: PRO CORE Lab" in summary
+    assert "Tema: Escuro" in summary
+    assert "Backup automatico: Ativo" in summary

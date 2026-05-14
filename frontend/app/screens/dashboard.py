@@ -1325,7 +1325,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Configuracoes do sistema")
+        title = QLabel("CONFIGURACOES DO SISTEMA")
         title.setObjectName("sectionTitle")
 
         self.settings_company_name_input = QLineEdit()
@@ -1359,17 +1359,55 @@ class DashboardWindow(QWidget):
         self.settings_backup_last_run_label = QLabel("Ultimo backup: nunca")
         self.settings_backup_last_run_label.setObjectName("mutedText")
 
-        form_layout = QFormLayout()
-        form_layout.setSpacing(10)
-        form_layout.addRow("Empresa", self.settings_company_name_input)
-        form_layout.addRow("Nome fantasia", self.settings_trade_name_input)
-        form_layout.addRow("Documento", self.settings_document_input)
-        form_layout.addRow("Email", self.settings_email_input)
-        form_layout.addRow("Telefone", self.settings_phone_input)
-        form_layout.addRow("Tema", self.settings_theme_combo)
-        form_layout.addRow("", self.settings_backup_enabled_checkbox)
-        form_layout.addRow("Intervalo", self.settings_backup_interval_input)
-        form_layout.addRow("Destino", self.settings_backup_path_input)
+        company_layout = QFormLayout()
+        company_layout.setSpacing(10)
+        company_layout.addRow("Empresa", self.settings_company_name_input)
+        company_layout.addRow("Nome fantasia", self.settings_trade_name_input)
+        company_layout.addRow("Documento", self.settings_document_input)
+        company_layout.addRow("Email", self.settings_email_input)
+        company_layout.addRow("Telefone", self.settings_phone_input)
+
+        company_panel = QFrame()
+        company_panel.setObjectName("formSubPanel")
+        company_panel_layout = QVBoxLayout(company_panel)
+        company_panel_layout.setContentsMargins(12, 12, 12, 12)
+        company_panel_layout.setSpacing(8)
+        company_title = QLabel("DADOS DA EMPRESA")
+        company_title.setObjectName("formGroupTitle")
+        company_panel_layout.addWidget(company_title)
+        company_panel_layout.addLayout(company_layout)
+
+        operation_layout = QFormLayout()
+        operation_layout.setSpacing(10)
+        operation_layout.addRow("Tema", self.settings_theme_combo)
+        operation_layout.addRow("", self.settings_backup_enabled_checkbox)
+        operation_layout.addRow("Intervalo", self.settings_backup_interval_input)
+        operation_layout.addRow("Destino", self.settings_backup_path_input)
+
+        operation_panel = QFrame()
+        operation_panel.setObjectName("formSubPanel")
+        operation_panel_layout = QVBoxLayout(operation_panel)
+        operation_panel_layout.setContentsMargins(12, 12, 12, 12)
+        operation_panel_layout.setSpacing(8)
+        operation_title = QLabel("APARENCIA E BACKUP")
+        operation_title.setObjectName("formGroupTitle")
+        operation_panel_layout.addWidget(operation_title)
+        operation_panel_layout.addLayout(operation_layout)
+
+        fields_layout = QGridLayout()
+        fields_layout.setSpacing(12)
+        fields_layout.addWidget(company_panel, 0, 0)
+        fields_layout.addWidget(operation_panel, 0, 1)
+        fields_layout.setColumnStretch(0, 1)
+        fields_layout.setColumnStretch(1, 1)
+
+        settings_details_title = QLabel("RESUMO OPERACIONAL")
+        settings_details_title.setObjectName("formGroupTitle")
+        self.settings_full_summary = QTextEdit()
+        self.settings_full_summary.setObjectName("summaryText")
+        self.settings_full_summary.setReadOnly(True)
+        self.settings_full_summary.setMinimumHeight(84)
+        self.settings_full_summary.setMaximumHeight(120)
 
         self.settings_form_status = QLabel("")
         self.settings_form_status.setObjectName("mutedText")
@@ -1390,7 +1428,9 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addLayout(fields_layout)
+        layout.addWidget(settings_details_title)
+        layout.addWidget(self.settings_full_summary)
         layout.addWidget(self.settings_backup_last_run_label)
         layout.addWidget(self.settings_form_status)
         layout.addLayout(actions)
@@ -1797,6 +1837,7 @@ class DashboardWindow(QWidget):
         self.settings_backup_interval_input.setText("24")
         self.settings_backup_path_input.setText("backups")
         self.settings_backup_last_run_label.setText("Ultimo backup: nunca")
+        self.settings_full_summary.setPlainText("Configuracoes ainda nao carregadas.")
         self.settings_form_status.setText("")
 
     def set_settings_form_status(self, message: str, is_error: bool = False) -> None:
@@ -2570,6 +2611,7 @@ class DashboardWindow(QWidget):
         self.settings_backup_last_run_label.setText(
             f"Ultimo backup: {last_run}" if last_run else "Ultimo backup: nunca"
         )
+        self.settings_full_summary.setPlainText(self._format_settings_summary(settings))
         self.set_settings_form_status("Configuracoes carregadas.")
 
     def _request_settings_save(self) -> None:
@@ -2695,6 +2737,8 @@ class DashboardWindow(QWidget):
             "service": "Servico",
             "part": "Peca",
             "other": "Outro",
+            "light": "Claro",
+            "dark": "Escuro",
         }
         if isinstance(value, str) and value in labels:
             return labels[value]
@@ -2808,6 +2852,20 @@ class DashboardWindow(QWidget):
             f"Minimo para reposicao: {minimum}",
             f"Custo unitario: {unit_cost}",
             f"Status: {status}",
+        ]
+        return "\n".join(lines)
+
+    def _format_settings_summary(self, settings: dict[str, Any]) -> str:
+        backup_enabled = "Ativo" if settings.get("backup_enabled", True) else "Inativo"
+        theme = self._format_value(settings.get("theme")) or str(settings.get("theme") or "light")
+        lines = [
+            f"Empresa: {self._format_value(settings.get('company_name')) or '-'}",
+            f"Nome fantasia: {self._format_value(settings.get('trade_name')) or '-'}",
+            f"Tema: {theme}",
+            f"Backup automatico: {backup_enabled}",
+            f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
+            f"Destino: {self._format_value(settings.get('backup_storage_path')) or 'backups'}",
+            f"Ultimo backup: {self._format_value(settings.get('backup_last_run_at')) or 'nunca'}",
         ]
         return "\n".join(lines)
 
