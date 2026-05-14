@@ -92,6 +92,9 @@ class ProCoreApplication:
         self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
         self.dashboard_window.report_view_requested.connect(self.handle_report_view)
         self.dashboard_window.report_export_requested.connect(self.handle_report_export)
+        self.dashboard_window.financial_create_requested.connect(self.handle_financial_create)
+        self.dashboard_window.financial_mark_paid_requested.connect(self.handle_financial_mark_paid)
+        self.dashboard_window.financial_cancel_requested.connect(self.handle_financial_cancel)
 
     def run(self) -> int:
         self.splash.start()
@@ -196,6 +199,10 @@ class ProCoreApplication:
                     self.dashboard_window.current_report_module_key,
                 )
                 self.dashboard_window.render_report(report)
+                return
+            if module_key in {"financial", "audit_logs", "notifications"}:
+                rows = self._load_module_rows(module_key, self.session.access_token)
+                self.dashboard_window.render_rows(title, rows, columns, module_key)
                 return
 
             user_sectors = (
@@ -771,6 +778,52 @@ class ProCoreApplication:
         self.dashboard_window.set_report_export_loading(False)
         self.dashboard_window.set_report_status(f"Relatorio salvo em {file_path}.")
 
+    def handle_financial_create(self, payload: dict) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_financial_form_loading(True)
+        try:
+            self.api_client.create_financial_record(self.session.access_token, payload)
+        except ApiError as exc:
+            self.dashboard_window.set_financial_form_loading(False)
+            self.dashboard_window.set_financial_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_financial_form_loading(False)
+        self.dashboard_window.set_financial_form_status("Lancamento criado.")
+        self.load_module("financial")
+
+    def handle_financial_mark_paid(self, record_id: str) -> None:
+        self._run_financial_action(
+            lambda access_token: self.api_client.mark_financial_record_paid(access_token, record_id),
+            "Lancamento marcado como pago.",
+        )
+
+    def handle_financial_cancel(self, record_id: str) -> None:
+        self._run_financial_action(
+            lambda access_token: self.api_client.cancel_financial_record(access_token, record_id),
+            "Lancamento cancelado.",
+        )
+
+    def _run_financial_action(self, action, success_message: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_financial_form_loading(True)
+        try:
+            action(self.session.access_token)
+        except ApiError as exc:
+            self.dashboard_window.set_financial_form_loading(False)
+            self.dashboard_window.set_financial_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_financial_form_loading(False)
+        self.dashboard_window.set_financial_form_status(success_message)
+        self.load_module("financial")
+
     def _apply_saved_theme(self) -> None:
         if not self.session.access_token:
             return
@@ -800,6 +853,12 @@ class ProCoreApplication:
             return self.api_client.list_password_reset_requests(access_token)
         if module_key == "sectors":
             return self.api_client.list_sectors(access_token)
+        if module_key == "financial":
+            return self.api_client.list_financial_records(access_token)
+        if module_key == "audit_logs":
+            return self.api_client.list_audit_logs(access_token)
+        if module_key == "notifications":
+            return self.api_client.list_notifications(access_token)
         return self.api_client.list_service_orders(access_token)
 
     def _build_dashboard_summary(self, access_token: str) -> dict:
@@ -998,6 +1057,41 @@ class ProCoreApplication:
                 ],
             )
 
+        if module_key == "financial":
+            return (
+                "Financeiro",
+                [
+                    ("Descricao", "description"),
+                    ("Tipo", "record_type"),
+                    ("Status", "status"),
+                    ("Valor", "amount"),
+                    ("Vencimento", "due_date"),
+                ],
+            )
+
+        if module_key == "audit_logs":
+            return (
+                "Logs/Auditoria",
+                [
+                    ("Acao", "action"),
+                    ("Entidade", "entity_type"),
+                    ("Resumo", "summary"),
+                    ("Criado em", "created_at"),
+                ],
+            )
+
+        if module_key == "notifications":
+            return (
+                "Notificacoes",
+                [
+                    ("Canal", "channel"),
+                    ("Status", "status"),
+                    ("Destinatario", "recipient"),
+                    ("Assunto", "subject"),
+                    ("Criada em", "created_at"),
+                ],
+            )
+
         if module_key == "settings":
             return ("Configuracoes", [])
         if module_key == "reports":
@@ -1010,8 +1104,10 @@ class ProCoreApplication:
             [
                 ("Codigo", "code"),
                 ("Status", "status"),
+                ("Prioridade", "priority"),
                 ("Problema", "problem_description"),
                 ("Total", "quoted_total"),
+                ("SLA", "sla_due_at"),
                 ("Criada em", "created_at"),
             ],
         )

@@ -64,6 +64,9 @@ class DashboardWindow(QWidget):
     backup_run_requested = Signal()
     report_view_requested = Signal(str)
     report_export_requested = Signal(str, str, str)
+    financial_create_requested = Signal(dict)
+    financial_mark_paid_requested = Signal(str)
+    financial_cancel_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -78,6 +81,7 @@ class DashboardWindow(QWidget):
         self.selected_sector_id: str | None = None
         self.selected_user_id: str | None = None
         self.selected_password_reset_request_id: str | None = None
+        self.selected_financial_record_id: str | None = None
         self.selected_service_order_document_path: str | None = None
         self.current_report_module_key = "service_orders"
         self.current_user_role = ""
@@ -89,11 +93,14 @@ class DashboardWindow(QWidget):
         self.current_user: dict[str, Any] = {}
         self.sidebar_collapsed = False
         self.admin_module_keys = (
+            "financial",
+            "notifications",
             "sectors",
             "users",
             "password_resets",
             "settings",
             "reports",
+            "audit_logs",
         )
 
         self.setWindowTitle("PRO CORE - Dashboard")
@@ -145,6 +152,9 @@ class DashboardWindow(QWidget):
             "password_resets": "Solicitacoes de senha",
             "settings": "Configuracoes",
             "reports": "Relatorios",
+            "financial": "Financeiro",
+            "audit_logs": "Logs/Auditoria",
+            "notifications": "Notificacoes",
         }
         module_groups = [
             ("OPERACAO", ("dashboard", "service_orders")),
@@ -299,6 +309,12 @@ class DashboardWindow(QWidget):
         self.settings_form_panel.hide()
         self.report_form_panel = self._build_report_form()
         self.report_form_panel.hide()
+        self.financial_form_panel = self._build_financial_form()
+        self.financial_form_panel.hide()
+        self.audit_form_panel = self._build_audit_form()
+        self.audit_form_panel.hide()
+        self.notifications_form_panel = self._build_notifications_form()
+        self.notifications_form_panel.hide()
 
         content_layout.addWidget(header_bar)
         content_layout.addWidget(self.dashboard_section_title)
@@ -318,6 +334,9 @@ class DashboardWindow(QWidget):
         content_layout.addWidget(self.password_reset_form_panel)
         content_layout.addWidget(self.settings_form_panel)
         content_layout.addWidget(self.report_form_panel)
+        content_layout.addWidget(self.financial_form_panel)
+        content_layout.addWidget(self.audit_form_panel)
+        content_layout.addWidget(self.notifications_form_panel)
         content_layout.addStretch()
 
         scroll_area = QScrollArea()
@@ -402,11 +421,14 @@ class DashboardWindow(QWidget):
         subtitle.setWordWrap(True)
 
         descriptions = {
+            "financial": "Lancamentos, baixas e controle financeiro.",
+            "notifications": "Fila de notificacoes por email, WhatsApp e sistema.",
             "sectors": "Setores e estrutura operacional.",
             "users": "Usuarios, perfis e redefinicao de senha.",
             "password_resets": "Solicitacoes de recuperacao de acesso.",
             "settings": "Identidade visual, empresa, tema e backup.",
             "reports": "Relatorios operacionais e exportacoes.",
+            "audit_logs": "Rastreabilidade administrativa e operacional.",
         }
 
         actions_layout = QVBoxLayout()
@@ -444,7 +466,7 @@ class DashboardWindow(QWidget):
         if self.current_user_role == "admin":
             return self.admin_module_keys
         if self.current_user_role == "manager":
-            return ("sectors", "users", "password_resets")
+            return ("financial", "notifications", "sectors", "users", "password_resets")
         return ()
 
     def render_loading(self, title: str, module_key: str) -> None:
@@ -515,6 +537,12 @@ class DashboardWindow(QWidget):
         elif module_key == "users":
             self.table.selectRow(0)
         elif module_key == "password_resets":
+            self.table.selectRow(0)
+        elif module_key == "financial":
+            self.table.selectRow(0)
+        elif module_key == "audit_logs":
+            self.table.selectRow(0)
+        elif module_key == "notifications":
             self.table.selectRow(0)
 
     def render_settings(self, settings: dict[str, Any]) -> None:
@@ -1047,6 +1075,15 @@ class DashboardWindow(QWidget):
         self.service_order_equipment_combo = QComboBox()
         self.service_order_technician_combo = QComboBox()
 
+        self.service_order_priority_combo = QComboBox()
+        self.service_order_priority_combo.addItem("Baixa", "low")
+        self.service_order_priority_combo.addItem("Normal", "normal")
+        self.service_order_priority_combo.addItem("Alta", "high")
+        self.service_order_priority_combo.addItem("Urgente", "urgent")
+
+        self.service_order_sla_input = QLineEdit()
+        self.service_order_sla_input.setPlaceholderText("AAAA-MM-DDTHH:MM:SS")
+
         self.service_order_problem_input = QLineEdit()
         self.service_order_problem_input.setPlaceholderText("Problema informado")
 
@@ -1090,6 +1127,8 @@ class DashboardWindow(QWidget):
         record_form_layout.addRow("Cliente", self.service_order_customer_combo)
         record_form_layout.addRow("Equipamento", self.service_order_equipment_combo)
         record_form_layout.addRow("Tecnico", self.service_order_technician_combo)
+        record_form_layout.addRow("Prioridade", self.service_order_priority_combo)
+        record_form_layout.addRow("Prazo SLA", self.service_order_sla_input)
         record_form_layout.addRow("Problema", self.service_order_problem_input)
 
         record_fields = QFrame()
@@ -1605,6 +1644,8 @@ class DashboardWindow(QWidget):
         self.report_module_combo.addItem("Equipamentos", "equipment")
         self.report_module_combo.addItem("Estoque", "inventory")
         self.report_module_combo.addItem("Usuarios", "users")
+        self.report_module_combo.addItem("Financeiro", "financial")
+        self.report_module_combo.addItem("Logs/Auditoria", "audit_logs")
 
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
@@ -1665,6 +1706,107 @@ class DashboardWindow(QWidget):
         layout.addWidget(self.report_status_label)
         layout.addLayout(actions)
 
+        return panel
+
+    def _build_financial_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+
+        title = QLabel("GESTAO FINANCEIRA")
+        title.setObjectName("sectionTitle")
+
+        self.financial_type_combo = QComboBox()
+        self.financial_type_combo.addItem("Receber", "receivable")
+        self.financial_type_combo.addItem("Pagar", "payable")
+
+        self.financial_description_input = QLineEdit()
+        self.financial_description_input.setPlaceholderText("Descricao")
+        self.financial_amount_input = QLineEdit()
+        self.financial_amount_input.setPlaceholderText("0.00")
+        self.financial_due_date_input = QLineEdit()
+        self.financial_due_date_input.setPlaceholderText("AAAA-MM-DD")
+        self.financial_notes_input = QLineEdit()
+        self.financial_notes_input.setPlaceholderText("Observacoes")
+
+        form_layout = QFormLayout()
+        form_layout.setSpacing(10)
+        form_layout.addRow("Tipo", self.financial_type_combo)
+        form_layout.addRow("Descricao", self.financial_description_input)
+        form_layout.addRow("Valor", self.financial_amount_input)
+        form_layout.addRow("Vencimento", self.financial_due_date_input)
+        form_layout.addRow("Observacoes", self.financial_notes_input)
+
+        form_panel = QFrame()
+        form_panel.setObjectName("formSubPanel")
+        form_panel_layout = QVBoxLayout(form_panel)
+        form_panel_layout.setContentsMargins(12, 12, 12, 12)
+        form_panel_layout.setSpacing(8)
+        form_title = QLabel("LANCAMENTO")
+        form_title.setObjectName("formGroupTitle")
+        form_panel_layout.addWidget(form_title)
+        form_panel_layout.addLayout(form_layout)
+
+        details_title = QLabel("DADOS COMPLETOS")
+        details_title.setObjectName("formGroupTitle")
+        self.financial_full_summary = create_summary_text()
+        self.financial_form_status = QLabel("")
+        self.financial_form_status.setObjectName("mutedText")
+
+        self.financial_new_button = QPushButton("Novo")
+        self.financial_new_button.setObjectName("secondaryButton")
+        self.financial_new_button.clicked.connect(self.clear_financial_form)
+        self.financial_paid_button = QPushButton("Marcar pago")
+        self.financial_paid_button.setObjectName("secondaryButton")
+        self.financial_paid_button.clicked.connect(self._request_financial_mark_paid)
+        self.financial_cancel_button = QPushButton("Cancelar")
+        self.financial_cancel_button.setObjectName("secondaryButton")
+        self.financial_cancel_button.clicked.connect(self._request_financial_cancel)
+        self.financial_save_button = QPushButton("Salvar lancamento")
+        self.financial_save_button.clicked.connect(self._request_financial_save)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.financial_new_button)
+        actions.addWidget(self.financial_paid_button)
+        actions.addWidget(self.financial_cancel_button)
+        actions.addWidget(self.financial_save_button)
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addWidget(form_panel)
+        layout.addWidget(details_title)
+        layout.addWidget(self.financial_full_summary)
+        layout.addWidget(self.financial_form_status)
+        layout.addLayout(actions)
+
+        return panel
+
+    def _build_audit_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+        title = QLabel("LOGS E AUDITORIA")
+        title.setObjectName("sectionTitle")
+        self.audit_full_summary = create_summary_text()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addWidget(self.audit_full_summary)
+        return panel
+
+    def _build_notifications_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+        title = QLabel("NOTIFICACOES")
+        title.setObjectName("sectionTitle")
+        self.notifications_full_summary = create_summary_text()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addWidget(self.notifications_full_summary)
         return panel
 
     def clear_customer_form(self) -> None:
@@ -1839,6 +1981,8 @@ class DashboardWindow(QWidget):
         if self.service_order_technician_combo.count() > 0:
             self.service_order_technician_combo.setCurrentIndex(0)
         self._refresh_service_order_equipment_combo()
+        self._select_combo_value(self.service_order_priority_combo, "normal")
+        self.service_order_sla_input.clear()
         self.service_order_problem_input.clear()
         self.service_order_diagnosis_input.clear()
         self.service_order_rejection_input.clear()
@@ -2063,6 +2207,44 @@ class DashboardWindow(QWidget):
         self.report_export_xlsx_button.setEnabled(not is_loading)
         self.report_export_pdf_button.setEnabled(not is_loading)
 
+    def clear_financial_form(self) -> None:
+        self.selected_financial_record_id = None
+        if self.financial_type_combo.count() > 0:
+            self.financial_type_combo.setCurrentIndex(0)
+        self.financial_description_input.clear()
+        self.financial_amount_input.clear()
+        self.financial_due_date_input.clear()
+        self.financial_notes_input.clear()
+        self.financial_full_summary.setPlainText("Novo lancamento financeiro.")
+        self.financial_form_status.setText("Novo lancamento.")
+        self.financial_paid_button.setEnabled(False)
+        self.financial_cancel_button.setEnabled(False)
+        self.table.clearSelection()
+
+    def set_financial_form_status(self, message: str, is_error: bool = False) -> None:
+        self.financial_form_status.setObjectName("errorText" if is_error else "mutedText")
+        self.financial_form_status.setText(message)
+        self.financial_form_status.style().unpolish(self.financial_form_status)
+        self.financial_form_status.style().polish(self.financial_form_status)
+
+    def set_financial_form_loading(self, is_loading: bool) -> None:
+        has_selection = bool(self.selected_financial_record_id)
+        self.financial_save_button.setEnabled(not is_loading)
+        self.financial_new_button.setEnabled(not is_loading)
+        self.financial_paid_button.setEnabled(not is_loading and has_selection)
+        self.financial_cancel_button.setEnabled(not is_loading and has_selection)
+        self.financial_save_button.setText(
+            "Salvando..." if is_loading else "Salvar lancamento"
+        )
+
+    def clear_audit_form(self) -> None:
+        self.audit_full_summary.setPlainText("Selecione um log para ver os detalhes.")
+
+    def clear_notifications_form(self) -> None:
+        self.notifications_full_summary.setPlainText(
+            "Selecione uma notificacao para ver os detalhes."
+        )
+
     def _set_active_module(self, module_key: str) -> None:
         self.active_module_key = module_key
         self.current_rows = []
@@ -2085,6 +2267,9 @@ class DashboardWindow(QWidget):
         self.password_reset_form_panel.setVisible(module_key == "password_resets")
         self.settings_form_panel.setVisible(module_key == "settings")
         self.report_form_panel.setVisible(module_key == "reports")
+        self.financial_form_panel.setVisible(module_key == "financial")
+        self.audit_form_panel.setVisible(module_key == "audit_logs")
+        self.notifications_form_panel.setVisible(module_key == "notifications")
         if module_key == "customers":
             self.clear_customer_form()
         elif module_key == "equipment":
@@ -2103,6 +2288,12 @@ class DashboardWindow(QWidget):
             self.clear_settings_form()
         elif module_key == "reports":
             self.clear_report_form()
+        elif module_key == "financial":
+            self.clear_financial_form()
+        elif module_key == "audit_logs":
+            self.clear_audit_form()
+        elif module_key == "notifications":
+            self.clear_notifications_form()
 
     def _handle_table_selection(self) -> None:
         if self.active_module_key not in {
@@ -2113,6 +2304,9 @@ class DashboardWindow(QWidget):
             "sectors",
             "users",
             "password_resets",
+            "financial",
+            "audit_logs",
+            "notifications",
         }:
             return
 
@@ -2146,6 +2340,22 @@ class DashboardWindow(QWidget):
 
         if self.active_module_key == "password_resets":
             self._populate_password_reset_form(self.current_rows[row_index])
+            return
+
+        if self.active_module_key == "financial":
+            self._populate_financial_form(self.current_rows[row_index])
+            return
+
+        if self.active_module_key == "audit_logs":
+            self.audit_full_summary.setPlainText(
+                self._format_audit_summary(self.current_rows[row_index])
+            )
+            return
+
+        if self.active_module_key == "notifications":
+            self.notifications_full_summary.setPlainText(
+                self._format_notification_summary(self.current_rows[row_index])
+            )
             return
 
         self._populate_user_form(self.current_rows[row_index])
@@ -2445,6 +2655,11 @@ class DashboardWindow(QWidget):
             self.service_order_technician_combo,
             str(service_order.get("assigned_technician_id") or ""),
         )
+        self._select_combo_value(
+            self.service_order_priority_combo,
+            str(service_order.get("priority") or "normal"),
+        )
+        self.service_order_sla_input.setText(str(service_order.get("sla_due_at") or ""))
         self.service_order_problem_input.setText(str(service_order.get("problem_description") or ""))
         self.service_order_diagnosis_input.setText(str(service_order.get("technical_diagnosis") or ""))
         self.service_order_rejection_input.setText(str(service_order.get("rejection_reason") or ""))
@@ -2486,6 +2701,8 @@ class DashboardWindow(QWidget):
         if self.selected_service_order_id:
             payload = {
                 "assigned_technician_id": str(technician_id) if technician_id else None,
+                "priority": str(self.service_order_priority_combo.currentData() or "normal"),
+                "sla_due_at": self._optional_text(self.service_order_sla_input),
                 "problem_description": problem_description,
                 "technical_diagnosis": self._optional_text(self.service_order_diagnosis_input),
                 "rejection_reason": self._optional_text(self.service_order_rejection_input),
@@ -2497,6 +2714,8 @@ class DashboardWindow(QWidget):
             "customer_id": str(customer_id),
             "equipment_id": str(equipment_id),
             "assigned_technician_id": str(technician_id) if technician_id else None,
+            "priority": str(self.service_order_priority_combo.currentData() or "normal"),
+            "sla_due_at": self._optional_text(self.service_order_sla_input),
             "problem_description": problem_description,
         }
         self.service_order_create_requested.emit(payload)
@@ -2780,6 +2999,57 @@ class DashboardWindow(QWidget):
             new_password,
         )
 
+    def _populate_financial_form(self, record: dict[str, Any]) -> None:
+        self.selected_financial_record_id = str(record["id"])
+        self._select_combo_value(
+            self.financial_type_combo,
+            str(record.get("record_type") or "receivable"),
+        )
+        self.financial_description_input.setText(str(record.get("description") or ""))
+        self.financial_amount_input.setText(str(record.get("amount") or ""))
+        self.financial_due_date_input.setText(str(record.get("due_date") or ""))
+        self.financial_notes_input.setText(str(record.get("notes") or ""))
+        self.financial_full_summary.setPlainText(self._format_financial_summary(record))
+        self.financial_paid_button.setEnabled(str(record.get("status") or "") == "open")
+        self.financial_cancel_button.setEnabled(str(record.get("status") or "") == "open")
+        self.set_financial_form_status("Editando lancamento selecionado.")
+
+    def _request_financial_save(self) -> None:
+        description = self.financial_description_input.text().strip()
+        if not description:
+            self.set_financial_form_status("Informe a descricao.", is_error=True)
+            return
+
+        amount = self.financial_amount_input.text().strip().replace(",", ".")
+        try:
+            if float(amount) <= 0:
+                raise ValueError
+        except ValueError:
+            self.set_financial_form_status("Valor deve ser maior que zero.", is_error=True)
+            return
+
+        payload = {
+            "record_type": str(self.financial_type_combo.currentData() or "receivable"),
+            "description": description,
+            "amount": amount,
+            "due_date": self._optional_text(self.financial_due_date_input),
+            "notes": self._optional_text(self.financial_notes_input),
+        }
+        self.set_financial_form_status("")
+        self.financial_create_requested.emit(payload)
+
+    def _request_financial_mark_paid(self) -> None:
+        if not self.selected_financial_record_id:
+            self.set_financial_form_status("Selecione um lancamento.", is_error=True)
+            return
+        self.financial_mark_paid_requested.emit(self.selected_financial_record_id)
+
+    def _request_financial_cancel(self) -> None:
+        if not self.selected_financial_record_id:
+            self.set_financial_form_status("Selecione um lancamento.", is_error=True)
+            return
+        self.financial_cancel_requested.emit(self.selected_financial_record_id)
+
     def _populate_settings_form(self, settings: dict[str, Any]) -> None:
         self.settings_company_name_input.setText(str(settings.get("company_name") or ""))
         self.settings_trade_name_input.setText(str(settings.get("trade_name") or ""))
@@ -2939,11 +3209,27 @@ class DashboardWindow(QWidget):
             "other": "Outro",
             "light": "Claro",
             "dark": "Escuro",
+            "low": "Baixa",
+            "normal": "Normal",
+            "high": "Alta",
+            "urgent": "Urgente",
+            "receivable": "A receber",
+            "payable": "A pagar",
+            "paid": "Pago",
+            "canceled": "Cancelado",
+            "overdue": "Vencido",
+            "email": "Email",
+            "whatsapp": "WhatsApp",
+            "system": "Sistema",
+            "sent": "Enviada",
+            "failed": "Falhou",
             "service_orders": "Ordens de Servico",
             "customers": "Clientes",
             "equipment": "Equipamentos",
             "inventory": "Estoque",
             "users": "Usuarios",
+            "financial": "Financeiro",
+            "audit_logs": "Logs/Auditoria",
         }
         if isinstance(value, str) and value in labels:
             return labels[value]
@@ -3000,6 +3286,8 @@ class DashboardWindow(QWidget):
         lines = [
             f"Codigo: {self._format_value(service_order.get('code')) or '-'}",
             f"Status: {self._format_value(service_order.get('status'))}",
+            f"Prioridade: {self._format_value(service_order.get('priority')) or 'Normal'}",
+            f"Prazo SLA: {self._format_value(service_order.get('sla_due_at')) or '-'}",
             f"Cliente: {customer_name}",
             f"Equipamento: {equipment_label}",
             f"Tecnico: {technician_name}",
@@ -3074,6 +3362,42 @@ class DashboardWindow(QWidget):
             f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
             f"Destino: {self._format_value(settings.get('backup_storage_path')) or 'backups'}",
             f"Ultimo backup: {self._format_value(settings.get('backup_last_run_at')) or 'nunca'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_financial_summary(self, record: dict[str, Any]) -> str:
+        lines = [
+            f"Descricao: {self._format_value(record.get('description')) or '-'}",
+            f"Tipo: {self._format_value(record.get('record_type')) or '-'}",
+            f"Status: {self._format_value(record.get('status')) or '-'}",
+            f"Valor: {self._format_value(record.get('amount')) or '0'}",
+            f"Vencimento: {self._format_value(record.get('due_date')) or '-'}",
+            f"Pago em: {self._format_value(record.get('paid_at')) or '-'}",
+            f"OS vinculada: {self._format_value(record.get('service_order_id')) or '-'}",
+            f"Observacoes: {self._format_value(record.get('notes')) or '-'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_audit_summary(self, record: dict[str, Any]) -> str:
+        lines = [
+            f"Acao: {self._format_value(record.get('action')) or '-'}",
+            f"Entidade: {self._format_value(record.get('entity_type')) or '-'}",
+            f"ID: {self._format_value(record.get('entity_id')) or '-'}",
+            f"Resumo: {self._format_value(record.get('summary')) or '-'}",
+            f"Ator: {self._format_value(record.get('actor_user_id')) or record.get('actor_type') or '-'}",
+            f"Criado em: {self._format_value(record.get('created_at')) or '-'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_notification_summary(self, record: dict[str, Any]) -> str:
+        lines = [
+            f"Canal: {self._format_value(record.get('channel')) or '-'}",
+            f"Status: {self._format_value(record.get('status')) or '-'}",
+            f"Destinatario: {self._format_value(record.get('recipient')) or '-'}",
+            f"Assunto: {self._format_value(record.get('subject')) or '-'}",
+            f"Mensagem: {self._format_value(record.get('message')) or '-'}",
+            f"OS vinculada: {self._format_value(record.get('service_order_id')) or '-'}",
+            f"Criado em: {self._format_value(record.get('created_at')) or '-'}",
         ]
         return "\n".join(lines)
 

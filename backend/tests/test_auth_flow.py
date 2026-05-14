@@ -16,6 +16,7 @@ def test_login_returns_token_and_user_data(client: TestClient, admin_user: User)
     assert body["must_change_password"] is True
     assert body["user"]["email"] == "admin@example.com"
     assert body["user"]["role"] == "admin"
+    assert "service_orders:*" in body["user"]["permissions"]
 
 
 def test_me_requires_valid_token(client: TestClient, admin_user: User) -> None:
@@ -32,6 +33,7 @@ def test_me_requires_valid_token(client: TestClient, admin_user: User) -> None:
 
     assert response.status_code == 200
     assert response.json()["email"] == "admin@example.com"
+    assert "audit_logs:view" in response.json()["permissions"]
 
 
 def test_change_password_clears_required_password_change_flag(

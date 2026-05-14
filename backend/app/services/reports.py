@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.customer import Customer
 from backend.app.models.equipment import Equipment
+from backend.app.models.audit import AuditLog
+from backend.app.models.financial import FinancialRecord
 from backend.app.models.inventory import InventoryItem
 from backend.app.models.service_order import ServiceOrder
 from backend.app.models.user import User
@@ -96,6 +98,29 @@ REPORT_SPECS: dict[str, ReportSpec] = {
                 "Troca senha",
                 lambda item: item.must_change_password,
             ),
+        ),
+    ),
+    "financial": ReportSpec(
+        title="Relatorio Financeiro",
+        model=FinancialRecord,
+        columns=(
+            ReportColumnSpec("description", "Descricao", lambda item: item.description),
+            ReportColumnSpec("record_type", "Tipo", lambda item: item.record_type),
+            ReportColumnSpec("status", "Status", lambda item: item.status),
+            ReportColumnSpec("amount", "Valor", lambda item: item.amount),
+            ReportColumnSpec("due_date", "Vencimento", lambda item: item.due_date),
+            ReportColumnSpec("paid_at", "Pago em", lambda item: item.paid_at),
+        ),
+    ),
+    "audit_logs": ReportSpec(
+        title="Relatorio de Auditoria",
+        model=AuditLog,
+        columns=(
+            ReportColumnSpec("action", "Acao", lambda item: item.action),
+            ReportColumnSpec("entity_type", "Entidade", lambda item: item.entity_type),
+            ReportColumnSpec("entity_id", "ID", lambda item: item.entity_id),
+            ReportColumnSpec("summary", "Resumo", lambda item: item.summary),
+            ReportColumnSpec("created_at", "Criado em", lambda item: item.created_at),
         ),
     ),
 }

@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import require_roles
@@ -21,6 +22,7 @@ from backend.app.schemas.service_order import (
 from backend.app.services.service_orders import (
     add_budget_item,
     approve_service_order,
+    build_quote_pdf,
     complete_service_order,
     create_service_order,
     get_service_order,
@@ -209,6 +211,24 @@ def submit_service_order_quote(
 
     _ensure_service_order_access(db, current_user, service_order)
     return submit_quote(db, service_order)
+
+
+@router.get("/{service_order_id}/quote.pdf")
+def download_service_order_quote(
+    service_order_id: uuid.UUID,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    service_order = get_service_order(db, current_user.company_id, service_order_id)
+    if service_order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+
+    _ensure_service_order_access(db, current_user, service_order)
+    return Response(
+        content=build_quote_pdf(service_order),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{service_order.code}.pdf"'},
+    )
 
 
 @router.post("/{service_order_id}/approve", response_model=ServiceOrderResponse)

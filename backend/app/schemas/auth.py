@@ -27,6 +27,7 @@ class TokenUser(BaseModel):
     email: str
     role: UserRole
     must_change_password: bool
+    permissions: list[str] = []
 
 
 class TokenResponse(BaseModel):

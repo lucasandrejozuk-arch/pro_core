@@ -259,6 +259,13 @@ class ApiClient:
             access_token=access_token,
         )
 
+    def download_service_order_quote(self, access_token: str, service_order_id: str) -> bytes:
+        return self._download(
+            "GET",
+            f"service-orders/{service_order_id}/quote.pdf",
+            access_token=access_token,
+        )
+
     def list_documents(
         self,
         access_token: str,
@@ -415,6 +422,37 @@ class ApiClient:
             "settings/backup/run",
             access_token=access_token,
         )
+
+    def list_financial_records(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "financial-records", access_token=access_token)
+
+    def create_financial_record(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "financial-records",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def mark_financial_record_paid(self, access_token: str, record_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"financial-records/{record_id}/mark-paid",
+            access_token=access_token,
+        )
+
+    def cancel_financial_record(self, access_token: str, record_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"financial-records/{record_id}/cancel",
+            access_token=access_token,
+        )
+
+    def list_audit_logs(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "audit-logs", access_token=access_token)
+
+    def list_notifications(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "notifications", access_token=access_token)
 
     def get_report(self, access_token: str, module_key: str) -> dict[str, Any]:
         return self._request("GET", f"reports/{module_key}", access_token=access_token)

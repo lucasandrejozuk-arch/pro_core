@@ -5,6 +5,7 @@ from backend.app.db.base import Base
 def test_core_tables_are_registered() -> None:
     expected_tables = {
         "app_settings",
+        "audit_logs",
         "backup_policies",
         "companies",
         "customers",
@@ -12,9 +13,12 @@ def test_core_tables_are_registered() -> None:
         "equipment",
         "equipment_board_components",
         "equipment_boards",
+        "financial_records",
         "inventory_items",
+        "notification_logs",
         "sectors",
         "service_order_budget_items",
+        "service_order_events",
         "service_orders",
         "users",
     }

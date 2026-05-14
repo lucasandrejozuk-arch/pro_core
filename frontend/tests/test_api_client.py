@@ -646,6 +646,79 @@ def test_run_backup_posts_to_settings_endpoint() -> None:
     assert response["validated"] is True
 
 
+def test_financial_and_admin_lists_call_expected_endpoints() -> None:
+    expected_paths = [
+        "/api/v1/financial-records",
+        "/api/v1/audit-logs",
+        "/api/v1/notifications",
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == expected_paths.pop(0)
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.list_financial_records("token") == []
+    assert client.list_audit_logs("token") == []
+    assert client.list_notifications("token") == []
+
+
+def test_create_financial_record_posts_payload() -> None:
+    payload = {
+        "record_type": "receivable",
+        "description": "Recebimento OS-000001",
+        "amount": "300.00",
+        "due_date": "2026-05-20",
+        "notes": None,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/financial-records"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == payload
+        return httpx.Response(201, json=payload | {"id": "record-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.create_financial_record("token", payload)
+
+    assert response["id"] == "record-id"
+
+
+@pytest.mark.parametrize(
+    ("method_name", "path"),
+    [
+        ("mark_financial_record_paid", "/api/v1/financial-records/record-id/mark-paid"),
+        ("cancel_financial_record", "/api/v1/financial-records/record-id/cancel"),
+    ],
+)
+def test_financial_actions_call_expected_endpoints(method_name: str, path: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == path
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json={"id": "record-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = getattr(client, method_name)("token", "record-id")
+
+    assert response["id"] == "record-id"
+
+
 def test_get_report_returns_payload() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
@@ -826,6 +899,23 @@ def test_service_order_flow_actions_call_expected_endpoints(
     response = getattr(client, method_name)("token", *args)
 
     assert response["id"] == "service-order-id"
+
+
+def test_download_service_order_quote_returns_bytes() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/service-orders/service-order-id/quote.pdf"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, content=b"%PDF-1.4")
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.download_service_order_quote("token", "service-order-id")
+
+    assert response.startswith(b"%PDF")
 
 
 def test_list_documents_sends_service_order_filter() -> None:

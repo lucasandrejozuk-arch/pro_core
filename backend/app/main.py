@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import get_settings
@@ -34,6 +37,11 @@ def create_app() -> FastAPI:
             "environment": settings.pro_core_env,
             "status": "ok",
         }
+
+    @app.get("/customer-portal", response_class=HTMLResponse, tags=["customer-portal"])
+    def customer_portal() -> HTMLResponse:
+        portal_path = Path(__file__).resolve().parent / "web" / "customer_portal.html"
+        return HTMLResponse(portal_path.read_text(encoding="utf-8"))
 
     app.include_router(api_router)
 

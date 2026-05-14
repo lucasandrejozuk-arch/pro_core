@@ -28,10 +28,47 @@ class ServiceOrderStatus(str, Enum):
     CLOSED = "closed"
 
 
+class ServiceOrderPriority(str, Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class ServiceOrderEventSource(str, Enum):
+    STAFF = "staff"
+    CUSTOMER = "customer"
+    SYSTEM = "system"
+
+
 class BudgetItemType(str, Enum):
     SERVICE = "service"
     PART = "part"
     OTHER = "other"
+
+
+class FinancialRecordType(str, Enum):
+    RECEIVABLE = "receivable"
+    PAYABLE = "payable"
+
+
+class FinancialRecordStatus(str, Enum):
+    OPEN = "open"
+    PAID = "paid"
+    CANCELED = "canceled"
+    OVERDUE = "overdue"
+
+
+class NotificationChannel(str, Enum):
+    EMAIL = "email"
+    WHATSAPP = "whatsapp"
+    SYSTEM = "system"
+
+
+class NotificationStatus(str, Enum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
 
 
 class DocumentType(str, Enum):

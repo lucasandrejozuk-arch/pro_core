@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PRO CORE - Area do Cliente</title>
+  <style>
+    :root { color-scheme: light; --accent: #0969da; --bg: #f6f8fa; --panel: #ffffff; --line: #d0d7de; --text: #24292f; --muted: #57606a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Segoe UI, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    main { max-width: 980px; margin: 0 auto; padding: 32px 18px; }
+    header { margin-bottom: 22px; }
+    h1 { margin: 0; font-size: 30px; letter-spacing: 0; }
+    p { color: var(--muted); }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+    label { display: block; font-weight: 700; margin: 10px 0 6px; }
+    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; min-height: 42px; padding: 10px 12px; font: inherit; }
+    textarea { min-height: 96px; resize: vertical; }
+    button, a.button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 800; text-decoration: none; cursor: pointer; }
+    button.secondary { background: #eaeef2; color: var(--text); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .metric { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .metric strong { display: block; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; }
+    th { background: #eaeef2; }
+    .hidden { display: none; }
+    .status { border-left: 5px solid var(--accent); }
+    .error { color: #cf222e; font-weight: 700; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } main { padding: 20px 12px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1 id="brand">PRO CORE</h1>
+      <p id="subtitle">Area do cliente para consulta e aprovacao de orcamentos.</p>
+    </header>
+
+    <section id="login-section">
+      <h2>Acessar ordem de servico</h2>
+      <label for="code">Codigo da OS</label>
+      <input id="code" placeholder="OS-000001" autocomplete="off">
+      <label for="email">Email cadastrado</label>
+      <input id="email" type="email" placeholder="cliente@email.com">
+      <div class="actions">
+        <button id="login-button">Entrar</button>
+      </div>
+      <p id="login-error" class="error"></p>
+    </section>
+
+    <section id="order-section" class="hidden">
+      <h2 id="order-title">Ordem de servico</h2>
+      <div class="grid">
+        <div class="metric"><strong>Cliente</strong><span id="customer"></span></div>
+        <div class="metric"><strong>Equipamento</strong><span id="equipment"></span></div>
+        <div class="metric"><strong>Status</strong><span id="status"></span></div>
+        <div class="metric"><strong>Total</strong><span id="total"></span></div>
+      </div>
+      <p class="status" id="diagnosis"></p>
+      <h3>Itens do orcamento</h3>
+      <table>
+        <thead><tr><th>Tipo</th><th>Descricao</th><th>Qtd</th><th>Valor</th></tr></thead>
+        <tbody id="items"></tbody>
+      </table>
+      <h3>Linha do tempo</h3>
+      <div id="events"></div>
+      <div class="actions">
+        <a id="pdf-link" class="button secondary" href="#">Baixar PDF</a>
+        <button id="approve-button">Aprovar</button>
+        <button id="show-reject-button" class="secondary">Reprovar</button>
+      </div>
+    </section>
+
+    <section id="reject-section" class="hidden">
+      <h2>Reprovar orcamento</h2>
+      <label for="decision-name">Seu nome</label>
+      <input id="decision-name" placeholder="Nome do responsavel">
+      <label for="reason">Motivo</label>
+      <textarea id="reason" placeholder="Informe o motivo da reprovacao"></textarea>
+      <div class="actions">
+        <button id="reject-button">Confirmar reprovacao</button>
+        <button id="cancel-reject-button" class="secondary">Cancelar</button>
+      </div>
+      <p id="action-error" class="error"></p>
+    </section>
+  </main>
+  <script>
+    let token = "";
+    const api = "/api/v1/customer-portal";
+    const formatMoney = value => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+    const headers = () => ({ "Authorization": `Bearer ${token}`, "Content-Type": "application/json" });
+
+    async function loadAppearance() {
+      if (!token) return;
+      try {
+        const response = await fetch(`${api}/appearance`, { headers: { "Authorization": `Bearer ${token}` } });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.brand_name) document.getElementById("brand").textContent = data.brand_name;
+        if (data.brand_subtitle) document.getElementById("subtitle").textContent = data.brand_subtitle;
+        if (data.primary_color) document.documentElement.style.setProperty("--accent", data.primary_color);
+      } catch {}
+    }
+
+    function render(order) {
+      document.getElementById("login-section").classList.add("hidden");
+      document.getElementById("order-section").classList.remove("hidden");
+      document.getElementById("order-title").textContent = `Ordem ${order.code}`;
+      document.getElementById("customer").textContent = order.customer_name;
+      document.getElementById("equipment").textContent = order.equipment;
+      document.getElementById("status").textContent = order.status;
+      document.getElementById("total").textContent = formatMoney(order.quoted_total);
+      document.getElementById("diagnosis").textContent = `Diagnostico: ${order.technical_diagnosis || "-"}`;
+      document.getElementById("items").innerHTML = order.budget_items.map(item => `<tr><td>${item.item_type}</td><td>${item.description}</td><td>${item.quantity}</td><td>${formatMoney(item.unit_price)}</td></tr>`).join("");
+      document.getElementById("events").innerHTML = order.events.map(event => `<p><strong>${event.event_type}</strong>: ${event.message}</p>`).join("");
+      document.getElementById("pdf-link").onclick = event => { event.preventDefault(); downloadPdf(); };
+      const awaiting = order.status === "pending_approval";
+      document.getElementById("approve-button").disabled = !awaiting;
+      document.getElementById("show-reject-button").disabled = !awaiting;
+    }
+
+    async function login() {
+      document.getElementById("login-error").textContent = "";
+      const response = await fetch(`${api}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service_order_code: document.getElementById("code").value, email: document.getElementById("email").value })
+      });
+      if (!response.ok) {
+        document.getElementById("login-error").textContent = "Nao foi possivel acessar a OS com os dados informados.";
+        return;
+      }
+      const data = await response.json();
+      token = data.access_token;
+      render(data.service_order);
+      await loadAppearance();
+    }
+
+    async function refreshOrder() {
+      const response = await fetch(`${api}/service-order`, { headers: headers() });
+      if (response.ok) render(await response.json());
+    }
+
+    async function approve() {
+      const response = await fetch(`${api}/approve`, { method: "POST", headers: headers(), body: JSON.stringify({ decision_name: document.getElementById("decision-name").value || null }) });
+      if (response.ok) render(await response.json());
+    }
+
+    async function reject() {
+      document.getElementById("action-error").textContent = "";
+      const response = await fetch(`${api}/reject`, { method: "POST", headers: headers(), body: JSON.stringify({ decision_name: document.getElementById("decision-name").value || null, rejection_reason: document.getElementById("reason").value }) });
+      if (!response.ok) {
+        document.getElementById("action-error").textContent = "Informe o motivo da reprovacao.";
+        return;
+      }
+      document.getElementById("reject-section").classList.add("hidden");
+      render(await response.json());
+    }
+
+    async function downloadPdf() {
+      const response = await fetch(`${api}/quote.pdf`, { headers: { "Authorization": `Bearer ${token}` } });
+      if (!response.ok) return;
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "orcamento.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("login-button").onclick = login;
+    document.getElementById("approve-button").onclick = approve;
+    document.getElementById("show-reject-button").onclick = () => document.getElementById("reject-section").classList.remove("hidden");
+    document.getElementById("cancel-reject-button").onclick = () => document.getElementById("reject-section").classList.add("hidden");
+    document.getElementById("reject-button").onclick = reject;
+    loadAppearance();
+  </script>
+</body>
+</html>

@@ -87,11 +87,14 @@ def test_admin_modules_open_from_dedicated_menu(qtbot) -> None:
     assert "users" not in window.module_buttons
     assert not window.admin_menu_button.isHidden()
     assert window._allowed_admin_modules() == (
+        "financial",
+        "notifications",
         "sectors",
         "users",
         "password_resets",
         "settings",
         "reports",
+        "audit_logs",
     )
 
 
@@ -388,6 +391,73 @@ def test_service_order_budget_item_emits_payload(qtbot) -> None:
             },
         )
     ]
+
+
+def test_service_order_save_emits_priority_and_sla(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.service_order_create_requested.connect(lambda payload: emitted.append(payload))
+    window.set_service_order_dependencies(
+        customers=[{"id": "customer-id", "name": "Cliente"}],
+        equipment=[{"id": "equipment-id", "customer_id": "customer-id", "category": "Notebook"}],
+        technicians=[{"id": "technician-id", "full_name": "Tecnico"}],
+    )
+
+    window._select_combo_value(window.service_order_priority_combo, "urgent")
+    window.service_order_sla_input.setText("2026-05-20T10:00:00")
+    window.service_order_problem_input.setText("Nao liga")
+
+    window._request_service_order_save()
+
+    assert emitted[0]["priority"] == "urgent"
+    assert emitted[0]["sla_due_at"] == "2026-05-20T10:00:00"
+
+
+def test_financial_save_emits_payload(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.financial_create_requested.connect(lambda payload: emitted.append(payload))
+
+    window.financial_description_input.setText("Recebimento OS-000001")
+    window.financial_amount_input.setText("300,00")
+    window.financial_due_date_input.setText("2026-05-20")
+    window.financial_notes_input.setText("Aprovado pelo cliente")
+
+    window._request_financial_save()
+
+    assert emitted == [
+        {
+            "record_type": "receivable",
+            "description": "Recebimento OS-000001",
+            "amount": "300.00",
+            "due_date": "2026-05-20",
+            "notes": "Aprovado pelo cliente",
+        }
+    ]
+
+
+def test_financial_populates_summary_and_actions(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._populate_financial_form(
+        {
+            "id": "record-id",
+            "record_type": "receivable",
+            "status": "open",
+            "description": "Recebimento OS-000001",
+            "amount": "300.00",
+            "due_date": "2026-05-20",
+            "paid_at": None,
+            "service_order_id": "service-order-id",
+            "notes": "Aprovado",
+        }
+    )
+
+    assert "Recebimento OS-000001" in window.financial_full_summary.toPlainText()
+    assert window.financial_paid_button.isEnabled()
 
 
 def test_settings_save_rejects_invalid_backup_interval(qtbot) -> None:

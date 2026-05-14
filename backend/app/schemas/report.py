@@ -5,7 +5,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-ReportModule = Literal["customers", "equipment", "inventory", "service_orders", "users"]
+ReportModule = Literal[
+    "customers",
+    "equipment",
+    "inventory",
+    "service_orders",
+    "users",
+    "financial",
+    "audit_logs",
+]
 ReportFormat = Literal["csv", "xlsx", "pdf"]
 
 

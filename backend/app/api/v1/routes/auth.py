@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import get_current_user
+from backend.app.core.permissions import permissions_for_role
 from backend.app.core.security import create_access_token
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -42,10 +43,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         },
     )
 
+    token_user = TokenUser.model_validate(user)
+    token_user.permissions = permissions_for_role(user.role)
+
     return TokenResponse(
         access_token=access_token,
         must_change_password=user.must_change_password,
-        user=TokenUser.model_validate(user),
+        user=token_user,
     )
 
 
@@ -61,8 +65,10 @@ def request_password_reset(
 
 
 @router.get("/me", response_model=UserProfileResponse)
-def me(current_user: User = Depends(get_current_user)) -> User:
-    return current_user
+def me(current_user: User = Depends(get_current_user)) -> UserProfileResponse:
+    profile = UserProfileResponse.model_validate(current_user)
+    profile.permissions = permissions_for_role(current_user.role)
+    return profile
 
 
 @router.post("/change-password", response_model=UserProfileResponse)
