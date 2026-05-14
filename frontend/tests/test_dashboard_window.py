@@ -121,3 +121,25 @@ def test_service_order_populates_workflow_and_full_summary(qtbot) -> None:
     assert "Notebook - Dell - Latitude - NE-01 - SER-01" in (
         window.service_order_full_summary.toPlainText()
     )
+
+
+def test_customer_populates_complete_summary(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._populate_customer_form(
+        {
+            "id": "customer-id",
+            "name": "Cliente Teste",
+            "email": "cliente@example.com",
+            "phone": "(11) 99999-9999",
+            "address": "Rua Central, 100",
+            "notes": "Cliente recorrente",
+            "is_active": True,
+        }
+    )
+
+    summary = window.customer_full_summary.toPlainText()
+    assert "Nome: Cliente Teste" in summary
+    assert "Email: cliente@example.com" in summary
+    assert "Telefone: (11) 99999-9999" in summary

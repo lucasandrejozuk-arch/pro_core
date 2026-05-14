@@ -552,7 +552,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Cadastro de cliente")
+        title = QLabel("EDITAR REGISTRO - Cliente")
         title.setObjectName("sectionTitle")
 
         self.customer_name_input = QLineEdit()
@@ -574,14 +574,44 @@ class DashboardWindow(QWidget):
         self.customer_active_checkbox = QCheckBox("Cliente ativo")
         self.customer_active_checkbox.setChecked(True)
 
-        form_layout = QFormLayout()
-        form_layout.setSpacing(10)
-        form_layout.addRow("Nome", self.customer_name_input)
-        form_layout.addRow("Email", self.customer_email_input)
-        form_layout.addRow("Telefone", self.customer_phone_input)
-        form_layout.addRow("Endereco", self.customer_address_input)
-        form_layout.addRow("Observacoes", self.customer_notes_input)
-        form_layout.addRow("", self.customer_active_checkbox)
+        identity_title = QLabel("DADOS DO CLIENTE")
+        identity_title.setObjectName("formGroupTitle")
+        identity_form_layout = QFormLayout()
+        identity_form_layout.setSpacing(10)
+        identity_form_layout.addRow("Nome", self.customer_name_input)
+        identity_form_layout.addRow("Email", self.customer_email_input)
+        identity_form_layout.addRow("Telefone", self.customer_phone_input)
+        identity_form_layout.addRow("", self.customer_active_checkbox)
+
+        identity_panel = QFrame()
+        identity_panel.setObjectName("formSubPanel")
+        identity_layout = QVBoxLayout(identity_panel)
+        identity_layout.setContentsMargins(12, 12, 12, 12)
+        identity_layout.setSpacing(8)
+        identity_layout.addWidget(identity_title)
+        identity_layout.addLayout(identity_form_layout)
+
+        contact_title = QLabel("ENDERECO E OBSERVACOES")
+        contact_title.setObjectName("formGroupTitle")
+        contact_form_layout = QFormLayout()
+        contact_form_layout.setSpacing(10)
+        contact_form_layout.addRow("Endereco", self.customer_address_input)
+        contact_form_layout.addRow("Observacoes", self.customer_notes_input)
+
+        contact_panel = QFrame()
+        contact_panel.setObjectName("formSubPanel")
+        contact_layout = QVBoxLayout(contact_panel)
+        contact_layout.setContentsMargins(12, 12, 12, 12)
+        contact_layout.setSpacing(8)
+        contact_layout.addWidget(contact_title)
+        contact_layout.addLayout(contact_form_layout)
+
+        fields_layout = QGridLayout()
+        fields_layout.setSpacing(12)
+        fields_layout.addWidget(identity_panel, 0, 0)
+        fields_layout.addWidget(contact_panel, 0, 1)
+        fields_layout.setColumnStretch(0, 1)
+        fields_layout.setColumnStretch(1, 1)
 
         self.customer_form_status = QLabel("")
         self.customer_form_status.setObjectName("mutedText")
@@ -604,6 +634,15 @@ class DashboardWindow(QWidget):
         self.customer_upload_document_button = QPushButton("Enviar anexo")
         self.customer_upload_document_button.clicked.connect(self._request_customer_document_upload)
 
+        details_title = QLabel("DADOS COMPLETOS")
+        details_title.setObjectName("formGroupTitle")
+
+        self.customer_full_summary = QTextEdit()
+        self.customer_full_summary.setObjectName("summaryText")
+        self.customer_full_summary.setReadOnly(True)
+        self.customer_full_summary.setMinimumHeight(84)
+        self.customer_full_summary.setMaximumHeight(120)
+
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.customer_new_button)
@@ -618,7 +657,9 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addLayout(fields_layout)
+        layout.addWidget(details_title)
+        layout.addWidget(self.customer_full_summary)
         layout.addLayout(document_actions)
         layout.addWidget(self.customer_form_status)
         layout.addLayout(actions)
@@ -1352,6 +1393,7 @@ class DashboardWindow(QWidget):
         self.customer_notes_input.clear()
         self.customer_document_path_input.clear()
         self.customer_active_checkbox.setChecked(True)
+        self.customer_full_summary.setPlainText("Novo registro de cliente.")
         self.customer_form_status.setText("Novo cliente.")
         self.table.clearSelection()
 
@@ -1816,6 +1858,7 @@ class DashboardWindow(QWidget):
         self.customer_notes_input.setText(str(customer.get("notes") or ""))
         self.customer_document_path_input.clear()
         self.customer_active_checkbox.setChecked(bool(customer.get("is_active", True)))
+        self.customer_full_summary.setPlainText(self._format_customer_full_summary(customer))
         self.set_customer_form_status("Editando cliente selecionado.")
 
     def _request_customer_save(self) -> None:
@@ -2628,6 +2671,18 @@ class DashboardWindow(QWidget):
             f"Diagnostico: {self._format_value(service_order.get('technical_diagnosis')) or '-'}",
             f"Total orcado: {self._format_value(service_order.get('quoted_total')) or '0'}",
             f"Criada em: {self._format_value(service_order.get('created_at'))}",
+        ]
+        return "\n".join(lines)
+
+    def _format_customer_full_summary(self, customer: dict[str, Any]) -> str:
+        active = "Sim" if customer.get("is_active", True) else "Nao"
+        lines = [
+            f"Nome: {self._format_value(customer.get('name')) or '-'}",
+            f"Email: {self._format_value(customer.get('email')) or '-'}",
+            f"Telefone: {self._format_value(customer.get('phone')) or '-'}",
+            f"Endereco: {self._format_value(customer.get('address')) or '-'}",
+            f"Ativo: {active}",
+            f"Observacoes: {self._format_value(customer.get('notes')) or '-'}",
         ]
         return "\n".join(lines)
 
