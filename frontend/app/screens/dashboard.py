@@ -863,7 +863,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Cadastro de item de estoque")
+        title = QLabel("EDITAR REGISTRO - Estoque")
         title.setObjectName("sectionTitle")
 
         self.inventory_sku_input = QLineEdit()
@@ -893,6 +893,29 @@ class DashboardWindow(QWidget):
         form_layout.addRow("Minimo", self.inventory_minimum_quantity_input)
         form_layout.addRow("Custo", self.inventory_unit_cost_input)
 
+        inventory_fields_title = QLabel("DADOS DO ITEM")
+        inventory_fields_title.setObjectName("formGroupTitle")
+        inventory_fields_panel = QFrame()
+        inventory_fields_panel.setObjectName("formSubPanel")
+        inventory_fields_panel_layout = QVBoxLayout(inventory_fields_panel)
+        inventory_fields_panel_layout.setContentsMargins(12, 12, 12, 12)
+        inventory_fields_panel_layout.setSpacing(8)
+        inventory_fields_panel_layout.addWidget(inventory_fields_title)
+        inventory_fields_panel_layout.addLayout(form_layout)
+
+        self.inventory_stock_status = QLabel("Status: novo item.")
+        self.inventory_stock_status.setObjectName("statusBanner")
+        self.inventory_stock_status.setProperty("level", "info")
+        self.inventory_stock_status.setWordWrap(True)
+
+        inventory_details_title = QLabel("DADOS COMPLETOS")
+        inventory_details_title.setObjectName("formGroupTitle")
+        self.inventory_full_summary = QTextEdit()
+        self.inventory_full_summary.setObjectName("summaryText")
+        self.inventory_full_summary.setReadOnly(True)
+        self.inventory_full_summary.setMinimumHeight(84)
+        self.inventory_full_summary.setMaximumHeight(120)
+
         self.inventory_form_status = QLabel("")
         self.inventory_form_status.setObjectName("mutedText")
 
@@ -912,7 +935,10 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addWidget(inventory_fields_panel)
+        layout.addWidget(self.inventory_stock_status)
+        layout.addWidget(inventory_details_title)
+        layout.addWidget(self.inventory_full_summary)
         layout.addWidget(self.inventory_form_status)
         layout.addLayout(actions)
 
@@ -1530,6 +1556,8 @@ class DashboardWindow(QWidget):
         self.inventory_quantity_input.setText("0")
         self.inventory_minimum_quantity_input.setText("0")
         self.inventory_unit_cost_input.setText("0")
+        self.inventory_full_summary.setPlainText("Novo registro de estoque.")
+        self._set_inventory_stock_status("Status: novo item.", "info")
         self.inventory_form_status.setText("Novo item de estoque.")
         self.table.clearSelection()
 
@@ -1543,6 +1571,12 @@ class DashboardWindow(QWidget):
         self.inventory_save_button.setEnabled(not is_loading)
         self.inventory_new_button.setEnabled(not is_loading)
         self.inventory_save_button.setText("Salvando..." if is_loading else "Salvar item")
+
+    def _set_inventory_stock_status(self, message: str, level: str) -> None:
+        self.inventory_stock_status.setText(message)
+        self.inventory_stock_status.setProperty("level", level)
+        self.inventory_stock_status.style().unpolish(self.inventory_stock_status)
+        self.inventory_stock_status.style().polish(self.inventory_stock_status)
 
     def set_service_order_dependencies(
         self,
@@ -2137,6 +2171,11 @@ class DashboardWindow(QWidget):
         self.inventory_quantity_input.setText(str(item.get("quantity") or "0"))
         self.inventory_minimum_quantity_input.setText(str(item.get("minimum_quantity") or "0"))
         self.inventory_unit_cost_input.setText(str(item.get("unit_cost") or "0"))
+        self.inventory_full_summary.setPlainText(self._format_inventory_full_summary(item))
+        if self._inventory_is_low(item):
+            self._set_inventory_stock_status("Estoque critico: quantidade no minimo ou abaixo.", "error")
+        else:
+            self._set_inventory_stock_status("Estoque em nivel operacional.", "info")
         self.set_inventory_form_status("Editando item selecionado.")
 
     def _request_inventory_save(self) -> None:
@@ -2755,6 +2794,34 @@ class DashboardWindow(QWidget):
             f"Descricao: {self._format_value(equipment.get('description')) or '-'}",
         ]
         return "\n".join(lines)
+
+    def _format_inventory_full_summary(self, item: dict[str, Any]) -> str:
+        quantity = self._format_value(item.get("quantity")) or "0"
+        minimum = self._format_value(item.get("minimum_quantity")) or "0"
+        unit_cost = self._format_value(item.get("unit_cost")) or "0"
+        status = "Critico" if self._inventory_is_low(item) else "Operacional"
+        lines = [
+            f"SKU: {self._format_value(item.get('sku')) or '-'}",
+            f"Nome: {self._format_value(item.get('name')) or '-'}",
+            f"Categoria: {self._format_value(item.get('category')) or '-'}",
+            f"Quantidade: {quantity}",
+            f"Minimo para reposicao: {minimum}",
+            f"Custo unitario: {unit_cost}",
+            f"Status: {status}",
+        ]
+        return "\n".join(lines)
+
+    def _inventory_is_low(self, item: dict[str, Any]) -> bool:
+        quantity = self._safe_float(item.get("quantity"))
+        minimum = self._safe_float(item.get("minimum_quantity"))
+        return minimum > 0 and quantity <= minimum
+
+    @staticmethod
+    def _safe_float(value: Any) -> float:
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
 
     def _lookup_label(
         self,

@@ -100,6 +100,24 @@ def _light_stylesheet() -> str:
             border-color: #238636;
             color: #1a7f37;
         }
+        QLabel#statusBanner {
+            background: #ddf4ff;
+            border: 1px solid #0969da;
+            border-radius: 6px;
+            color: #0969da;
+            font-weight: 800;
+            padding: 8px 10px;
+        }
+        QLabel#statusBanner[level="warning"] {
+            background: #fff8c5;
+            border-color: #d29922;
+            color: #9a6700;
+        }
+        QLabel#statusBanner[level="error"] {
+            background: #ffebe9;
+            border-color: #da3633;
+            color: #cf222e;
+        }
         QProgressBar {
             height: 8px;
             border: 0;
@@ -365,6 +383,24 @@ def _dark_stylesheet() -> str:
             background: #10261a;
             border-color: #238636;
             color: #56d364;
+        }
+        QLabel#statusBanner {
+            background: #102a43;
+            border: 1px solid #1f6feb;
+            border-radius: 6px;
+            color: #79c0ff;
+            font-weight: 800;
+            padding: 8px 10px;
+        }
+        QLabel#statusBanner[level="warning"] {
+            background: #2d2305;
+            border-color: #d29922;
+            color: #e3b341;
+        }
+        QLabel#statusBanner[level="error"] {
+            background: #2d1115;
+            border-color: #da3633;
+            color: #ff7b72;
         }
         QProgressBar {
             height: 8px;

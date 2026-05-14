@@ -186,3 +186,25 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
     assert "Placas vinculadas: 1" in summary
     assert "Componentes cadastrados: 1" in summary
     assert window.equipment_objects_tree.topLevelItemCount() == 1
+
+
+def test_inventory_populates_summary_and_low_stock_status(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._populate_inventory_form(
+        {
+            "id": "inventory-id",
+            "sku": "SSD-001",
+            "name": "SSD 480GB",
+            "category": "Armazenamento",
+            "quantity": "1",
+            "minimum_quantity": "2",
+            "unit_cost": "180.50",
+        }
+    )
+
+    summary = window.inventory_full_summary.toPlainText()
+    assert "SKU: SSD-001" in summary
+    assert "Status: Critico" in summary
+    assert window.inventory_stock_status.property("level") == "error"
