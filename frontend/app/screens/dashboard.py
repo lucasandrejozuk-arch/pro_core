@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
@@ -7,6 +8,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QGridLayout,
@@ -42,6 +44,7 @@ class DashboardWindow(QWidget):
     service_order_reject_requested = Signal(str, str)
     service_order_start_requested = Signal(str)
     service_order_complete_requested = Signal(str)
+    service_order_document_upload_requested = Signal(str, str, str)
     user_create_requested = Signal(dict)
     user_update_requested = Signal(str, dict)
     user_password_reset_requested = Signal(str, str)
@@ -57,6 +60,7 @@ class DashboardWindow(QWidget):
         self.selected_inventory_item_id: str | None = None
         self.selected_service_order_id: str | None = None
         self.selected_user_id: str | None = None
+        self.selected_service_order_document_path: str | None = None
         self.equipment_customers: list[dict[str, Any]] = []
         self.service_order_customers: list[dict[str, Any]] = []
         self.service_order_equipment: list[dict[str, Any]] = []
@@ -522,6 +526,17 @@ class DashboardWindow(QWidget):
         self.service_order_budget_unit_price_input.setPlaceholderText("Valor unitario")
         self.service_order_budget_unit_price_input.setText("0")
 
+        self.service_order_document_type_combo = QComboBox()
+        self.service_order_document_type_combo.addItem("Imagem", "image")
+        self.service_order_document_type_combo.addItem("Video", "video")
+        self.service_order_document_type_combo.addItem("PDF", "pdf")
+        self.service_order_document_type_combo.addItem("Nota fiscal", "invoice")
+        self.service_order_document_type_combo.addItem("Outro", "other")
+
+        self.service_order_document_path_input = QLineEdit()
+        self.service_order_document_path_input.setPlaceholderText("Arquivo selecionado")
+        self.service_order_document_path_input.setReadOnly(True)
+
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
         form_layout.addRow("Cliente", self.service_order_customer_combo)
@@ -534,6 +549,8 @@ class DashboardWindow(QWidget):
         form_layout.addRow("Item", self.service_order_budget_description_input)
         form_layout.addRow("Quantidade", self.service_order_budget_quantity_input)
         form_layout.addRow("Valor unitario", self.service_order_budget_unit_price_input)
+        form_layout.addRow("Tipo do anexo", self.service_order_document_type_combo)
+        form_layout.addRow("Arquivo", self.service_order_document_path_input)
 
         self.service_order_form_status = QLabel("")
         self.service_order_form_status.setObjectName("mutedText")
@@ -544,6 +561,10 @@ class DashboardWindow(QWidget):
         self.service_order_budget_summary = QLabel("Orcamento: nenhum item.")
         self.service_order_budget_summary.setObjectName("mutedText")
         self.service_order_budget_summary.setWordWrap(True)
+
+        self.service_order_documents_summary = QLabel("Anexos: nenhum arquivo.")
+        self.service_order_documents_summary.setObjectName("mutedText")
+        self.service_order_documents_summary.setWordWrap(True)
 
         self.service_order_new_button = QPushButton("Nova")
         self.service_order_new_button.setObjectName("secondaryButton")
@@ -580,6 +601,16 @@ class DashboardWindow(QWidget):
         self.service_order_complete_button.setObjectName("secondaryButton")
         self.service_order_complete_button.clicked.connect(self._request_service_order_complete)
 
+        self.service_order_select_document_button = QPushButton("Selecionar anexo")
+        self.service_order_select_document_button.setObjectName("secondaryButton")
+        self.service_order_select_document_button.clicked.connect(self._select_service_order_document)
+
+        self.service_order_upload_document_button = QPushButton("Enviar anexo")
+        self.service_order_upload_document_button.setObjectName("secondaryButton")
+        self.service_order_upload_document_button.clicked.connect(
+            self._request_service_order_document_upload
+        )
+
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.service_order_new_button)
@@ -595,6 +626,11 @@ class DashboardWindow(QWidget):
         flow_actions.addWidget(self.service_order_start_button)
         flow_actions.addWidget(self.service_order_complete_button)
 
+        document_actions = QHBoxLayout()
+        document_actions.addStretch()
+        document_actions.addWidget(self.service_order_select_document_button)
+        document_actions.addWidget(self.service_order_upload_document_button)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
@@ -602,9 +638,11 @@ class DashboardWindow(QWidget):
         layout.addLayout(form_layout)
         layout.addWidget(self.service_order_current_status)
         layout.addWidget(self.service_order_budget_summary)
+        layout.addWidget(self.service_order_documents_summary)
         layout.addWidget(self.service_order_form_status)
         layout.addLayout(actions)
         layout.addLayout(flow_actions)
+        layout.addLayout(document_actions)
 
         return panel
 
@@ -895,8 +933,13 @@ class DashboardWindow(QWidget):
         self.service_order_budget_description_input.clear()
         self.service_order_budget_quantity_input.setText("1")
         self.service_order_budget_unit_price_input.setText("0")
+        if self.service_order_document_type_combo.count() > 0:
+            self.service_order_document_type_combo.setCurrentIndex(0)
+        self.selected_service_order_document_path = None
+        self.service_order_document_path_input.clear()
         self.service_order_current_status.setText("Status: nova")
         self.service_order_budget_summary.setText("Orcamento: nenhum item.")
+        self.service_order_documents_summary.setText("Anexos: nenhum arquivo.")
         self._set_service_order_flow_buttons_enabled(False)
         self.service_order_form_status.setText("Nova ordem de servico.")
         self.table.clearSelection()
@@ -927,6 +970,8 @@ class DashboardWindow(QWidget):
         self.service_order_reject_button.setEnabled(enabled)
         self.service_order_start_button.setEnabled(enabled)
         self.service_order_complete_button.setEnabled(enabled)
+        self.service_order_select_document_button.setEnabled(enabled)
+        self.service_order_upload_document_button.setEnabled(enabled)
 
     def clear_user_form(self) -> None:
         self.selected_user_id = None
@@ -1203,10 +1248,13 @@ class DashboardWindow(QWidget):
         self.service_order_budget_description_input.clear()
         self.service_order_budget_quantity_input.setText("1")
         self.service_order_budget_unit_price_input.setText("0")
+        self.selected_service_order_document_path = None
+        self.service_order_document_path_input.clear()
         self.service_order_current_status.setText(
             f"Status: {self._format_value(service_order.get('status'))}"
         )
         self.service_order_budget_summary.setText(self._format_service_order_budget(service_order))
+        self.service_order_documents_summary.setText(self._format_service_order_documents(service_order))
         self._set_service_order_flow_buttons_enabled(True)
         self.set_service_order_form_status("Editando ordem de servico selecionada.")
 
@@ -1318,6 +1366,40 @@ class DashboardWindow(QWidget):
     def _request_service_order_complete(self) -> None:
         if self._require_selected_service_order():
             self.service_order_complete_requested.emit(self.selected_service_order_id)
+
+    def _select_service_order_document(self) -> None:
+        file_path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar anexo",
+            "",
+            "Arquivos (*.*)",
+        )
+        if not file_path:
+            return
+
+        self.selected_service_order_document_path = file_path
+        self.service_order_document_path_input.setText(file_path)
+
+    def _request_service_order_document_upload(self) -> None:
+        if not self._require_selected_service_order():
+            return
+
+        file_path = self.selected_service_order_document_path
+        if not file_path:
+            self.set_service_order_form_status("Selecione um arquivo.", is_error=True)
+            return
+
+        if not Path(file_path).exists():
+            self.set_service_order_form_status("Arquivo selecionado nao existe.", is_error=True)
+            return
+
+        document_type = str(self.service_order_document_type_combo.currentData() or "other")
+        self.set_service_order_form_status("")
+        self.service_order_document_upload_requested.emit(
+            self.selected_service_order_id,
+            document_type,
+            file_path,
+        )
 
     def _require_selected_service_order(self) -> bool:
         if self.selected_service_order_id:
@@ -1529,6 +1611,21 @@ class DashboardWindow(QWidget):
         remaining = len(items) - len(descriptions)
         suffix = f" + {remaining} item(ns)" if remaining > 0 else ""
         return f"Orcamento: {'; '.join(descriptions)}{suffix}. Total: {total}"
+
+    def _format_service_order_documents(self, service_order: dict[str, Any]) -> str:
+        documents = service_order.get("documents") or []
+        if not documents:
+            return "Anexos: nenhum arquivo."
+
+        descriptions = []
+        for document in documents[:4]:
+            document_type = self._format_value(document.get("document_type"))
+            file_name = self._format_value(document.get("file_name"))
+            descriptions.append(f"{document_type}: {file_name}")
+
+        remaining = len(documents) - len(descriptions)
+        suffix = f" + {remaining} arquivo(s)" if remaining > 0 else ""
+        return f"Anexos: {'; '.join(descriptions)}{suffix}."
 
     @staticmethod
     def _optional_text(input_widget: QLineEdit) -> str | None:

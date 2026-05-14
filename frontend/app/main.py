@@ -66,6 +66,9 @@ class ProCoreApplication:
         self.dashboard_window.service_order_complete_requested.connect(
             self.handle_service_order_complete
         )
+        self.dashboard_window.service_order_document_upload_requested.connect(
+            self.handle_service_order_document_upload
+        )
         self.dashboard_window.user_create_requested.connect(self.handle_user_create)
         self.dashboard_window.user_update_requested.connect(self.handle_user_update)
         self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
@@ -402,6 +405,22 @@ class ProCoreApplication:
                 service_order_id,
             ),
             "Ordem de servico concluida.",
+        )
+
+    def handle_service_order_document_upload(
+        self,
+        service_order_id: str,
+        document_type: str,
+        file_path: str,
+    ) -> None:
+        self._run_service_order_action(
+            lambda access_token: self.api_client.upload_document(
+                access_token=access_token,
+                file_path=file_path,
+                document_type=document_type,
+                service_order_id=service_order_id,
+            ),
+            "Anexo enviado.",
         )
 
     def _run_service_order_action(self, action, success_message: str) -> None:

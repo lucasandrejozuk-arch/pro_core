@@ -7,6 +7,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.models.enums import BudgetItemType, ServiceOrderStatus
+from backend.app.schemas.document import DocumentAttachmentResponse
 
 
 class ServiceOrderCreate(BaseModel):
@@ -67,4 +68,4 @@ class ServiceOrderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     budget_items: list[BudgetItemResponse] = []
-
+    documents: list[DocumentAttachmentResponse] = []

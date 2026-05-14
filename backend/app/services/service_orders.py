@@ -31,7 +31,10 @@ def list_service_orders(
 ) -> list[ServiceOrder]:
     statement = (
         select(ServiceOrder)
-        .options(selectinload(ServiceOrder.budget_items))
+        .options(
+            selectinload(ServiceOrder.budget_items),
+            selectinload(ServiceOrder.documents),
+        )
         .where(ServiceOrder.company_id == company_id)
         .order_by(ServiceOrder.created_at.desc())
     )
@@ -52,7 +55,10 @@ def get_service_order(
 ) -> ServiceOrder | None:
     statement = (
         select(ServiceOrder)
-        .options(selectinload(ServiceOrder.budget_items))
+        .options(
+            selectinload(ServiceOrder.budget_items),
+            selectinload(ServiceOrder.documents),
+        )
         .where(
             ServiceOrder.id == service_order_id,
             ServiceOrder.company_id == company_id,

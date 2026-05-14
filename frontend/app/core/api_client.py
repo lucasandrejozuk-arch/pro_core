@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -223,6 +224,58 @@ class ApiClient:
             f"service-orders/{service_order_id}/complete",
             access_token=access_token,
         )
+
+    def list_documents(
+        self,
+        access_token: str,
+        service_order_id: str | None = None,
+        customer_id: str | None = None,
+        equipment_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "service_order_id": service_order_id,
+                "customer_id": customer_id,
+                "equipment_id": equipment_id,
+            }.items()
+            if value
+        }
+        return self._request_list(
+            "GET",
+            "documents",
+            access_token=access_token,
+            params=params,
+        )
+
+    def upload_document(
+        self,
+        access_token: str,
+        file_path: str,
+        document_type: str,
+        service_order_id: str | None = None,
+        customer_id: str | None = None,
+        equipment_id: str | None = None,
+    ) -> dict[str, Any]:
+        path = Path(file_path)
+        data = {
+            key: value
+            for key, value in {
+                "document_type": document_type,
+                "service_order_id": service_order_id,
+                "customer_id": customer_id,
+                "equipment_id": equipment_id,
+            }.items()
+            if value
+        }
+        with path.open("rb") as upload_file:
+            return self._request(
+                "POST",
+                "documents",
+                access_token=access_token,
+                data=data,
+                files={"file": (path.name, upload_file, "application/octet-stream")},
+            )
 
     def list_technicians(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "users/technicians", access_token=access_token)

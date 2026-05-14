@@ -583,6 +583,54 @@ def test_service_order_flow_actions_call_expected_endpoints(
     assert response["id"] == "service-order-id"
 
 
+def test_list_documents_sends_service_order_filter() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/documents"
+        assert request.url.params["service_order_id"] == "service-order-id"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[{"file_name": "diagnostico.txt"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.list_documents("token", service_order_id="service-order-id")
+
+    assert response == [{"file_name": "diagnostico.txt"}]
+
+
+def test_upload_document_posts_multipart_payload(tmp_path) -> None:
+    document_path = tmp_path / "diagnostico.txt"
+    document_path.write_text("conteudo do diagnostico", encoding="utf-8")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/documents"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert "multipart/form-data" in request.headers["Content-Type"]
+        body = request.content
+        assert b"diagnostico.txt" in body
+        assert b"service-order-id" in body
+        assert b"other" in body
+        return httpx.Response(201, json={"id": "document-id", "file_name": "diagnostico.txt"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.upload_document(
+        access_token="token",
+        file_path=str(document_path),
+        document_type="other",
+        service_order_id="service-order-id",
+    )
+
+    assert response["id"] == "document-id"
+
+
 def test_list_endpoint_rejects_unexpected_object_payload() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"unexpected": "object"})

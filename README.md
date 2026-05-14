@@ -70,6 +70,8 @@ python frontend/app/main.py
 
 Create a backup from the application in `Configuracoes` with `Executar backup agora`.
 Backup files are written to the configured backup folder, which defaults to `backups/`.
+Uploaded files are stored under `storage/uploads/`; copy that folder together with the database
+dump when moving the same installation to another computer.
 
 Restore a backup into the local Docker PostgreSQL container:
 
