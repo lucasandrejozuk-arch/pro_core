@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+from PySide6.QtCore import QEvent
+
+from frontend.app.screens.dashboard import DashboardWindow
+
+
+def test_dashboard_is_independent_active_sidebar_module(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_dashboard()
+
+    assert window.active_module_key == "dashboard"
+    assert window.module_buttons["dashboard"].property("active") == "true"
+    assert window.module_buttons["customers"].property("active") == "false"
+    assert not window.dashboard_grid_widget.isHidden()
+    assert window.table.isHidden()
+
+
+def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_rows("Clientes", [], [("Nome", "name")], "customers")
+
+    assert window.active_module_key == "customers"
+    assert window.module_buttons["dashboard"].property("active") == "false"
+    assert window.module_buttons["customers"].property("active") == "true"
+    assert window.dashboard_grid_widget.isHidden()
+    assert not window.customer_form_panel.isHidden()
+
+
+def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.set_user(
+        {
+            "full_name": "Tecnico",
+            "email": "tecnico@example.com",
+            "role": "technician",
+        }
+    )
+
+    assert window.module_buttons["users"].isHidden()
+    assert window.module_buttons["password_resets"].isHidden()
+    assert window.module_buttons["sectors"].isHidden()
+    assert window.module_buttons["settings"].isHidden()
+    assert window.module_buttons["reports"].isHidden()
+
+
+def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    wheel_event = QEvent(QEvent.Type.Wheel)
+    regular_event = QEvent(QEvent.Type.MouseButtonPress)
+
+    assert window.eventFilter(window.equipment_customer_combo, wheel_event) is True
+    assert window.eventFilter(window.equipment_customer_combo, regular_event) is False

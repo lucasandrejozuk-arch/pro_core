@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QAbstractSpinBox,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -89,7 +90,7 @@ class DashboardWindow(QWidget):
 
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(236)
+        sidebar.setFixedWidth(256)
 
         sidebar_title = QLabel("PRO CORE")
         sidebar_title.setObjectName("sidebarTitle")
@@ -98,14 +99,14 @@ class DashboardWindow(QWidget):
         sidebar_text.setObjectName("sidebarText")
 
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(20, 24, 20, 24)
-        sidebar_layout.setSpacing(12)
+        sidebar_layout.setContentsMargins(18, 24, 18, 24)
+        sidebar_layout.setSpacing(10)
         sidebar_layout.addWidget(sidebar_title)
         sidebar_layout.addWidget(sidebar_text)
-        sidebar_layout.addSpacing(28)
+        sidebar_layout.addSpacing(18)
 
         self.module_buttons: dict[str, QPushButton] = {}
-        modules = {
+        self.module_labels = {
             "dashboard": "Dashboard",
             "service_orders": "Ordens de Servico",
             "customers": "Clientes",
@@ -117,13 +118,28 @@ class DashboardWindow(QWidget):
             "settings": "Configuracoes",
             "reports": "Relatorios",
         }
+        module_groups = [
+            ("OPERACAO", ("dashboard", "service_orders")),
+            ("CADASTROS", ("customers", "equipment", "inventory")),
+            ("ADMINISTRACAO", ("sectors", "users", "password_resets", "settings", "reports")),
+        ]
 
-        for module_key, label in modules.items():
-            button = QPushButton(label)
-            button.setObjectName("navButton")
-            button.clicked.connect(lambda checked=False, key=module_key: self.module_selected.emit(key))
-            self.module_buttons[module_key] = button
-            sidebar_layout.addWidget(button)
+        for caption, module_keys in module_groups:
+            caption_label = QLabel(caption)
+            caption_label.setObjectName("sidebarCaption")
+            sidebar_layout.addWidget(caption_label)
+            for module_key in module_keys:
+                button = QPushButton(self.module_labels[module_key])
+                button.setObjectName("navButton")
+                button.setCheckable(True)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.setProperty("active", "false")
+                button.clicked.connect(
+                    lambda checked=False, key=module_key: self.module_selected.emit(key)
+                )
+                self.module_buttons[module_key] = button
+                sidebar_layout.addWidget(button)
+            sidebar_layout.addSpacing(8)
 
         sidebar_layout.addStretch()
 
@@ -153,7 +169,11 @@ class DashboardWindow(QWidget):
         header_text_layout.addWidget(self.title_label)
         header_text_layout.addWidget(self.user_label)
 
-        header_layout = QHBoxLayout()
+        header_bar = QFrame()
+        header_bar.setObjectName("headerBar")
+        header_layout = QHBoxLayout(header_bar)
+        header_layout.setContentsMargins(18, 16, 18, 16)
+        header_layout.setSpacing(14)
         header_layout.addLayout(header_text_layout)
         header_layout.addStretch()
         header_layout.addWidget(self.refresh_button)
@@ -162,6 +182,7 @@ class DashboardWindow(QWidget):
         self.dashboard_section_title.setObjectName("sectionTitle")
 
         self.dashboard_grid_widget = QWidget()
+        self.dashboard_grid_widget.setObjectName("dashboardGrid")
         grid = QGridLayout(self.dashboard_grid_widget)
         grid.setSpacing(14)
         modules = [
@@ -211,7 +232,7 @@ class DashboardWindow(QWidget):
         self.report_form_panel = self._build_report_form()
         self.report_form_panel.hide()
 
-        content_layout.addLayout(header_layout)
+        content_layout.addWidget(header_bar)
         content_layout.addWidget(self.dashboard_section_title)
         content_layout.addWidget(self.dashboard_grid_widget)
         content_layout.addWidget(self.data_title)
@@ -238,6 +259,14 @@ class DashboardWindow(QWidget):
         layout.setSpacing(0)
         layout.addWidget(sidebar)
         layout.addWidget(scroll_area)
+        self._install_input_guards()
+        self._mark_active_nav(self.active_module_key)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.Wheel and isinstance(watched, (QComboBox, QAbstractSpinBox)):
+            return True
+
+        return super().eventFilter(watched, event)
 
     def set_user(self, user: dict[str, Any]) -> None:
         role_key = str(user.get("role", ""))
@@ -385,6 +414,19 @@ class DashboardWindow(QWidget):
         layout.addStretch()
 
         return card
+
+    def _install_input_guards(self) -> None:
+        for widget in self.findChildren(QWidget):
+            if isinstance(widget, (QComboBox, QAbstractSpinBox)):
+                widget.installEventFilter(self)
+
+    def _mark_active_nav(self, module_key: str) -> None:
+        for key, button in self.module_buttons.items():
+            is_active = key == module_key
+            button.setChecked(is_active)
+            button.setProperty("active", "true" if is_active else "false")
+            button.style().unpolish(button)
+            button.style().polish(button)
 
     def _build_customer_form(self) -> QFrame:
         panel = QFrame()
@@ -1497,6 +1539,8 @@ class DashboardWindow(QWidget):
     def _set_active_module(self, module_key: str) -> None:
         self.active_module_key = module_key
         self.current_rows = []
+        self.title_label.setText(self.module_labels.get(module_key, "Dashboard"))
+        self._mark_active_nav(module_key)
         self.dashboard_section_title.setVisible(module_key == "dashboard")
         self.dashboard_grid_widget.setVisible(module_key == "dashboard")
         self.table.show()
