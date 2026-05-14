@@ -70,6 +70,7 @@ class ProCoreApplication:
         self.dashboard_window.user_update_requested.connect(self.handle_user_update)
         self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
         self.dashboard_window.settings_update_requested.connect(self.handle_settings_update)
+        self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
 
     def run(self) -> int:
         self.splash.start()
@@ -492,6 +493,26 @@ class ProCoreApplication:
         apply_theme(self.qt_app, str(settings.get("theme") or "light"))
         self.dashboard_window.render_settings(settings)
         self.dashboard_window.set_settings_form_status("Configuracoes salvas.")
+
+    def handle_backup_run(self) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_backup_run_loading(True)
+        try:
+            backup = self.api_client.run_backup(self.session.access_token)
+            settings = self.api_client.get_settings(self.session.access_token)
+        except ApiError as exc:
+            self.dashboard_window.set_backup_run_loading(False)
+            self.dashboard_window.set_settings_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_backup_run_loading(False)
+        self.dashboard_window.render_settings(settings)
+        self.dashboard_window.set_settings_form_status(
+            f"Backup validado: {backup.get('file_name')}"
+        )
 
     def _apply_saved_theme(self) -> None:
         if not self.session.access_token or self.session.user.get("role") != "admin":

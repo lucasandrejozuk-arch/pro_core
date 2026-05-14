@@ -419,6 +419,32 @@ def test_update_settings_patches_payload() -> None:
     assert response["company_name"] == "Assistencia Atualizada"
 
 
+def test_run_backup_posts_to_settings_endpoint() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/settings/backup/run"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert request.content == b""
+        return httpx.Response(
+            200,
+            json={
+                "file_name": "pro_core_20260514_063000.dump",
+                "file_path": "backups/pro_core_20260514_063000.dump",
+                "file_size_bytes": 1024,
+                "validated": True,
+            },
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.run_backup("token")
+
+    assert response["validated"] is True
+
+
 def test_create_service_order_posts_payload() -> None:
     payload = {
         "customer_id": "customer-id",

@@ -275,6 +275,13 @@ class ApiClient:
             json=payload,
         )
 
+    def run_backup(self, access_token: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "settings/backup/run",
+            access_token=access_token,
+        )
+
     def _request_list(
         self,
         method: str,

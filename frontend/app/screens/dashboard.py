@@ -46,6 +46,7 @@ class DashboardWindow(QWidget):
     user_update_requested = Signal(str, dict)
     user_password_reset_requested = Signal(str, str)
     settings_update_requested = Signal(dict)
+    backup_run_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -732,8 +733,13 @@ class DashboardWindow(QWidget):
         self.settings_save_button = QPushButton("Salvar configuracoes")
         self.settings_save_button.clicked.connect(self._request_settings_save)
 
+        self.settings_run_backup_button = QPushButton("Executar backup agora")
+        self.settings_run_backup_button.setObjectName("secondaryButton")
+        self.settings_run_backup_button.clicked.connect(self.backup_run_requested.emit)
+
         actions = QHBoxLayout()
         actions.addStretch()
+        actions.addWidget(self.settings_run_backup_button)
         actions.addWidget(self.settings_save_button)
 
         layout = QVBoxLayout(panel)
@@ -983,8 +989,16 @@ class DashboardWindow(QWidget):
 
     def set_settings_form_loading(self, is_loading: bool) -> None:
         self.settings_save_button.setEnabled(not is_loading)
+        self.settings_run_backup_button.setEnabled(not is_loading)
         self.settings_save_button.setText(
             "Salvando..." if is_loading else "Salvar configuracoes"
+        )
+
+    def set_backup_run_loading(self, is_loading: bool) -> None:
+        self.settings_save_button.setEnabled(not is_loading)
+        self.settings_run_backup_button.setEnabled(not is_loading)
+        self.settings_run_backup_button.setText(
+            "Executando..." if is_loading else "Executar backup agora"
         )
 
     def _set_active_module(self, module_key: str) -> None:

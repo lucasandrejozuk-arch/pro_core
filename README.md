@@ -66,6 +66,19 @@ Run the frontend:
 python frontend/app/main.py
 ```
 
+## Database Backups
+
+Create a backup from the application in `Configuracoes` with `Executar backup agora`.
+Backup files are written to the configured backup folder, which defaults to `backups/`.
+
+Restore a backup into the local Docker PostgreSQL container:
+
+```powershell
+python scripts/restore_database_backup.py --dump-file .\backups\pro_core_YYYYMMDD_HHMMSS.dump
+```
+
+Restoring uses `pg_restore --clean --if-exists`, so it replaces objects in the target database.
+
 ## Project Principles
 
 - DRY: avoid duplicated business logic.

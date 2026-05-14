@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 
 from backend.app.models.user import User
@@ -63,3 +65,30 @@ def test_technician_cannot_access_system_settings(
     response = client.get("/api/v1/settings", headers=technician_headers)
 
     assert response.status_code == 403
+
+
+def test_admin_can_run_manual_backup(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    def fake_run_database_backup(db, company_id):
+        return {
+            "file_name": "pro_core_20260514_063000.dump",
+            "file_path": "backups/pro_core_20260514_063000.dump",
+            "file_size_bytes": 1024,
+            "created_at": datetime(2026, 5, 14, 6, 30, tzinfo=UTC),
+            "validated": True,
+        }
+
+    monkeypatch.setattr(
+        "backend.app.api.v1.routes.settings.run_database_backup",
+        fake_run_database_backup,
+    )
+
+    response = client.post("/api/v1/settings/backup/run", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["file_name"] == "pro_core_20260514_063000.dump"
+    assert body["validated"] is True

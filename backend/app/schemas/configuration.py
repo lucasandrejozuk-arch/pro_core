@@ -48,3 +48,11 @@ class SystemSettingsUpdate(BaseModel):
     @classmethod
     def strip_storage_path(cls, value: str | None) -> str | None:
         return value.strip() if value else value
+
+
+class BackupRunResponse(BaseModel):
+    file_name: str
+    file_path: str
+    file_size_bytes: int
+    created_at: datetime
+    validated: bool
