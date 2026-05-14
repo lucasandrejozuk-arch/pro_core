@@ -75,6 +75,31 @@ def _light_stylesheet() -> str:
             font-size: 11px;
             font-weight: 800;
         }
+        QLabel#formGroupTitle {
+            color: #57606a;
+            font-size: 11px;
+            font-weight: 800;
+        }
+        QLabel#workflowStep {
+            background: #eaeef2;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            color: #57606a;
+            font-size: 11px;
+            font-weight: 800;
+            min-height: 28px;
+            padding: 0 8px;
+        }
+        QLabel#workflowStep[stage="active"] {
+            background: #ddf4ff;
+            border-color: #0969da;
+            color: #0969da;
+        }
+        QLabel#workflowStep[stage="done"] {
+            background: #dafbe1;
+            border-color: #238636;
+            color: #1a7f37;
+        }
         QProgressBar {
             height: 8px;
             border: 0;
@@ -97,6 +122,12 @@ def _light_stylesheet() -> str:
         QFrame#formPanel,
         QFrame#moduleCard {
             background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+        }
+        QFrame#formSubPanel,
+        QFrame#workflowPanel {
+            background: #f6f8fa;
             border: 1px solid #d0d7de;
             border-radius: 8px;
         }
@@ -148,7 +179,8 @@ def _light_stylesheet() -> str:
         }
         QLineEdit,
         QComboBox,
-        QTreeWidget {
+        QTreeWidget,
+        QTextEdit {
             border: 1px solid #d0d7de;
             border-radius: 6px;
             padding: 0 12px;
@@ -309,6 +341,31 @@ def _dark_stylesheet() -> str:
             font-size: 11px;
             font-weight: 800;
         }
+        QLabel#formGroupTitle {
+            color: #8b949e;
+            font-size: 11px;
+            font-weight: 800;
+        }
+        QLabel#workflowStep {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #8b949e;
+            font-size: 11px;
+            font-weight: 800;
+            min-height: 28px;
+            padding: 0 8px;
+        }
+        QLabel#workflowStep[stage="active"] {
+            background: #102a43;
+            border-color: #1f6feb;
+            color: #79c0ff;
+        }
+        QLabel#workflowStep[stage="done"] {
+            background: #10261a;
+            border-color: #238636;
+            color: #56d364;
+        }
         QProgressBar {
             height: 8px;
             border: 0;
@@ -331,6 +388,12 @@ def _dark_stylesheet() -> str:
         QFrame#formPanel,
         QFrame#moduleCard {
             background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        QFrame#formSubPanel,
+        QFrame#workflowPanel {
+            background: #0f1117;
             border: 1px solid #30363d;
             border-radius: 8px;
         }
@@ -382,7 +445,8 @@ def _dark_stylesheet() -> str:
         }
         QLineEdit,
         QComboBox,
-        QTreeWidget {
+        QTreeWidget,
+        QTextEdit {
             border: 1px solid #30363d;
             border-radius: 6px;
             padding: 0 12px;

@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -834,8 +835,27 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Cadastro de ordem de servico")
+        title = QLabel("EDITAR REGISTRO - Ordem de Servico")
         title.setObjectName("sectionTitle")
+
+        self.service_order_workflow_hint = QLabel(
+            "TRIAGEM -> DIAGNOSTICO -> ORCAMENTO -> APROVACAO -> EXECUCAO -> CONCLUSAO"
+        )
+        self.service_order_workflow_hint.setObjectName("mutedText")
+
+        workflow_panel = QFrame()
+        workflow_panel.setObjectName("workflowPanel")
+        workflow_layout = QHBoxLayout(workflow_panel)
+        workflow_layout.setContentsMargins(10, 10, 10, 10)
+        workflow_layout.setSpacing(8)
+        self.service_order_workflow_steps: list[QLabel] = []
+        for label in ["Triagem", "Diagnostico", "Orcamento", "Aprovacao", "Execucao", "Conclusao"]:
+            step_label = QLabel(label)
+            step_label.setObjectName("workflowStep")
+            step_label.setProperty("stage", "future")
+            step_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.service_order_workflow_steps.append(step_label)
+            workflow_layout.addWidget(step_label)
 
         self.service_order_customer_combo = QComboBox()
         self.service_order_customer_combo.currentIndexChanged.connect(
@@ -881,20 +901,50 @@ class DashboardWindow(QWidget):
         self.service_order_document_path_input.setPlaceholderText("Arquivo selecionado")
         self.service_order_document_path_input.setReadOnly(True)
 
-        form_layout = QFormLayout()
-        form_layout.setSpacing(10)
-        form_layout.addRow("Cliente", self.service_order_customer_combo)
-        form_layout.addRow("Equipamento", self.service_order_equipment_combo)
-        form_layout.addRow("Tecnico", self.service_order_technician_combo)
-        form_layout.addRow("Problema", self.service_order_problem_input)
-        form_layout.addRow("Diagnostico", self.service_order_diagnosis_input)
-        form_layout.addRow("Observacao", self.service_order_rejection_input)
-        form_layout.addRow("Tipo do item", self.service_order_budget_type_combo)
-        form_layout.addRow("Item", self.service_order_budget_description_input)
-        form_layout.addRow("Quantidade", self.service_order_budget_quantity_input)
-        form_layout.addRow("Valor unitario", self.service_order_budget_unit_price_input)
-        form_layout.addRow("Tipo do anexo", self.service_order_document_type_combo)
-        form_layout.addRow("Arquivo", self.service_order_document_path_input)
+        record_fields_title = QLabel("DADOS DA OS")
+        record_fields_title.setObjectName("formGroupTitle")
+        record_form_layout = QFormLayout()
+        record_form_layout.setSpacing(10)
+        record_form_layout.addRow("Cliente", self.service_order_customer_combo)
+        record_form_layout.addRow("Equipamento", self.service_order_equipment_combo)
+        record_form_layout.addRow("Tecnico", self.service_order_technician_combo)
+        record_form_layout.addRow("Problema", self.service_order_problem_input)
+
+        record_fields = QFrame()
+        record_fields.setObjectName("formSubPanel")
+        record_fields_layout = QVBoxLayout(record_fields)
+        record_fields_layout.setContentsMargins(12, 12, 12, 12)
+        record_fields_layout.setSpacing(8)
+        record_fields_layout.addWidget(record_fields_title)
+        record_fields_layout.addLayout(record_form_layout)
+
+        technical_fields_title = QLabel("FLUXO TECNICO")
+        technical_fields_title.setObjectName("formGroupTitle")
+        technical_form_layout = QFormLayout()
+        technical_form_layout.setSpacing(10)
+        technical_form_layout.addRow("Diagnostico", self.service_order_diagnosis_input)
+        technical_form_layout.addRow("Observacao", self.service_order_rejection_input)
+        technical_form_layout.addRow("Tipo do item", self.service_order_budget_type_combo)
+        technical_form_layout.addRow("Item", self.service_order_budget_description_input)
+        technical_form_layout.addRow("Quantidade", self.service_order_budget_quantity_input)
+        technical_form_layout.addRow("Valor unitario", self.service_order_budget_unit_price_input)
+        technical_form_layout.addRow("Tipo do anexo", self.service_order_document_type_combo)
+        technical_form_layout.addRow("Arquivo", self.service_order_document_path_input)
+
+        technical_fields = QFrame()
+        technical_fields.setObjectName("formSubPanel")
+        technical_fields_layout = QVBoxLayout(technical_fields)
+        technical_fields_layout.setContentsMargins(12, 12, 12, 12)
+        technical_fields_layout.setSpacing(8)
+        technical_fields_layout.addWidget(technical_fields_title)
+        technical_fields_layout.addLayout(technical_form_layout)
+
+        fields_layout = QGridLayout()
+        fields_layout.setSpacing(12)
+        fields_layout.addWidget(record_fields, 0, 0)
+        fields_layout.addWidget(technical_fields, 0, 1)
+        fields_layout.setColumnStretch(0, 1)
+        fields_layout.setColumnStretch(1, 1)
 
         self.service_order_form_status = QLabel("")
         self.service_order_form_status.setObjectName("mutedText")
@@ -909,6 +959,15 @@ class DashboardWindow(QWidget):
         self.service_order_documents_summary = QLabel("Anexos: nenhum arquivo.")
         self.service_order_documents_summary.setObjectName("mutedText")
         self.service_order_documents_summary.setWordWrap(True)
+
+        details_title = QLabel("DADOS COMPLETOS")
+        details_title.setObjectName("formGroupTitle")
+
+        self.service_order_full_summary = QTextEdit()
+        self.service_order_full_summary.setObjectName("summaryText")
+        self.service_order_full_summary.setReadOnly(True)
+        self.service_order_full_summary.setMinimumHeight(96)
+        self.service_order_full_summary.setMaximumHeight(130)
 
         self.service_order_new_button = QPushButton("Nova")
         self.service_order_new_button.setObjectName("secondaryButton")
@@ -979,8 +1038,12 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addWidget(self.service_order_workflow_hint)
+        layout.addWidget(workflow_panel)
+        layout.addLayout(fields_layout)
         layout.addWidget(self.service_order_current_status)
+        layout.addWidget(details_title)
+        layout.addWidget(self.service_order_full_summary)
         layout.addWidget(self.service_order_budget_summary)
         layout.addWidget(self.service_order_documents_summary)
         layout.addWidget(self.service_order_form_status)
@@ -1456,6 +1519,8 @@ class DashboardWindow(QWidget):
         self.service_order_current_status.setText("Status: nova")
         self.service_order_budget_summary.setText("Orcamento: nenhum item.")
         self.service_order_documents_summary.setText("Anexos: nenhum arquivo.")
+        self.service_order_full_summary.setPlainText("Novo registro de ordem de servico.")
+        self._update_service_order_workflow(None)
         self._set_service_order_flow_buttons_enabled(False)
         self.service_order_form_status.setText("Nova ordem de servico.")
         self.table.clearSelection()
@@ -2040,6 +2105,10 @@ class DashboardWindow(QWidget):
         self.service_order_current_status.setText(
             f"Status: {self._format_value(service_order.get('status'))}"
         )
+        self._update_service_order_workflow(str(service_order.get("status") or ""))
+        self.service_order_full_summary.setPlainText(
+            self._format_service_order_full_summary(service_order)
+        )
         self.service_order_budget_summary.setText(self._format_service_order_budget(service_order))
         self.service_order_documents_summary.setText(self._format_service_order_documents(service_order))
         self._set_service_order_flow_buttons_enabled(True)
@@ -2195,6 +2264,31 @@ class DashboardWindow(QWidget):
 
         self.set_service_order_form_status("Selecione uma OS.", is_error=True)
         return False
+
+    def _update_service_order_workflow(self, status: str | None) -> None:
+        stage_by_status = {
+            "open": 0,
+            "assigned": 0,
+            "pending_quote": 1,
+            "quote_sent": 2,
+            "pending_approval": 3,
+            "approved": 3,
+            "in_progress": 4,
+            "completed": 5,
+            "rejected": 5,
+            "closed": 5,
+        }
+        current_stage = stage_by_status.get(status or "", 0)
+        for index, label in enumerate(self.service_order_workflow_steps):
+            if index < current_stage:
+                stage = "done"
+            elif index == current_stage:
+                stage = "active"
+            else:
+                stage = "future"
+            label.setProperty("stage", stage)
+            label.style().unpolish(label)
+            label.style().polish(label)
 
     def _populate_sector_form(self, sector: dict[str, Any]) -> None:
         self.selected_sector_id = str(sector["id"])
@@ -2509,6 +2603,59 @@ class DashboardWindow(QWidget):
         remaining = len(documents) - len(descriptions)
         suffix = f" + {remaining} arquivo(s)" if remaining > 0 else ""
         return f"Anexos: {'; '.join(descriptions)}{suffix}."
+
+    def _format_service_order_full_summary(self, service_order: dict[str, Any]) -> str:
+        customer_name = self._lookup_label(
+            self.service_order_customers,
+            service_order.get("customer_id"),
+            "name",
+            "Cliente nao identificado",
+        )
+        technician_name = self._lookup_label(
+            self.service_order_technicians,
+            service_order.get("assigned_technician_id"),
+            "full_name",
+            "Sem tecnico",
+        )
+        equipment_label = self._lookup_equipment_label(service_order.get("equipment_id"))
+        lines = [
+            f"Codigo: {self._format_value(service_order.get('code')) or '-'}",
+            f"Status: {self._format_value(service_order.get('status'))}",
+            f"Cliente: {customer_name}",
+            f"Equipamento: {equipment_label}",
+            f"Tecnico: {technician_name}",
+            f"Problema informado: {self._format_value(service_order.get('problem_description'))}",
+            f"Diagnostico: {self._format_value(service_order.get('technical_diagnosis')) or '-'}",
+            f"Total orcado: {self._format_value(service_order.get('quoted_total')) or '0'}",
+            f"Criada em: {self._format_value(service_order.get('created_at'))}",
+        ]
+        return "\n".join(lines)
+
+    def _lookup_label(
+        self,
+        items: list[dict[str, Any]],
+        item_id: Any,
+        key: str,
+        fallback: str,
+    ) -> str:
+        for item in items:
+            if str(item.get("id")) == str(item_id):
+                return str(item.get(key) or fallback)
+        return fallback
+
+    def _lookup_equipment_label(self, equipment_id: Any) -> str:
+        for equipment in self.service_order_equipment:
+            if str(equipment.get("id")) != str(equipment_id):
+                continue
+            parts = [
+                str(equipment.get("category") or ""),
+                str(equipment.get("brand") or ""),
+                str(equipment.get("model") or ""),
+                str(equipment.get("special_number") or ""),
+                str(equipment.get("serial_number") or ""),
+            ]
+            return " - ".join(part for part in parts if part) or "Equipamento sem descricao"
+        return "Equipamento nao identificado"
 
     @staticmethod
     def _optional_text(input_widget: QLineEdit) -> str | None:

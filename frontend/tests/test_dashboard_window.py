@@ -78,3 +78,46 @@ def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> No
 
     assert window.eventFilter(window.equipment_customer_combo, wheel_event) is True
     assert window.eventFilter(window.equipment_customer_combo, regular_event) is False
+
+
+def test_service_order_populates_workflow_and_full_summary(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_service_order_dependencies(
+        customers=[{"id": "customer-id", "name": "Cliente Teste"}],
+        equipment=[
+            {
+                "id": "equipment-id",
+                "customer_id": "customer-id",
+                "category": "Notebook",
+                "brand": "Dell",
+                "model": "Latitude",
+                "special_number": "NE-01",
+                "serial_number": "SER-01",
+            }
+        ],
+        technicians=[{"id": "technician-id", "full_name": "Tecnico Teste"}],
+    )
+
+    window._populate_service_order_form(
+        {
+            "id": "service-order-id",
+            "code": "OS-000001",
+            "status": "pending_approval",
+            "customer_id": "customer-id",
+            "equipment_id": "equipment-id",
+            "assigned_technician_id": "technician-id",
+            "problem_description": "Nao liga",
+            "technical_diagnosis": "Fonte com falha",
+            "quoted_total": "250.00",
+            "created_at": "2026-05-14T10:00:00",
+            "budget_items": [],
+            "documents": [],
+        }
+    )
+
+    assert window.service_order_workflow_steps[3].property("stage") == "active"
+    assert "Cliente Teste" in window.service_order_full_summary.toPlainText()
+    assert "Notebook - Dell - Latitude - NE-01 - SER-01" in (
+        window.service_order_full_summary.toPlainText()
+    )
