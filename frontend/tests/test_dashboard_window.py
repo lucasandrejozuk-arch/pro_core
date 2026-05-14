@@ -9,13 +9,32 @@ def test_dashboard_is_independent_active_sidebar_module(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
-    window.render_dashboard()
+    window.render_dashboard(
+        {
+            "greeting": "Bom dia, Admin.",
+            "last_refresh": "Atualizado: 10:00:00",
+            "cards": {
+                "service_orders_open": 3,
+                "service_orders_pending": 1,
+                "inventory_total": 8,
+                "inventory_low": 2,
+                "customers_total": 5,
+                "equipment_total": 7,
+                "users_total": 4,
+                "system_health": 3,
+            },
+            "alerts": [{"message": "1 OS aguardando aprovacao.", "level": "warning"}],
+        }
+    )
 
     assert window.active_module_key == "dashboard"
     assert window.module_buttons["dashboard"].property("active") == "true"
     assert window.module_buttons["customers"].property("active") == "false"
     assert not window.dashboard_grid_widget.isHidden()
     assert window.table.isHidden()
+    assert window.title_label.text() == "Painel Principal"
+    assert window.dashboard_cards["service_orders_open"].value_label.text() == "3"
+    assert window.dashboard_cards["inventory_low"].value_label.text() == "2"
 
 
 def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:

@@ -48,8 +48,26 @@ def _light_stylesheet() -> str:
             font-size: 16px;
             font-weight: 800;
         }
+        QLabel#dashboardGreeting {
+            color: #24292f;
+            font-size: 14px;
+            font-weight: 700;
+        }
         QLabel#cardTitle {
             font-size: 15px;
+            font-weight: 800;
+        }
+        QLabel#dashboardCardMarker {
+            font-size: 10px;
+            font-weight: 800;
+        }
+        QLabel#dashboardCardValue {
+            font-size: 30px;
+            font-weight: 800;
+        }
+        QLabel#dashboardCardLabel {
+            color: #24292f;
+            font-size: 12px;
             font-weight: 800;
         }
         QLabel#sidebarCaption {
@@ -81,6 +99,31 @@ def _light_stylesheet() -> str:
             background: #ffffff;
             border: 1px solid #d0d7de;
             border-radius: 8px;
+        }
+        QFrame#dashboardKpiCard,
+        QFrame#dashboardAlertsFrame {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+        }
+        QFrame#dashboardKpiCard:hover {
+            border-color: #0969da;
+            background: #f6f8fa;
+        }
+        QFrame#dashboardAlertRow {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-left: 5px solid #0969da;
+            border-radius: 6px;
+        }
+        QFrame#dashboardAlertRow[level="warning"] {
+            border-left-color: #d29922;
+        }
+        QFrame#dashboardAlertRow[level="error"] {
+            border-left-color: #da3633;
+        }
+        QFrame#dashboardAlertRow[level="success"] {
+            border-left-color: #238636;
         }
         QFrame#contentPanel {
             background: #f6f8fa;
@@ -239,8 +282,26 @@ def _dark_stylesheet() -> str:
             font-size: 16px;
             font-weight: 800;
         }
+        QLabel#dashboardGreeting {
+            color: #e6edf7;
+            font-size: 14px;
+            font-weight: 700;
+        }
         QLabel#cardTitle {
             font-size: 15px;
+            font-weight: 800;
+        }
+        QLabel#dashboardCardMarker {
+            font-size: 10px;
+            font-weight: 800;
+        }
+        QLabel#dashboardCardValue {
+            font-size: 30px;
+            font-weight: 800;
+        }
+        QLabel#dashboardCardLabel {
+            color: #e6edf7;
+            font-size: 12px;
             font-weight: 800;
         }
         QLabel#sidebarCaption {
@@ -272,6 +333,31 @@ def _dark_stylesheet() -> str:
             background: #161b22;
             border: 1px solid #30363d;
             border-radius: 8px;
+        }
+        QFrame#dashboardKpiCard,
+        QFrame#dashboardAlertsFrame {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        QFrame#dashboardKpiCard:hover {
+            border-color: #1f6feb;
+            background: #21262d;
+        }
+        QFrame#dashboardAlertRow {
+            background: #0f1117;
+            border: 1px solid #30363d;
+            border-left: 5px solid #1f6feb;
+            border-radius: 6px;
+        }
+        QFrame#dashboardAlertRow[level="warning"] {
+            border-left-color: #d29922;
+        }
+        QFrame#dashboardAlertRow[level="error"] {
+            border-left-color: #da3633;
+        }
+        QFrame#dashboardAlertRow[level="success"] {
+            border-left-color: #238636;
         }
         QFrame#contentPanel {
             background: #0f1117;

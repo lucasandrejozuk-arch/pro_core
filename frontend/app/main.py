@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -181,7 +182,9 @@ class ProCoreApplication:
 
         try:
             if module_key == "dashboard":
-                self.dashboard_window.render_dashboard()
+                self.dashboard_window.render_dashboard(
+                    self._build_dashboard_summary(self.session.access_token)
+                )
                 return
             if module_key == "settings":
                 settings = self.api_client.get_settings(self.session.access_token)
@@ -789,6 +792,130 @@ class ProCoreApplication:
         if module_key == "sectors":
             return self.api_client.list_sectors(access_token)
         return self.api_client.list_service_orders(access_token)
+
+    def _build_dashboard_summary(self, access_token: str) -> dict:
+        alerts: list[dict[str, str]] = []
+
+        def safe_list(label: str, loader) -> list[dict]:
+            try:
+                return loader()
+            except ApiError as exc:
+                alerts.append(
+                    {
+                        "message": f"Nao foi possivel carregar {label}: {exc.message}",
+                        "level": "warning",
+                    }
+                )
+                return []
+
+        service_orders = safe_list(
+            "ordens de servico",
+            lambda: self.api_client.list_service_orders(access_token),
+        )
+        customers = safe_list("clientes", lambda: self.api_client.list_customers(access_token))
+        equipment = safe_list("equipamentos", lambda: self.api_client.list_equipment(access_token))
+        inventory = safe_list("estoque", lambda: self.api_client.list_inventory(access_token))
+
+        users: list[dict] = []
+        password_requests: list[dict] = []
+        role = str(self.session.user.get("role") or "")
+        if role in {"admin", "manager"}:
+            users = safe_list("usuarios", lambda: self.api_client.list_users(access_token))
+            password_requests = safe_list(
+                "solicitacoes de senha",
+                lambda: self.api_client.list_password_reset_requests(access_token),
+            )
+
+        open_statuses = {
+            "open",
+            "assigned",
+            "pending_quote",
+            "quote_sent",
+            "pending_approval",
+            "approved",
+            "in_progress",
+        }
+        service_orders_open = [
+            order for order in service_orders if str(order.get("status") or "") in open_statuses
+        ]
+        service_orders_pending = [
+            order
+            for order in service_orders
+            if str(order.get("status") or "") == "pending_approval"
+        ]
+        inventory_low = [
+            item
+            for item in inventory
+            if self._to_decimal(item.get("quantity"))
+            <= self._to_decimal(item.get("minimum_quantity"))
+            and self._to_decimal(item.get("minimum_quantity")) > 0
+        ]
+        active_customers = [customer for customer in customers if customer.get("is_active", True)]
+        active_users = [user for user in users if user.get("is_active", True)]
+        pending_password_requests = [
+            request
+            for request in password_requests
+            if str(request.get("status") or "") == "pending"
+        ]
+
+        if service_orders_pending:
+            alerts.append(
+                {
+                    "message": f"{len(service_orders_pending)} OS aguardando aprovacao do cliente.",
+                    "level": "warning",
+                }
+            )
+        if inventory_low:
+            alerts.append(
+                {
+                    "message": f"{len(inventory_low)} item(ns) com estoque critico.",
+                    "level": "error",
+                }
+            )
+        if pending_password_requests:
+            alerts.append(
+                {
+                    "message": (
+                        f"{len(pending_password_requests)} solicitacao(oes) de senha "
+                        "pendente(s)."
+                    ),
+                    "level": "warning",
+                }
+            )
+
+        pending_count = (
+            len(service_orders_pending)
+            + len(inventory_low)
+            + len(pending_password_requests)
+        )
+        return {
+            "greeting": self._dashboard_greeting(),
+            "last_refresh": f"Atualizado: {datetime.now().strftime('%H:%M:%S')}",
+            "cards": {
+                "service_orders_open": len(service_orders_open),
+                "service_orders_pending": len(service_orders_pending),
+                "inventory_total": len(inventory),
+                "inventory_low": len(inventory_low),
+                "customers_total": len(active_customers),
+                "equipment_total": len(equipment),
+                "users_total": len(active_users),
+                "system_health": pending_count,
+            },
+            "alerts": alerts,
+        }
+
+    def _dashboard_greeting(self) -> str:
+        full_name = str(self.session.user.get("full_name") or "usuario")
+        hour = datetime.now().hour
+        greeting = "Bom dia" if hour < 12 else "Boa tarde" if hour < 18 else "Boa noite"
+        return f"{greeting}, {full_name}. Acompanhe os indicadores operacionais do dia."
+
+    @staticmethod
+    def _to_decimal(value) -> float:
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
 
     @staticmethod
     def _module_columns(module_key: str) -> tuple[str, list[tuple[str, str]]]:

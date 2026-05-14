@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QTreeWidget,
@@ -26,6 +28,60 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+
+class DashboardKpiCard(QFrame):
+    clicked = Signal(str)
+
+    def __init__(
+        self,
+        key: str,
+        marker: str,
+        label: str,
+        accent: str,
+        module_key: str | None = None,
+    ) -> None:
+        super().__init__()
+        self.key = key
+        self.module_key = module_key
+        self.setObjectName("dashboardKpiCard")
+        self.setMinimumHeight(112)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setProperty("accent", accent)
+        if module_key:
+            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        marker_label = QLabel(marker)
+        marker_label.setObjectName("dashboardCardMarker")
+        marker_label.setStyleSheet(f"color: {accent};")
+
+        self.value_label = QLabel("0")
+        self.value_label.setObjectName("dashboardCardValue")
+        self.value_label.setStyleSheet(f"color: {accent};")
+
+        label_widget = QLabel(label)
+        label_widget.setObjectName("dashboardCardLabel")
+        label_widget.setWordWrap(True)
+
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(8)
+        top_layout.addWidget(marker_label)
+        top_layout.addStretch()
+        top_layout.addWidget(self.value_label)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(8)
+        layout.addLayout(top_layout)
+        layout.addWidget(label_widget)
+
+    def set_value(self, value: Any) -> None:
+        self.value_label.setText(str(value))
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if self.module_key:
+            self.clicked.emit(self.module_key)
+        super().mousePressEvent(event)
 
 
 class DashboardWindow(QWidget):
@@ -181,21 +237,45 @@ class DashboardWindow(QWidget):
         self.dashboard_section_title = QLabel("Dashboard")
         self.dashboard_section_title.setObjectName("sectionTitle")
 
+        self.dashboard_greeting_label = QLabel("")
+        self.dashboard_greeting_label.setObjectName("dashboardGreeting")
+
+        self.dashboard_last_refresh_label = QLabel("")
+        self.dashboard_last_refresh_label.setObjectName("mutedText")
+
         self.dashboard_grid_widget = QWidget()
         self.dashboard_grid_widget.setObjectName("dashboardGrid")
         grid = QGridLayout(self.dashboard_grid_widget)
-        grid.setSpacing(14)
-        modules = [
-            ("Ordens de Servico", "Criacao, diagnostico, orcamento e execucao."),
-            ("Clientes", "Cadastro e consulta de clientes da empresa."),
-            ("Equipamentos", "Equipamentos vinculados aos clientes."),
-            ("Estoque", "Itens, pecas, quantidades e custo base."),
-            ("Configuracoes", "Preferencias e parametros operacionais."),
-            ("Area Administrativa", "Usuarios, setores e governanca do sistema."),
+        grid.setSpacing(8)
+        self.dashboard_cards: dict[str, DashboardKpiCard] = {}
+        dashboard_cards = [
+            ("service_orders_open", "OS", "OS abertas", "#238636", "service_orders"),
+            (
+                "service_orders_pending",
+                "APROVACAO",
+                "Aguardando aprovacao",
+                "#d29922",
+                "service_orders",
+            ),
+            ("inventory_total", "ESTOQUE", "Itens em estoque", "#0969da", "inventory"),
+            ("inventory_low", "ALERTA", "Estoque critico", "#da3633", "inventory"),
+            ("customers_total", "CLIENTES", "Clientes ativos", "#8250df", "customers"),
+            ("equipment_total", "EQUIP", "Equipamentos cadastrados", "#1a7f37", "equipment"),
+            ("users_total", "USUARIOS", "Usuarios ativos", "#bf8700", "users"),
+            ("system_health", "SAUDE", "Pendencias operacionais", "#238636", None),
         ]
 
-        for index, (title, description) in enumerate(modules):
-            grid.addWidget(self._build_module_card(title, description), index // 2, index % 2)
+        for index, (key, marker, label, accent, target_module) in enumerate(dashboard_cards):
+            card = DashboardKpiCard(key, marker, label, accent, target_module)
+            card.clicked.connect(self.module_selected.emit)
+            self.dashboard_cards[key] = card
+            grid.addWidget(card, index // 4, index % 4)
+
+        self.dashboard_alerts_frame = QFrame()
+        self.dashboard_alerts_frame.setObjectName("dashboardAlertsFrame")
+        self.dashboard_alerts_layout = QVBoxLayout(self.dashboard_alerts_frame)
+        self.dashboard_alerts_layout.setContentsMargins(10, 10, 10, 10)
+        self.dashboard_alerts_layout.setSpacing(6)
 
         self.data_title = QLabel("Dados")
         self.data_title.setObjectName("sectionTitle")
@@ -234,7 +314,10 @@ class DashboardWindow(QWidget):
 
         content_layout.addWidget(header_bar)
         content_layout.addWidget(self.dashboard_section_title)
+        content_layout.addWidget(self.dashboard_greeting_label)
+        content_layout.addWidget(self.dashboard_last_refresh_label)
         content_layout.addWidget(self.dashboard_grid_widget)
+        content_layout.addWidget(self.dashboard_alerts_frame)
         content_layout.addWidget(self.data_title)
         content_layout.addWidget(self.empty_label)
         content_layout.addWidget(self.table)
@@ -285,6 +368,8 @@ class DashboardWindow(QWidget):
             self.module_buttons["settings"].setVisible(role_key == "admin")
         if "reports" in self.module_buttons:
             self.module_buttons["reports"].setVisible(role_key == "admin")
+        if "users_total" in self.dashboard_cards:
+            self.dashboard_cards["users_total"].setVisible(role_key in {"admin", "manager"})
 
     def render_loading(self, title: str, module_key: str) -> None:
         self._set_active_module(module_key)
@@ -304,13 +389,14 @@ class DashboardWindow(QWidget):
         self.table.setRowCount(0)
         self.table.setColumnCount(0)
 
-    def render_dashboard(self) -> None:
+    def render_dashboard(self, summary: dict[str, Any] | None = None) -> None:
         self._set_active_module("dashboard")
         self.current_rows = []
-        self.data_title.setText("Resumo operacional")
-        self.empty_label.setText("Selecione um modulo no menu lateral para operar.")
-        self.empty_label.show()
+        self.title_label.setText("Painel Principal")
+        self.dashboard_section_title.setText("VISAO GERAL")
+        self.empty_label.hide()
         self.table.hide()
+        self._apply_dashboard_summary(summary or {})
 
     def render_rows(
         self,
@@ -414,6 +500,39 @@ class DashboardWindow(QWidget):
         layout.addStretch()
 
         return card
+
+    def _apply_dashboard_summary(self, summary: dict[str, Any]) -> None:
+        greeting = str(summary.get("greeting") or "Painel operacional do PRO CORE.")
+        self.dashboard_greeting_label.setText(greeting)
+        self.dashboard_last_refresh_label.setText(str(summary.get("last_refresh") or ""))
+
+        cards = summary.get("cards") or {}
+        for key, card in self.dashboard_cards.items():
+            card.set_value(cards.get(key, 0))
+
+        self._clear_layout(self.dashboard_alerts_layout)
+        alerts = summary.get("alerts") or []
+        if not alerts:
+            alerts = [{"message": "Nenhum alerta ativo. Tudo em ordem.", "level": "info"}]
+
+        for alert in alerts:
+            row = QFrame()
+            row.setObjectName("dashboardAlertRow")
+            row.setProperty("level", str(alert.get("level") or "info"))
+            message = QLabel(str(alert.get("message") or "Alerta operacional."))
+            message.setWordWrap(True)
+            layout = QHBoxLayout(row)
+            layout.setContentsMargins(10, 7, 10, 7)
+            layout.addWidget(message)
+            self.dashboard_alerts_layout.addWidget(row)
+
+    @staticmethod
+    def _clear_layout(layout: QVBoxLayout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
 
     def _install_input_guards(self) -> None:
         for widget in self.findChildren(QWidget):
@@ -1542,7 +1661,11 @@ class DashboardWindow(QWidget):
         self.title_label.setText(self.module_labels.get(module_key, "Dashboard"))
         self._mark_active_nav(module_key)
         self.dashboard_section_title.setVisible(module_key == "dashboard")
+        self.dashboard_greeting_label.setVisible(module_key == "dashboard")
+        self.dashboard_last_refresh_label.setVisible(module_key == "dashboard")
         self.dashboard_grid_widget.setVisible(module_key == "dashboard")
+        self.dashboard_alerts_frame.setVisible(module_key == "dashboard")
+        self.data_title.setVisible(module_key != "dashboard")
         self.table.show()
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
