@@ -11,9 +11,8 @@ def create_customer(client: TestClient, auth_headers: dict[str, str]) -> dict:
         headers=auth_headers,
         json={
             "name": "Cliente Teste",
-            "document_number": "12345678900",
             "email": "cliente@example.com",
-            "phone": "11999999999",
+            "phone": "(11) 99999-9999",
         },
     )
 
@@ -67,11 +66,11 @@ def test_customer_inventory_and_equipment_crud(client: TestClient, auth_headers:
     update_response = client.patch(
         f"/api/v1/customers/{customer['id']}",
         headers=auth_headers,
-        json={"phone": "11888888888"},
+        json={"phone": "(11) 98888-8888"},
     )
 
     assert update_response.status_code == 200
-    assert update_response.json()["phone"] == "11888888888"
+    assert update_response.json()["phone"] == "(11) 98888-8888"
 
 
 def test_list_technicians_returns_company_technicians(

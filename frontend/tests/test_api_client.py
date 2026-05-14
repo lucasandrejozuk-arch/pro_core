@@ -125,9 +125,8 @@ def test_list_customers_returns_list_payload() -> None:
 def test_create_customer_posts_payload() -> None:
     payload = {
         "name": "Cliente Teste",
-        "document_number": None,
         "email": "cliente@example.com",
-        "phone": "11999999999",
+        "phone": "(11) 99999-9999",
         "address": None,
         "notes": None,
         "is_active": True,
@@ -151,7 +150,7 @@ def test_create_customer_posts_payload() -> None:
 
 
 def test_update_customer_patches_payload() -> None:
-    payload = {"name": "Cliente Atualizado", "phone": "11888888888"}
+    payload = {"name": "Cliente Atualizado", "phone": "(11) 98888-8888"}
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "PATCH"
@@ -176,6 +175,7 @@ def test_create_equipment_posts_payload() -> None:
         "category": "Notebook",
         "brand": "Dell",
         "model": "Latitude",
+        "special_number": "A5E123",
         "serial_number": "ABC123",
         "description": "Nao liga",
     }
@@ -203,6 +203,7 @@ def test_update_equipment_patches_payload() -> None:
         "category": "Desktop",
         "brand": None,
         "model": None,
+        "special_number": None,
         "serial_number": None,
         "description": None,
     }
@@ -222,6 +223,65 @@ def test_update_equipment_patches_payload() -> None:
     response = client.update_equipment("token", "equipment-id", payload)
 
     assert response["category"] == "Desktop"
+
+
+def test_create_equipment_board_posts_payload() -> None:
+    payload = {
+        "name": "Placa Principal",
+        "special_number": "A5E-001",
+        "serial_number": "SER-001",
+        "model": "CU320",
+        "revision": "A",
+        "notes": None,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/equipment/equipment-id/boards"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == payload
+        return httpx.Response(201, json=payload | {"id": "board-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.create_equipment_board("token", "equipment-id", payload)
+
+    assert response["id"] == "board-id"
+
+
+def test_create_equipment_board_component_posts_payload() -> None:
+    payload = {
+        "category": "Capacitor",
+        "name": "C100",
+        "quantity": "2",
+        "part_number": "10uF",
+        "location": "Fonte",
+        "notes": None,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/equipment/equipment-id/boards/board-id/components"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == payload
+        return httpx.Response(201, json=payload | {"id": "component-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.create_equipment_board_component(
+        "token",
+        "equipment-id",
+        "board-id",
+        payload,
+    )
+
+    assert response["id"] == "component-id"
 
 
 def test_create_inventory_item_posts_payload() -> None:

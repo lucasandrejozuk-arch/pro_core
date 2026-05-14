@@ -9,12 +9,28 @@ from backend.app.api.dependencies import require_roles
 from backend.app.db.session import get_db
 from backend.app.models.enums import UserRole
 from backend.app.models.user import User
-from backend.app.schemas.equipment import EquipmentCreate, EquipmentResponse, EquipmentUpdate
+from backend.app.schemas.equipment import (
+    EquipmentBoardComponentCreate,
+    EquipmentBoardComponentResponse,
+    EquipmentBoardComponentUpdate,
+    EquipmentBoardCreate,
+    EquipmentBoardResponse,
+    EquipmentBoardUpdate,
+    EquipmentCreate,
+    EquipmentResponse,
+    EquipmentUpdate,
+)
 from backend.app.services.equipment import (
+    create_board_component,
     create_equipment,
+    create_equipment_board,
+    get_board_component,
+    get_equipment_board,
     get_equipment,
     list_equipment,
+    update_board_component,
     update_equipment,
+    update_equipment_board,
 )
 
 router = APIRouter(prefix="/equipment", tags=["equipment"])
@@ -70,3 +86,77 @@ def update_equipment_record(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+
+@router.post(
+    "/{equipment_id}/boards",
+    response_model=EquipmentBoardResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_equipment_board_record(
+    equipment_id: uuid.UUID,
+    payload: EquipmentBoardCreate,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> EquipmentBoardResponse:
+    equipment = get_equipment(db, current_user.company_id, equipment_id)
+    if equipment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
+
+    return create_equipment_board(db, current_user.company_id, equipment, payload)
+
+
+@router.patch("/{equipment_id}/boards/{board_id}", response_model=EquipmentBoardResponse)
+def update_equipment_board_record(
+    equipment_id: uuid.UUID,
+    board_id: uuid.UUID,
+    payload: EquipmentBoardUpdate,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> EquipmentBoardResponse:
+    board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
+    if board is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
+
+    return update_equipment_board(db, board, payload)
+
+
+@router.post(
+    "/{equipment_id}/boards/{board_id}/components",
+    response_model=EquipmentBoardComponentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_board_component_record(
+    equipment_id: uuid.UUID,
+    board_id: uuid.UUID,
+    payload: EquipmentBoardComponentCreate,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> EquipmentBoardComponentResponse:
+    board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
+    if board is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
+
+    return create_board_component(db, current_user.company_id, board, payload)
+
+
+@router.patch(
+    "/{equipment_id}/boards/{board_id}/components/{component_id}",
+    response_model=EquipmentBoardComponentResponse,
+)
+def update_board_component_record(
+    equipment_id: uuid.UUID,
+    board_id: uuid.UUID,
+    component_id: uuid.UUID,
+    payload: EquipmentBoardComponentUpdate,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> EquipmentBoardComponentResponse:
+    board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
+    if board is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
+
+    component = get_board_component(db, current_user.company_id, board_id, component_id)
+    if component is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Component not found.")
+
+    return update_board_component(db, component, payload)

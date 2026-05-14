@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QTableWidget,
     QTableWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -31,8 +33,11 @@ class DashboardWindow(QWidget):
     refresh_requested = Signal()
     customer_create_requested = Signal(dict)
     customer_update_requested = Signal(str, dict)
+    customer_document_upload_requested = Signal(str, str, str)
     equipment_create_requested = Signal(dict)
     equipment_update_requested = Signal(str, dict)
+    equipment_board_create_requested = Signal(str, dict)
+    equipment_component_create_requested = Signal(str, str, dict)
     inventory_create_requested = Signal(dict)
     inventory_update_requested = Signal(str, dict)
     sector_create_requested = Signal(dict)
@@ -58,10 +63,12 @@ class DashboardWindow(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.active_module_key = "service_orders"
+        self.active_module_key = "dashboard"
         self.current_rows: list[dict[str, Any]] = []
         self.selected_customer_id: str | None = None
+        self.selected_customer_document_path: str | None = None
         self.selected_equipment_id: str | None = None
+        self.selected_equipment_board_id: str | None = None
         self.selected_inventory_item_id: str | None = None
         self.selected_service_order_id: str | None = None
         self.selected_sector_id: str | None = None
@@ -99,6 +106,7 @@ class DashboardWindow(QWidget):
 
         self.module_buttons: dict[str, QPushButton] = {}
         modules = {
+            "dashboard": "Dashboard",
             "service_orders": "Ordens de Servico",
             "customers": "Clientes",
             "equipment": "Equipamentos",
@@ -150,10 +158,11 @@ class DashboardWindow(QWidget):
         header_layout.addStretch()
         header_layout.addWidget(self.refresh_button)
 
-        section_title = QLabel("Modulos do MVP")
-        section_title.setObjectName("sectionTitle")
+        self.dashboard_section_title = QLabel("Dashboard")
+        self.dashboard_section_title.setObjectName("sectionTitle")
 
-        grid = QGridLayout()
+        self.dashboard_grid_widget = QWidget()
+        grid = QGridLayout(self.dashboard_grid_widget)
         grid.setSpacing(14)
         modules = [
             ("Ordens de Servico", "Criacao, diagnostico, orcamento e execucao."),
@@ -203,8 +212,8 @@ class DashboardWindow(QWidget):
         self.report_form_panel.hide()
 
         content_layout.addLayout(header_layout)
-        content_layout.addWidget(section_title)
-        content_layout.addLayout(grid)
+        content_layout.addWidget(self.dashboard_section_title)
+        content_layout.addWidget(self.dashboard_grid_widget)
         content_layout.addWidget(self.data_title)
         content_layout.addWidget(self.empty_label)
         content_layout.addWidget(self.table)
@@ -265,6 +274,14 @@ class DashboardWindow(QWidget):
         self.table.clear()
         self.table.setRowCount(0)
         self.table.setColumnCount(0)
+
+    def render_dashboard(self) -> None:
+        self._set_active_module("dashboard")
+        self.current_rows = []
+        self.data_title.setText("Resumo operacional")
+        self.empty_label.setText("Selecione um modulo no menu lateral para operar.")
+        self.empty_label.show()
+        self.table.hide()
 
     def render_rows(
         self,
@@ -379,14 +396,12 @@ class DashboardWindow(QWidget):
         self.customer_name_input = QLineEdit()
         self.customer_name_input.setPlaceholderText("Nome")
 
-        self.customer_document_input = QLineEdit()
-        self.customer_document_input.setPlaceholderText("Documento")
-
         self.customer_email_input = QLineEdit()
         self.customer_email_input.setPlaceholderText("Email")
 
         self.customer_phone_input = QLineEdit()
-        self.customer_phone_input.setPlaceholderText("Telefone")
+        self.customer_phone_input.setPlaceholderText("(11) 99999-9999")
+        self.customer_phone_input.setInputMask("(00) 00000-0000;_")
 
         self.customer_address_input = QLineEdit()
         self.customer_address_input.setPlaceholderText("Endereco")
@@ -400,7 +415,6 @@ class DashboardWindow(QWidget):
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
         form_layout.addRow("Nome", self.customer_name_input)
-        form_layout.addRow("Documento", self.customer_document_input)
         form_layout.addRow("Email", self.customer_email_input)
         form_layout.addRow("Telefone", self.customer_phone_input)
         form_layout.addRow("Endereco", self.customer_address_input)
@@ -417,16 +431,33 @@ class DashboardWindow(QWidget):
         self.customer_save_button = QPushButton("Salvar cliente")
         self.customer_save_button.clicked.connect(self._request_customer_save)
 
+        self.customer_document_path_input = QLineEdit()
+        self.customer_document_path_input.setPlaceholderText("Anexo do cliente")
+        self.customer_document_path_input.setReadOnly(True)
+
+        self.customer_select_document_button = QPushButton("Selecionar anexo")
+        self.customer_select_document_button.setObjectName("secondaryButton")
+        self.customer_select_document_button.clicked.connect(self._select_customer_document)
+
+        self.customer_upload_document_button = QPushButton("Enviar anexo")
+        self.customer_upload_document_button.clicked.connect(self._request_customer_document_upload)
+
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.customer_new_button)
         actions.addWidget(self.customer_save_button)
+
+        document_actions = QHBoxLayout()
+        document_actions.addWidget(self.customer_document_path_input, 1)
+        document_actions.addWidget(self.customer_select_document_button)
+        document_actions.addWidget(self.customer_upload_document_button)
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
         layout.addLayout(form_layout)
+        layout.addLayout(document_actions)
         layout.addWidget(self.customer_form_status)
         layout.addLayout(actions)
 
@@ -450,6 +481,9 @@ class DashboardWindow(QWidget):
         self.equipment_model_input = QLineEdit()
         self.equipment_model_input.setPlaceholderText("Modelo")
 
+        self.equipment_special_number_input = QLineEdit()
+        self.equipment_special_number_input.setPlaceholderText("N especial")
+
         self.equipment_serial_input = QLineEdit()
         self.equipment_serial_input.setPlaceholderText("Numero de serie")
 
@@ -462,6 +496,7 @@ class DashboardWindow(QWidget):
         form_layout.addRow("Categoria", self.equipment_category_input)
         form_layout.addRow("Marca", self.equipment_brand_input)
         form_layout.addRow("Modelo", self.equipment_model_input)
+        form_layout.addRow("N especial", self.equipment_special_number_input)
         form_layout.addRow("Serie", self.equipment_serial_input)
         form_layout.addRow("Descricao", self.equipment_description_input)
 
@@ -475,16 +510,101 @@ class DashboardWindow(QWidget):
         self.equipment_save_button = QPushButton("Salvar equipamento")
         self.equipment_save_button.clicked.connect(self._request_equipment_save)
 
+        linked_title = QLabel("Objetos vinculados")
+        linked_title.setObjectName("sectionTitle")
+
+        self.equipment_objects_tree = QTreeWidget()
+        self.equipment_objects_tree.setHeaderLabels(["Placa / Componente", "Codigo", "Modelo/PN", "Local"])
+        self.equipment_objects_tree.setMinimumHeight(160)
+        self.equipment_objects_tree.itemSelectionChanged.connect(self._handle_equipment_object_selection)
+
+        self.board_name_input = QLineEdit()
+        self.board_name_input.setPlaceholderText("Nome da placa")
+
+        self.board_special_number_input = QLineEdit()
+        self.board_special_number_input.setPlaceholderText("N especial")
+
+        self.board_serial_number_input = QLineEdit()
+        self.board_serial_number_input.setPlaceholderText("Numero de serie")
+
+        self.board_model_input = QLineEdit()
+        self.board_model_input.setPlaceholderText("Modelo")
+
+        self.board_revision_input = QLineEdit()
+        self.board_revision_input.setPlaceholderText("Revisao")
+
+        self.board_notes_input = QLineEdit()
+        self.board_notes_input.setPlaceholderText("Observacoes")
+
+        board_form_layout = QFormLayout()
+        board_form_layout.setSpacing(10)
+        board_form_layout.addRow("Placa", self.board_name_input)
+        board_form_layout.addRow("N especial", self.board_special_number_input)
+        board_form_layout.addRow("Serie", self.board_serial_number_input)
+        board_form_layout.addRow("Modelo", self.board_model_input)
+        board_form_layout.addRow("Revisao", self.board_revision_input)
+        board_form_layout.addRow("Observacoes", self.board_notes_input)
+
+        self.board_add_button = QPushButton("Adicionar placa")
+        self.board_add_button.clicked.connect(self._request_equipment_board_create)
+
+        self.component_board_combo = QComboBox()
+
+        self.component_category_input = QLineEdit()
+        self.component_category_input.setPlaceholderText("Categoria")
+
+        self.component_name_input = QLineEdit()
+        self.component_name_input.setPlaceholderText("Componente")
+
+        self.component_quantity_input = QLineEdit()
+        self.component_quantity_input.setPlaceholderText("Quantidade")
+
+        self.component_part_number_input = QLineEdit()
+        self.component_part_number_input.setPlaceholderText("Part number")
+
+        self.component_location_input = QLineEdit()
+        self.component_location_input.setPlaceholderText("Localizacao")
+
+        self.component_notes_input = QLineEdit()
+        self.component_notes_input.setPlaceholderText("Observacoes")
+
+        component_form_layout = QFormLayout()
+        component_form_layout.setSpacing(10)
+        component_form_layout.addRow("Placa", self.component_board_combo)
+        component_form_layout.addRow("Categoria", self.component_category_input)
+        component_form_layout.addRow("Nome", self.component_name_input)
+        component_form_layout.addRow("Quantidade", self.component_quantity_input)
+        component_form_layout.addRow("Part number", self.component_part_number_input)
+        component_form_layout.addRow("Local", self.component_location_input)
+        component_form_layout.addRow("Observacoes", self.component_notes_input)
+
+        self.component_add_button = QPushButton("Adicionar componente")
+        self.component_add_button.clicked.connect(self._request_equipment_component_create)
+
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.equipment_new_button)
         actions.addWidget(self.equipment_save_button)
+
+        board_actions = QHBoxLayout()
+        board_actions.addStretch()
+        board_actions.addWidget(self.board_add_button)
+
+        component_actions = QHBoxLayout()
+        component_actions.addStretch()
+        component_actions.addWidget(self.component_add_button)
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
         layout.addLayout(form_layout)
+        layout.addWidget(linked_title)
+        layout.addWidget(self.equipment_objects_tree)
+        layout.addLayout(board_form_layout)
+        layout.addLayout(board_actions)
+        layout.addLayout(component_form_layout)
+        layout.addLayout(component_actions)
         layout.addWidget(self.equipment_form_status)
         layout.addLayout(actions)
 
@@ -1000,12 +1120,13 @@ class DashboardWindow(QWidget):
 
     def clear_customer_form(self) -> None:
         self.selected_customer_id = None
+        self.selected_customer_document_path = None
         self.customer_name_input.clear()
-        self.customer_document_input.clear()
         self.customer_email_input.clear()
         self.customer_phone_input.clear()
         self.customer_address_input.clear()
         self.customer_notes_input.clear()
+        self.customer_document_path_input.clear()
         self.customer_active_checkbox.setChecked(True)
         self.customer_form_status.setText("Novo cliente.")
         self.table.clearSelection()
@@ -1020,6 +1141,15 @@ class DashboardWindow(QWidget):
         self.customer_save_button.setEnabled(not is_loading)
         self.customer_new_button.setEnabled(not is_loading)
         self.customer_save_button.setText("Salvando..." if is_loading else "Salvar cliente")
+
+    def set_customer_document_upload_loading(self, is_loading: bool) -> None:
+        self.customer_select_document_button.setEnabled(not is_loading)
+        self.customer_upload_document_button.setEnabled(
+            not is_loading and bool(self.selected_customer_id)
+        )
+        self.customer_upload_document_button.setText(
+            "Enviando..." if is_loading else "Enviar anexo"
+        )
 
     def set_equipment_customers(self, customers: list[dict[str, Any]]) -> None:
         current_customer_id = self.equipment_customer_combo.currentData()
@@ -1040,13 +1170,21 @@ class DashboardWindow(QWidget):
 
     def clear_equipment_form(self) -> None:
         self.selected_equipment_id = None
+        self.selected_equipment_board_id = None
         if self.equipment_customer_combo.count() > 0:
             self.equipment_customer_combo.setCurrentIndex(0)
         self.equipment_category_input.clear()
         self.equipment_brand_input.clear()
         self.equipment_model_input.clear()
+        self.equipment_special_number_input.clear()
         self.equipment_serial_input.clear()
         self.equipment_description_input.clear()
+        self.equipment_objects_tree.clear()
+        self.component_board_combo.clear()
+        self._clear_equipment_board_inputs()
+        self._clear_equipment_component_inputs()
+        self.board_add_button.setEnabled(False)
+        self.component_add_button.setEnabled(False)
         self.equipment_form_status.setText("Novo equipamento.")
         self.table.clearSelection()
 
@@ -1060,6 +1198,16 @@ class DashboardWindow(QWidget):
         self.equipment_save_button.setEnabled(not is_loading)
         self.equipment_new_button.setEnabled(not is_loading)
         self.equipment_save_button.setText("Salvando..." if is_loading else "Salvar equipamento")
+
+    def set_equipment_object_loading(self, is_loading: bool) -> None:
+        has_equipment = bool(self.selected_equipment_id)
+        has_board = bool(self.component_board_combo.currentData())
+        self.board_add_button.setEnabled(not is_loading and has_equipment)
+        self.component_add_button.setEnabled(not is_loading and has_equipment and has_board)
+        self.board_add_button.setText("Adicionando..." if is_loading else "Adicionar placa")
+        self.component_add_button.setText(
+            "Adicionando..." if is_loading else "Adicionar componente"
+        )
 
     def clear_inventory_form(self) -> None:
         self.selected_inventory_item_id = None
@@ -1349,6 +1497,8 @@ class DashboardWindow(QWidget):
     def _set_active_module(self, module_key: str) -> None:
         self.active_module_key = module_key
         self.current_rows = []
+        self.dashboard_section_title.setVisible(module_key == "dashboard")
+        self.dashboard_grid_widget.setVisible(module_key == "dashboard")
         self.table.show()
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
@@ -1426,26 +1576,39 @@ class DashboardWindow(QWidget):
 
     def _populate_customer_form(self, customer: dict[str, Any]) -> None:
         self.selected_customer_id = str(customer["id"])
+        self.selected_customer_document_path = None
         self.customer_name_input.setText(str(customer.get("name") or ""))
-        self.customer_document_input.setText(str(customer.get("document_number") or ""))
         self.customer_email_input.setText(str(customer.get("email") or ""))
         self.customer_phone_input.setText(str(customer.get("phone") or ""))
         self.customer_address_input.setText(str(customer.get("address") or ""))
         self.customer_notes_input.setText(str(customer.get("notes") or ""))
+        self.customer_document_path_input.clear()
         self.customer_active_checkbox.setChecked(bool(customer.get("is_active", True)))
         self.set_customer_form_status("Editando cliente selecionado.")
 
     def _request_customer_save(self) -> None:
         name = self.customer_name_input.text().strip()
+        email = self.customer_email_input.text().strip().lower()
+        phone = self.customer_phone_input.text().strip()
         if not name:
             self.set_customer_form_status("Informe o nome do cliente.", is_error=True)
             return
 
+        if not email:
+            self.set_customer_form_status("Informe o email do cliente.", is_error=True)
+            return
+
+        if not self._is_complete_phone(phone):
+            self.set_customer_form_status(
+                "Informe o telefone no formato (DD) 99999-9999.",
+                is_error=True,
+            )
+            return
+
         payload = {
             "name": name,
-            "document_number": self._optional_text(self.customer_document_input),
-            "email": self._optional_text(self.customer_email_input),
-            "phone": self._optional_text(self.customer_phone_input),
+            "email": email,
+            "phone": phone,
             "address": self._optional_text(self.customer_address_input),
             "notes": self._optional_text(self.customer_notes_input),
             "is_active": self.customer_active_checkbox.isChecked(),
@@ -1458,14 +1621,47 @@ class DashboardWindow(QWidget):
 
         self.customer_create_requested.emit(payload)
 
+    def _select_customer_document(self) -> None:
+        file_path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar anexo",
+            "",
+            "Arquivos (*.*)",
+        )
+        if not file_path:
+            return
+
+        self.selected_customer_document_path = file_path
+        self.customer_document_path_input.setText(file_path)
+
+    def _request_customer_document_upload(self) -> None:
+        if not self.selected_customer_id:
+            self.set_customer_form_status("Salve ou selecione um cliente antes do anexo.", is_error=True)
+            return
+
+        file_path = self.selected_customer_document_path
+        if not file_path:
+            self.set_customer_form_status("Selecione um anexo.", is_error=True)
+            return
+
+        if not Path(file_path).exists():
+            self.set_customer_form_status("Arquivo selecionado nao existe.", is_error=True)
+            return
+
+        self.customer_document_upload_requested.emit(self.selected_customer_id, "other", file_path)
+
     def _populate_equipment_form(self, equipment: dict[str, Any]) -> None:
         self.selected_equipment_id = str(equipment["id"])
         self._select_equipment_customer(str(equipment.get("customer_id") or ""))
         self.equipment_category_input.setText(str(equipment.get("category") or ""))
         self.equipment_brand_input.setText(str(equipment.get("brand") or ""))
         self.equipment_model_input.setText(str(equipment.get("model") or ""))
+        self.equipment_special_number_input.setText(str(equipment.get("special_number") or ""))
         self.equipment_serial_input.setText(str(equipment.get("serial_number") or ""))
         self.equipment_description_input.setText(str(equipment.get("description") or ""))
+        self._populate_equipment_objects(equipment)
+        self.board_add_button.setEnabled(True)
+        self.component_add_button.setEnabled(bool(self.component_board_combo.currentData()))
         self.set_equipment_form_status("Editando equipamento selecionado.")
 
     def _request_equipment_save(self) -> None:
@@ -1485,6 +1681,7 @@ class DashboardWindow(QWidget):
             "category": category,
             "brand": self._optional_text(self.equipment_brand_input),
             "model": self._optional_text(self.equipment_model_input),
+            "special_number": self._optional_text(self.equipment_special_number_input),
             "serial_number": self._optional_text(self.equipment_serial_input),
             "description": self._optional_text(self.equipment_description_input),
         }
@@ -1504,6 +1701,110 @@ class DashboardWindow(QWidget):
             if self.equipment_customer_combo.itemData(index) == customer_id:
                 self.equipment_customer_combo.setCurrentIndex(index)
                 return
+
+    def _populate_equipment_objects(self, equipment: dict[str, Any]) -> None:
+        self.equipment_objects_tree.clear()
+        self.component_board_combo.clear()
+        boards = equipment.get("boards") or []
+        for board in boards:
+            board_label = str(board.get("name") or "Placa sem nome")
+            board_item = QTreeWidgetItem(
+                [
+                    board_label,
+                    str(board.get("special_number") or board.get("serial_number") or ""),
+                    str(board.get("model") or ""),
+                    str(board.get("revision") or ""),
+                ]
+            )
+            board_item.setData(0, Qt.ItemDataRole.UserRole, str(board["id"]))
+            self.equipment_objects_tree.addTopLevelItem(board_item)
+            self.component_board_combo.addItem(board_label, str(board["id"]))
+            for component in board.get("components") or []:
+                component_item = QTreeWidgetItem(
+                    [
+                        str(component.get("name") or "Componente sem nome"),
+                        str(component.get("category") or ""),
+                        str(component.get("part_number") or ""),
+                        str(component.get("location") or ""),
+                    ]
+                )
+                board_item.addChild(component_item)
+        self.equipment_objects_tree.expandAll()
+
+    def _handle_equipment_object_selection(self) -> None:
+        selected_items = self.equipment_objects_tree.selectedItems()
+        if not selected_items:
+            return
+
+        board_id = selected_items[0].data(0, Qt.ItemDataRole.UserRole)
+        if board_id:
+            self.selected_equipment_board_id = str(board_id)
+            self._select_combo_value(self.component_board_combo, str(board_id))
+
+    def _request_equipment_board_create(self) -> None:
+        if not self.selected_equipment_id:
+            self.set_equipment_form_status("Salve ou selecione um equipamento.", is_error=True)
+            return
+
+        name = self.board_name_input.text().strip()
+        if not name:
+            self.set_equipment_form_status("Informe o nome da placa.", is_error=True)
+            return
+
+        payload = {
+            "name": name,
+            "special_number": self._optional_text(self.board_special_number_input),
+            "serial_number": self._optional_text(self.board_serial_number_input),
+            "model": self._optional_text(self.board_model_input),
+            "revision": self._optional_text(self.board_revision_input),
+            "notes": self._optional_text(self.board_notes_input),
+        }
+        self.equipment_board_create_requested.emit(self.selected_equipment_id, payload)
+
+    def _request_equipment_component_create(self) -> None:
+        if not self.selected_equipment_id:
+            self.set_equipment_form_status("Salve ou selecione um equipamento.", is_error=True)
+            return
+
+        board_id = self.component_board_combo.currentData()
+        if not board_id:
+            self.set_equipment_form_status("Selecione uma placa.", is_error=True)
+            return
+
+        name = self.component_name_input.text().strip()
+        if not name:
+            self.set_equipment_form_status("Informe o nome do componente.", is_error=True)
+            return
+
+        payload = {
+            "category": self._optional_text(self.component_category_input),
+            "name": name,
+            "quantity": self._optional_text(self.component_quantity_input),
+            "part_number": self._optional_text(self.component_part_number_input),
+            "location": self._optional_text(self.component_location_input),
+            "notes": self._optional_text(self.component_notes_input),
+        }
+        self.equipment_component_create_requested.emit(
+            self.selected_equipment_id,
+            str(board_id),
+            payload,
+        )
+
+    def _clear_equipment_board_inputs(self) -> None:
+        self.board_name_input.clear()
+        self.board_special_number_input.clear()
+        self.board_serial_number_input.clear()
+        self.board_model_input.clear()
+        self.board_revision_input.clear()
+        self.board_notes_input.clear()
+
+    def _clear_equipment_component_inputs(self) -> None:
+        self.component_category_input.clear()
+        self.component_name_input.clear()
+        self.component_quantity_input.clear()
+        self.component_part_number_input.clear()
+        self.component_location_input.clear()
+        self.component_notes_input.clear()
 
     def _populate_inventory_form(self, item: dict[str, Any]) -> None:
         self.selected_inventory_item_id = str(item["id"])
@@ -1965,6 +2266,7 @@ class DashboardWindow(QWidget):
                     str(equipment.get("category") or ""),
                     str(equipment.get("brand") or ""),
                     str(equipment.get("model") or ""),
+                    str(equipment.get("special_number") or ""),
                     str(equipment.get("serial_number") or ""),
                 ]
                 if part
@@ -2045,6 +2347,11 @@ class DashboardWindow(QWidget):
     def _optional_text(input_widget: QLineEdit) -> str | None:
         value = input_widget.text().strip()
         return value or None
+
+    @staticmethod
+    def _is_complete_phone(value: str) -> bool:
+        digits = "".join(character for character in value if character.isdigit())
+        return "_" not in value and len(digits) == 11
 
     @staticmethod
     def _select_combo_value(combo: QComboBox, value: str) -> None:

@@ -12,7 +12,7 @@ def _create_customer(client: TestClient, auth_headers: dict[str, str]) -> dict:
         json={
             "name": "Cliente Relatorio",
             "email": "cliente.relatorio@example.com",
-            "phone": "11999999999",
+            "phone": "(11) 99999-9999",
         },
     )
     assert response.status_code == 201

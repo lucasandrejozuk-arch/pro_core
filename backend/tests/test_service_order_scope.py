@@ -53,7 +53,11 @@ def _create_customer(client: TestClient, headers: dict[str, str], name: str) -> 
     response = client.post(
         "/api/v1/customers",
         headers=headers,
-        json={"name": name, "email": f"{name.lower()}@example.com"},
+        json={
+            "name": name,
+            "email": f"{name.lower()}@example.com",
+            "phone": "(11) 99999-9999",
+        },
     )
     assert response.status_code == 201
     return response.json()

@@ -42,7 +42,6 @@ REPORT_SPECS: dict[str, ReportSpec] = {
         model=Customer,
         columns=(
             ReportColumnSpec("name", "Nome", lambda item: item.name),
-            ReportColumnSpec("document_number", "Documento", lambda item: item.document_number),
             ReportColumnSpec("email", "Email", lambda item: item.email),
             ReportColumnSpec("phone", "Telefone", lambda item: item.phone),
             ReportColumnSpec("is_active", "Ativo", lambda item: item.is_active),

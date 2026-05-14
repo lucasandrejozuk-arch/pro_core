@@ -84,6 +84,11 @@ python scripts/restore_database_backup.py --dump-file .\backups\pro_core_YYYYMMD
 
 Restoring uses `pg_restore --clean --if-exists`, so it replaces objects in the target database.
 
+## Quality and Evolution
+
+- Testing strategy: `docs/testing_strategy.md`
+- Reference design and feature gap analysis: `docs/reference_design_gap_analysis.md`
+
 ## Project Principles
 
 - DRY: avoid duplicated business logic.

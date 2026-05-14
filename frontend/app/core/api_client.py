@@ -113,6 +113,33 @@ class ApiClient:
             json=payload,
         )
 
+    def create_equipment_board(
+        self,
+        access_token: str,
+        equipment_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"equipment/{equipment_id}/boards",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def create_equipment_board_component(
+        self,
+        access_token: str,
+        equipment_id: str,
+        board_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"equipment/{equipment_id}/boards/{board_id}/components",
+            access_token=access_token,
+            json=payload,
+        )
+
     def list_inventory(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "inventory", access_token=access_token)
 

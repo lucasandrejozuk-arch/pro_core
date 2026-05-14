@@ -8,7 +8,17 @@ from backend.app.schemas.auth import (
     UserProfileResponse,
 )
 from backend.app.schemas.customer import CustomerCreate, CustomerResponse, CustomerUpdate
-from backend.app.schemas.equipment import EquipmentCreate, EquipmentResponse, EquipmentUpdate
+from backend.app.schemas.equipment import (
+    EquipmentBoardComponentCreate,
+    EquipmentBoardComponentResponse,
+    EquipmentBoardComponentUpdate,
+    EquipmentBoardCreate,
+    EquipmentBoardResponse,
+    EquipmentBoardUpdate,
+    EquipmentCreate,
+    EquipmentResponse,
+    EquipmentUpdate,
+)
 from backend.app.schemas.inventory import (
     InventoryItemCreate,
     InventoryItemResponse,
@@ -40,6 +50,12 @@ __all__ = [
     "CustomerUpdate",
     "DiagnosisRequest",
     "EquipmentCreate",
+    "EquipmentBoardComponentCreate",
+    "EquipmentBoardComponentResponse",
+    "EquipmentBoardComponentUpdate",
+    "EquipmentBoardCreate",
+    "EquipmentBoardResponse",
+    "EquipmentBoardUpdate",
     "EquipmentResponse",
     "EquipmentUpdate",
     "InventoryItemCreate",

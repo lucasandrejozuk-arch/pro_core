@@ -31,7 +31,7 @@ class ProCoreApplication:
         self.login_window = LoginWindow()
         self.password_window = PasswordChangeWindow()
         self.dashboard_window = DashboardWindow()
-        self.active_module = "service_orders"
+        self.active_module = "dashboard"
 
         self.splash.finished.connect(self.show_login)
         self.login_window.login_requested.connect(self.handle_login)
@@ -42,8 +42,17 @@ class ProCoreApplication:
         self.dashboard_window.refresh_requested.connect(self.refresh_active_module)
         self.dashboard_window.customer_create_requested.connect(self.handle_customer_create)
         self.dashboard_window.customer_update_requested.connect(self.handle_customer_update)
+        self.dashboard_window.customer_document_upload_requested.connect(
+            self.handle_customer_document_upload
+        )
         self.dashboard_window.equipment_create_requested.connect(self.handle_equipment_create)
         self.dashboard_window.equipment_update_requested.connect(self.handle_equipment_update)
+        self.dashboard_window.equipment_board_create_requested.connect(
+            self.handle_equipment_board_create
+        )
+        self.dashboard_window.equipment_component_create_requested.connect(
+            self.handle_equipment_component_create
+        )
         self.dashboard_window.inventory_create_requested.connect(self.handle_inventory_create)
         self.dashboard_window.inventory_update_requested.connect(self.handle_inventory_update)
         self.dashboard_window.sector_create_requested.connect(self.handle_sector_create)
@@ -171,6 +180,9 @@ class ProCoreApplication:
         self.dashboard_window.render_loading(title, module_key)
 
         try:
+            if module_key == "dashboard":
+                self.dashboard_window.render_dashboard()
+                return
             if module_key == "settings":
                 settings = self.api_client.get_settings(self.session.access_token)
                 self.dashboard_window.render_settings(settings)
@@ -256,6 +268,33 @@ class ProCoreApplication:
         self.dashboard_window.set_customer_form_status("Cliente atualizado.")
         self.load_module("customers")
 
+    def handle_customer_document_upload(
+        self,
+        customer_id: str,
+        document_type: str,
+        file_path: str,
+    ) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_customer_document_upload_loading(True)
+        try:
+            self.api_client.upload_document(
+                access_token=self.session.access_token,
+                file_path=file_path,
+                document_type=document_type,
+                customer_id=customer_id,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_customer_document_upload_loading(False)
+            self.dashboard_window.set_customer_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_customer_document_upload_loading(False)
+        self.dashboard_window.set_customer_form_status("Anexo enviado.")
+        self.load_module("customers")
+
     def handle_equipment_create(self, payload: dict) -> None:
         if not self.session.access_token:
             self.show_login()
@@ -288,6 +327,54 @@ class ProCoreApplication:
 
         self.dashboard_window.set_equipment_form_loading(False)
         self.dashboard_window.set_equipment_form_status("Equipamento atualizado.")
+        self.load_module("equipment")
+
+    def handle_equipment_board_create(self, equipment_id: str, payload: dict) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_object_loading(True)
+        try:
+            self.api_client.create_equipment_board(
+                self.session.access_token,
+                equipment_id,
+                payload,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_object_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_object_loading(False)
+        self.dashboard_window.set_equipment_form_status("Placa vinculada.")
+        self.load_module("equipment")
+
+    def handle_equipment_component_create(
+        self,
+        equipment_id: str,
+        board_id: str,
+        payload: dict,
+    ) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_object_loading(True)
+        try:
+            self.api_client.create_equipment_board_component(
+                self.session.access_token,
+                equipment_id,
+                board_id,
+                payload,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_object_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_object_loading(False)
+        self.dashboard_window.set_equipment_form_status("Componente vinculado.")
         self.load_module("equipment")
 
     def handle_inventory_create(self, payload: dict) -> None:
@@ -723,6 +810,7 @@ class ProCoreApplication:
                     ("Categoria", "category"),
                     ("Marca", "brand"),
                     ("Modelo", "model"),
+                    ("N especial", "special_number"),
                     ("Serie", "serial_number"),
                 ],
             )
@@ -778,6 +866,8 @@ class ProCoreApplication:
             return ("Configuracoes", [])
         if module_key == "reports":
             return ("Relatorios", [])
+        if module_key == "dashboard":
+            return ("Dashboard", [])
 
         return (
             "Ordens de Servico",

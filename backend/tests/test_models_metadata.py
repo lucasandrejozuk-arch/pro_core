@@ -10,6 +10,8 @@ def test_core_tables_are_registered() -> None:
         "customers",
         "document_attachments",
         "equipment",
+        "equipment_board_components",
+        "equipment_boards",
         "inventory_items",
         "sectors",
         "service_order_budget_items",
@@ -18,4 +20,3 @@ def test_core_tables_are_registered() -> None:
     }
 
     assert expected_tables.issubset(set(Base.metadata.tables))
-
