@@ -266,3 +266,23 @@ def test_admin_forms_populate_complete_summaries(qtbot) -> None:
     assert "Nome: Laboratorio" in window.sector_full_summary.toPlainText()
     assert "Setor: Laboratorio" in window.user_full_summary.toPlainText()
     assert "Status: Pendente" in window.password_reset_full_summary.toPlainText()
+
+
+def test_report_renders_overview_summary(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_report(
+        {
+            "module": "customers",
+            "title": "Relatorio de Clientes",
+            "total_records": 1,
+            "columns": [{"key": "name", "label": "Nome"}],
+            "rows": [{"name": "Cliente Teste"}],
+        }
+    )
+
+    summary = window.report_full_summary.toPlainText()
+    assert "Titulo: Relatorio de Clientes" in summary
+    assert "Modulo: Clientes" in summary
+    assert "Formatos disponiveis: CSV, XLSX e PDF" in summary

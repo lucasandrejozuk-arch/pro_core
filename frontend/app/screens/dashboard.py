@@ -459,6 +459,7 @@ class DashboardWindow(QWidget):
         self.report_summary_label.setText(
             f"Total de registros: {report.get('total_records', 0)}"
         )
+        self.report_full_summary.setPlainText(self._format_report_summary(report))
         self.empty_label.hide()
         self.table.show()
 
@@ -1521,7 +1522,7 @@ class DashboardWindow(QWidget):
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("Relatorios e exportacoes")
+        title = QLabel("RELATORIOS E EXPORTACOES")
         title.setObjectName("sectionTitle")
 
         self.report_module_combo = QComboBox()
@@ -1535,8 +1536,27 @@ class DashboardWindow(QWidget):
         form_layout.setSpacing(10)
         form_layout.addRow("Modulo", self.report_module_combo)
 
+        report_filter_panel = QFrame()
+        report_filter_panel.setObjectName("formSubPanel")
+        report_filter_panel_layout = QVBoxLayout(report_filter_panel)
+        report_filter_panel_layout.setContentsMargins(12, 12, 12, 12)
+        report_filter_panel_layout.setSpacing(8)
+        report_filter_title = QLabel("FILTRO DO RELATORIO")
+        report_filter_title.setObjectName("formGroupTitle")
+        report_filter_panel_layout.addWidget(report_filter_title)
+        report_filter_panel_layout.addLayout(form_layout)
+
         self.report_summary_label = QLabel("Total de registros: 0")
-        self.report_summary_label.setObjectName("mutedText")
+        self.report_summary_label.setObjectName("statusBanner")
+        self.report_summary_label.setProperty("level", "info")
+
+        report_details_title = QLabel("VISAO GERAL")
+        report_details_title.setObjectName("formGroupTitle")
+        self.report_full_summary = QTextEdit()
+        self.report_full_summary.setObjectName("summaryText")
+        self.report_full_summary.setReadOnly(True)
+        self.report_full_summary.setMinimumHeight(84)
+        self.report_full_summary.setMaximumHeight(120)
 
         self.report_status_label = QLabel("")
         self.report_status_label.setObjectName("mutedText")
@@ -1568,8 +1588,10 @@ class DashboardWindow(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addLayout(form_layout)
+        layout.addWidget(report_filter_panel)
         layout.addWidget(self.report_summary_label)
+        layout.addWidget(report_details_title)
+        layout.addWidget(self.report_full_summary)
         layout.addWidget(self.report_status_label)
         layout.addLayout(actions)
 
@@ -1946,6 +1968,7 @@ class DashboardWindow(QWidget):
     def clear_report_form(self) -> None:
         self._select_combo_value(self.report_module_combo, self.current_report_module_key)
         self.report_summary_label.setText("Total de registros: 0")
+        self.report_full_summary.setPlainText("Carregue um relatorio para ver a visao geral.")
         self.report_status_label.setText("")
 
     def set_report_status(self, message: str, is_error: bool = False) -> None:
@@ -2827,6 +2850,11 @@ class DashboardWindow(QWidget):
             "other": "Outro",
             "light": "Claro",
             "dark": "Escuro",
+            "service_orders": "Ordens de Servico",
+            "customers": "Clientes",
+            "equipment": "Equipamentos",
+            "inventory": "Estoque",
+            "users": "Usuarios",
         }
         if isinstance(value, str) and value in labels:
             return labels[value]
@@ -2991,6 +3019,23 @@ class DashboardWindow(QWidget):
             f"Perfil: {self._format_value(request.get('requester_role')) or '-'}",
             f"Status: {self._format_value(request.get('status')) or '-'}",
             f"Criada em: {self._format_value(request.get('created_at')) or '-'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_report_summary(self, report: dict[str, Any]) -> str:
+        columns = report.get("columns") or []
+        rows = report.get("rows") or []
+        column_labels = [
+            str(column.get("label") or column.get("key") or "")
+            for column in columns
+            if column
+        ]
+        lines = [
+            f"Titulo: {self._format_value(report.get('title')) or 'Relatorio'}",
+            f"Modulo: {self._format_value(report.get('module')) or '-'}",
+            f"Registros: {report.get('total_records', len(rows))}",
+            f"Colunas: {', '.join(column_labels) if column_labels else '-'}",
+            "Formatos disponiveis: CSV, XLSX e PDF",
         ]
         return "\n".join(lines)
 
