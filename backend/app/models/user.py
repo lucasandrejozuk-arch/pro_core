@@ -47,3 +47,7 @@ class User(ModelBase, Base):
         back_populates="uploaded_by",
         foreign_keys="DocumentAttachment.uploaded_by_user_id",
     )
+
+    @property
+    def sector_name(self) -> str | None:
+        return self.sector.name if self.sector else None

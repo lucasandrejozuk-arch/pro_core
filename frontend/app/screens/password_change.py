@@ -3,14 +3,17 @@ from __future__ import annotations
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
+from frontend.app.core.display import detect_display_profile
+
 
 class PasswordChangeWindow(QWidget):
     password_change_requested = Signal(str, str)
 
     def __init__(self) -> None:
         super().__init__()
+        profile = detect_display_profile()
         self.setWindowTitle("PRO CORE - Alterar senha")
-        self.setMinimumSize(620, 460)
+        self.setMinimumSize(round(620 * profile.ui_scale), round(460 * profile.ui_scale))
         self.setObjectName("passwordWindow")
 
         panel = QFrame()
@@ -44,8 +47,9 @@ class PasswordChangeWindow(QWidget):
         self.submit_button.clicked.connect(self._request_change)
 
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(44, 44, 44, 44)
-        panel_layout.setSpacing(16)
+        panel_margin = round(44 * profile.ui_scale)
+        panel_layout.setContentsMargins(panel_margin, panel_margin, panel_margin, panel_margin)
+        panel_layout.setSpacing(round(16 * profile.ui_scale))
         panel_layout.addWidget(title)
         panel_layout.addWidget(helper)
         panel_layout.addWidget(self.current_password_input)
@@ -55,7 +59,12 @@ class PasswordChangeWindow(QWidget):
         panel_layout.addWidget(self.submit_button)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(96, 64, 96, 64)
+        layout.setContentsMargins(
+            round(96 * profile.ui_scale),
+            round(64 * profile.ui_scale),
+            round(96 * profile.ui_scale),
+            round(64 * profile.ui_scale),
+        )
         layout.addWidget(panel)
 
     def set_loading(self, is_loading: bool) -> None:
@@ -91,4 +100,3 @@ class PasswordChangeWindow(QWidget):
 
         self.set_error("")
         self.password_change_requested.emit(current_password, new_password)
-

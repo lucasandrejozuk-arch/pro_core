@@ -22,7 +22,7 @@ class DashboardKpiCard(QFrame):
         self.key = key
         self.module_key = module_key
         self.setObjectName("dashboardKpiCard")
-        self.setMinimumHeight(112)
+        self.setMinimumHeight(88)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setProperty("accent", accent)
         if module_key:
@@ -47,8 +47,8 @@ class DashboardKpiCard(QFrame):
         top_layout.addWidget(self.value_label)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(5)
         layout.addLayout(top_layout)
         layout.addWidget(label_widget)
 

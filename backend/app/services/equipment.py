@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.models.equipment import Equipment, EquipmentBoard, EquipmentBoardComponent
+from backend.app.models.service_order import ServiceOrder
 from backend.app.schemas.equipment import EquipmentCreate, EquipmentUpdate
 from backend.app.schemas.equipment import (
     EquipmentBoardComponentCreate,
@@ -44,7 +46,7 @@ def get_equipment(db: Session, company_id: uuid.UUID, equipment_id: uuid.UUID) -
 
 
 def create_equipment(db: Session, company_id: uuid.UUID, payload: EquipmentCreate) -> Equipment:
-    if get_customer(db, company_id, payload.customer_id) is None:
+    if payload.customer_id is not None and get_customer(db, company_id, payload.customer_id) is None:
         raise ValueError("Customer not found.")
 
     equipment = Equipment(company_id=company_id, **payload.model_dump())
@@ -52,6 +54,26 @@ def create_equipment(db: Session, company_id: uuid.UUID, payload: EquipmentCreat
     db.commit()
     db.refresh(equipment)
     return equipment
+
+
+def delete_equipment(db: Session, company_id: uuid.UUID, equipment: Equipment) -> None:
+    linked_service_orders = db.scalar(
+        select(func.count())
+        .select_from(ServiceOrder)
+        .where(
+            ServiceOrder.company_id == company_id,
+            ServiceOrder.equipment_id == equipment.id,
+        )
+    )
+    if linked_service_orders:
+        raise ValueError("Equipment is linked to service orders.")
+
+    db.delete(equipment)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise ValueError("Equipment is linked to service orders.") from exc
 
 
 def update_equipment(db: Session, company_id: uuid.UUID, equipment: Equipment, payload: EquipmentUpdate) -> Equipment:
@@ -126,6 +148,11 @@ def update_equipment_board(
     return board
 
 
+def delete_equipment_board(db: Session, board: EquipmentBoard) -> None:
+    db.delete(board)
+    db.commit()
+
+
 def create_board_component(
     db: Session,
     company_id: uuid.UUID,
@@ -153,3 +180,8 @@ def update_board_component(
     db.commit()
     db.refresh(component)
     return component
+
+
+def delete_board_component(db: Session, component: EquipmentBoardComponent) -> None:
+    db.delete(component)
+    db.commit()

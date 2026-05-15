@@ -113,6 +113,13 @@ class ApiClient:
             json=payload,
         )
 
+    def delete_equipment(self, access_token: str, equipment_id: str) -> None:
+        self._request(
+            "DELETE",
+            f"equipment/{equipment_id}",
+            access_token=access_token,
+        )
+
     def create_equipment_board(
         self,
         access_token: str,
@@ -124,6 +131,32 @@ class ApiClient:
             f"equipment/{equipment_id}/boards",
             access_token=access_token,
             json=payload,
+        )
+
+    def update_equipment_board(
+        self,
+        access_token: str,
+        equipment_id: str,
+        board_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"equipment/{equipment_id}/boards/{board_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def delete_equipment_board(
+        self,
+        access_token: str,
+        equipment_id: str,
+        board_id: str,
+    ) -> None:
+        self._request(
+            "DELETE",
+            f"equipment/{equipment_id}/boards/{board_id}",
+            access_token=access_token,
         )
 
     def create_equipment_board_component(
@@ -138,6 +171,34 @@ class ApiClient:
             f"equipment/{equipment_id}/boards/{board_id}/components",
             access_token=access_token,
             json=payload,
+        )
+
+    def update_equipment_board_component(
+        self,
+        access_token: str,
+        equipment_id: str,
+        board_id: str,
+        component_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"equipment/{equipment_id}/boards/{board_id}/components/{component_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def delete_equipment_board_component(
+        self,
+        access_token: str,
+        equipment_id: str,
+        board_id: str,
+        component_id: str,
+    ) -> None:
+        self._request(
+            "DELETE",
+            f"equipment/{equipment_id}/boards/{board_id}/components/{component_id}",
+            access_token=access_token,
         )
 
     def list_inventory(self, access_token: str) -> list[dict[str, Any]]:
@@ -505,6 +566,9 @@ class ApiClient:
 
         if response.is_error:
             raise ApiError(self._extract_error_message(response), response.status_code)
+
+        if response.status_code == 204 or not response.content:
+            return None
 
         return response.json()
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QProgressBar, QVBoxLayout, QWidget
 
+from frontend.app.core.display import detect_display_profile
+
 
 class SplashScreen(QWidget):
     finished = Signal()
@@ -11,7 +13,8 @@ class SplashScreen(QWidget):
         super().__init__()
         self._progress_value = 0
         self.setWindowTitle("PRO CORE")
-        self.setFixedSize(520, 280)
+        profile = detect_display_profile()
+        self.setFixedSize(round(520 * profile.ui_scale), round(280 * profile.ui_scale))
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         self.setObjectName("splash")
 
@@ -29,8 +32,9 @@ class SplashScreen(QWidget):
         self.progress.setTextVisible(False)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(44, 44, 44, 38)
-        layout.setSpacing(18)
+        margin = round(44 * profile.ui_scale)
+        layout.setContentsMargins(margin, margin, margin, round(38 * profile.ui_scale))
+        layout.setSpacing(round(18 * profile.ui_scale))
         layout.addStretch()
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -60,4 +64,3 @@ class SplashScreen(QWidget):
 
         geometry = screen.availableGeometry()
         self.move(geometry.center() - self.rect().center())
-

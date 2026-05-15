@@ -7,22 +7,25 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
 from frontend.app.core.api_client import ApiClient, ApiError
+from frontend.app.core.display import prepare_window_for_display
 from frontend.app.core.session import AppSession
 from frontend.app.core.settings import get_frontend_settings
 from frontend.app.screens.dashboard import DashboardWindow
 from frontend.app.screens.login import LoginWindow
 from frontend.app.screens.password_change import PasswordChangeWindow
 from frontend.app.screens.splash import SplashScreen
-from frontend.app.themes.styles import apply_theme
+from frontend.app.themes.styles import apply_theme, build_theme_palette
 
 
 class ProCoreApplication:
     def __init__(self) -> None:
         self.qt_app = QApplication(sys.argv)
-        apply_theme(self.qt_app)
+        self.local_settings = QSettings("PRO CORE", "PRO CORE")
+        self._apply_local_theme()
 
         settings = get_frontend_settings()
         self.api_client = ApiClient(settings.api_base_url)
@@ -32,6 +35,7 @@ class ProCoreApplication:
         self.login_window = LoginWindow()
         self.password_window = PasswordChangeWindow()
         self.dashboard_window = DashboardWindow()
+        self._apply_local_theme()
         self.active_module = "dashboard"
 
         self.splash.finished.connect(self.show_login)
@@ -48,11 +52,24 @@ class ProCoreApplication:
         )
         self.dashboard_window.equipment_create_requested.connect(self.handle_equipment_create)
         self.dashboard_window.equipment_update_requested.connect(self.handle_equipment_update)
+        self.dashboard_window.equipment_delete_requested.connect(self.handle_equipment_delete)
         self.dashboard_window.equipment_board_create_requested.connect(
             self.handle_equipment_board_create
         )
+        self.dashboard_window.equipment_board_update_requested.connect(
+            self.handle_equipment_board_update
+        )
+        self.dashboard_window.equipment_board_delete_requested.connect(
+            self.handle_equipment_board_delete
+        )
         self.dashboard_window.equipment_component_create_requested.connect(
             self.handle_equipment_component_create
+        )
+        self.dashboard_window.equipment_component_update_requested.connect(
+            self.handle_equipment_component_update
+        )
+        self.dashboard_window.equipment_component_delete_requested.connect(
+            self.handle_equipment_component_delete
         )
         self.dashboard_window.inventory_create_requested.connect(self.handle_inventory_create)
         self.dashboard_window.inventory_update_requested.connect(self.handle_inventory_update)
@@ -108,6 +125,14 @@ class ProCoreApplication:
         self.password_window.hide()
         self.dashboard_window.hide()
         self.login_window.clear_form()
+        profile = prepare_window_for_display(
+            self.login_window,
+            preferred_size=(1100, 680),
+            minimum_size=(760, 520),
+        )
+        if profile.should_maximize:
+            self.login_window.showMaximized()
+            return
         self.login_window.show()
 
     def handle_login(self, email: str, password: str) -> None:
@@ -136,6 +161,11 @@ class ProCoreApplication:
 
     def show_password_change(self) -> None:
         self.password_window.clear_form()
+        prepare_window_for_display(
+            self.password_window,
+            preferred_size=(700, 520),
+            minimum_size=(520, 420),
+        )
         self.password_window.show()
 
     def handle_password_change(self, current_password: str, new_password: str) -> None:
@@ -164,7 +194,17 @@ class ProCoreApplication:
     def show_dashboard(self) -> None:
         self._apply_saved_theme()
         self.dashboard_window.set_user(self.session.user)
-        self.dashboard_window.show()
+        self.dashboard_window.set_session_login_at(self.session.login_at)
+        profile = prepare_window_for_display(
+            self.dashboard_window,
+            preferred_size=(1680, 960),
+            minimum_size=(980, 640),
+        )
+        self.dashboard_window.apply_display_profile(profile)
+        if profile.should_maximize:
+            self.dashboard_window.showMaximized()
+        else:
+            self.dashboard_window.show()
         self.load_module(self.active_module)
 
     def handle_logout(self) -> None:
@@ -210,11 +250,6 @@ class ProCoreApplication:
                 if module_key == "users"
                 else None
             )
-            equipment_customers = (
-                self.api_client.list_customers(self.session.access_token)
-                if module_key == "equipment"
-                else None
-            )
             service_order_dependencies = (
                 (
                     self.api_client.list_customers(self.session.access_token),
@@ -237,8 +272,6 @@ class ProCoreApplication:
             for row in rows:
                 row["sector_name"] = sector_names.get(str(row.get("sector_id")), "")
             self.dashboard_window.set_user_sectors(user_sectors)
-        if equipment_customers is not None:
-            self.dashboard_window.set_equipment_customers(equipment_customers)
         if service_order_dependencies is not None:
             self.dashboard_window.set_service_order_dependencies(*service_order_dependencies)
 
@@ -339,6 +372,23 @@ class ProCoreApplication:
         self.dashboard_window.set_equipment_form_status("Equipamento atualizado.")
         self.load_module("equipment")
 
+    def handle_equipment_delete(self, equipment_id: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_form_loading(True)
+        try:
+            self.api_client.delete_equipment(self.session.access_token, equipment_id)
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_form_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_form_loading(False)
+        self.dashboard_window.set_equipment_form_status("Equipamento removido.")
+        self.load_module("equipment")
+
     def handle_equipment_board_create(self, equipment_id: str, payload: dict) -> None:
         if not self.session.access_token:
             self.show_login()
@@ -358,6 +408,54 @@ class ProCoreApplication:
 
         self.dashboard_window.set_equipment_object_loading(False)
         self.dashboard_window.set_equipment_form_status("Placa vinculada.")
+        self.load_module("equipment")
+
+    def handle_equipment_board_update(
+        self,
+        equipment_id: str,
+        board_id: str,
+        payload: dict,
+    ) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_object_loading(True)
+        try:
+            self.api_client.update_equipment_board(
+                self.session.access_token,
+                equipment_id,
+                board_id,
+                payload,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_object_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_object_loading(False)
+        self.dashboard_window.set_equipment_form_status("Objeto vinculado atualizado.")
+        self.load_module("equipment")
+
+    def handle_equipment_board_delete(self, equipment_id: str, board_id: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_object_loading(True)
+        try:
+            self.api_client.delete_equipment_board(
+                self.session.access_token,
+                equipment_id,
+                board_id,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_object_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_object_loading(False)
+        self.dashboard_window.set_equipment_form_status("Objeto vinculado removido.")
         self.load_module("equipment")
 
     def handle_equipment_component_create(
@@ -385,6 +483,62 @@ class ProCoreApplication:
 
         self.dashboard_window.set_equipment_object_loading(False)
         self.dashboard_window.set_equipment_form_status("Componente vinculado.")
+        self.load_module("equipment")
+
+    def handle_equipment_component_update(
+        self,
+        equipment_id: str,
+        board_id: str,
+        component_id: str,
+        payload: dict,
+    ) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_object_loading(True)
+        try:
+            self.api_client.update_equipment_board_component(
+                self.session.access_token,
+                equipment_id,
+                board_id,
+                component_id,
+                payload,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_object_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_object_loading(False)
+        self.dashboard_window.set_equipment_form_status("Componente atualizado.")
+        self.load_module("equipment")
+
+    def handle_equipment_component_delete(
+        self,
+        equipment_id: str,
+        board_id: str,
+        component_id: str,
+    ) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_equipment_object_loading(True)
+        try:
+            self.api_client.delete_equipment_board_component(
+                self.session.access_token,
+                equipment_id,
+                board_id,
+                component_id,
+            )
+        except ApiError as exc:
+            self.dashboard_window.set_equipment_object_loading(False)
+            self.dashboard_window.set_equipment_form_status(exc.message, is_error=True)
+            return
+
+        self.dashboard_window.set_equipment_object_loading(False)
+        self.dashboard_window.set_equipment_form_status("Componente removido.")
         self.load_module("equipment")
 
     def handle_inventory_create(self, payload: dict) -> None:
@@ -702,11 +856,8 @@ class ProCoreApplication:
             return
 
         self.dashboard_window.set_settings_form_loading(False)
-        apply_theme(
-            self.qt_app,
-            str(settings.get("theme") or "light"),
-            str(settings.get("primary_color") or ""),
-        )
+        self._remember_appearance(settings)
+        self._apply_local_theme()
         self.dashboard_window.render_settings(settings)
         self.dashboard_window.set_settings_form_status("Configuracoes salvas.")
 
@@ -833,12 +984,28 @@ class ProCoreApplication:
         except ApiError:
             return
 
+        self._remember_appearance(settings)
+        self._apply_local_theme()
+        self.dashboard_window.apply_branding(settings)
+
+    def _apply_local_theme(self) -> None:
+        theme = str(self.local_settings.value("appearance/theme", "light") or "light")
+        primary_color = str(self.local_settings.value("appearance/primary_color", "") or "")
         apply_theme(
             self.qt_app,
-            str(settings.get("theme") or "light"),
+            theme,
+            primary_color,
+        )
+        if hasattr(self, "dashboard_window"):
+            palette = build_theme_palette(theme, primary_color)
+            self.dashboard_window.apply_sidebar_icon_color(palette["button_text"])
+
+    def _remember_appearance(self, settings: dict) -> None:
+        self.local_settings.setValue("appearance/theme", str(settings.get("theme") or "light"))
+        self.local_settings.setValue(
+            "appearance/primary_color",
             str(settings.get("primary_color") or ""),
         )
-        self.dashboard_window.apply_branding(settings)
 
     def _load_module_rows(self, module_key: str, access_token: str) -> list[dict]:
         if module_key == "customers":

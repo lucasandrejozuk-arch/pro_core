@@ -14,7 +14,10 @@ JWT_ALGORITHM = "HS256"
 
 def hash_password(password: str) -> str:
     password_bytes = password.encode("utf-8")
-    return bcrypt.hashpw(password_bytes, bcrypt.gensalt(rounds=12)).decode("utf-8")
+    return bcrypt.hashpw(
+        password_bytes,
+        bcrypt.gensalt(rounds=get_settings().pro_core_bcrypt_rounds),
+    ).decode("utf-8")
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
@@ -51,4 +54,3 @@ def decode_access_token(token: str) -> dict[str, Any]:
         raise ValueError("Invalid token type.")
 
     return payload
-

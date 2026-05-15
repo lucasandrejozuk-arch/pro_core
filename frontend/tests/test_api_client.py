@@ -284,6 +284,69 @@ def test_create_equipment_board_component_posts_payload() -> None:
     assert response["id"] == "component-id"
 
 
+def test_equipment_delete_methods_send_delete_requests() -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "DELETE"
+        assert request.headers["Authorization"] == "Bearer token"
+        paths.append(request.url.path)
+        return httpx.Response(204)
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.delete_equipment("token", "equipment-id") is None
+    assert client.delete_equipment_board("token", "equipment-id", "board-id") is None
+    assert (
+        client.delete_equipment_board_component(
+            "token",
+            "equipment-id",
+            "board-id",
+            "component-id",
+        )
+        is None
+    )
+    assert paths == [
+        "/api/v1/equipment/equipment-id",
+        "/api/v1/equipment/equipment-id/boards/board-id",
+        "/api/v1/equipment/equipment-id/boards/board-id/components/component-id",
+    ]
+
+
+def test_equipment_nested_update_methods_send_patch_requests() -> None:
+    payload = {"unit_price": "12.50"}
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PATCH"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == payload
+        paths.append(request.url.path)
+        return httpx.Response(200, json=payload | {"id": "updated-id"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    client.update_equipment_board("token", "equipment-id", "board-id", payload)
+    client.update_equipment_board_component(
+        "token",
+        "equipment-id",
+        "board-id",
+        "component-id",
+        payload,
+    )
+
+    assert paths == [
+        "/api/v1/equipment/equipment-id/boards/board-id",
+        "/api/v1/equipment/equipment-id/boards/board-id/components/component-id",
+    ]
+
+
 def test_create_inventory_item_posts_payload() -> None:
     payload = {
         "sku": "SSD-001",

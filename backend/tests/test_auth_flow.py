@@ -1,6 +1,13 @@
 from fastapi.testclient import TestClient
 
+from backend.app.core.security import hash_password
 from backend.app.models.user import User
+
+
+def test_password_hash_uses_test_cost_for_fast_suite() -> None:
+    password_hash = hash_password("OldPassword123")
+
+    assert password_hash.startswith("$2b$04$")
 
 
 def test_login_returns_token_and_user_data(client: TestClient, admin_user: User) -> None:

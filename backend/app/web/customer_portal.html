@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PRO CORE - Area do Cliente</title>
   <style>
-    :root { color-scheme: light; --accent: #0969da; --bg: #f6f8fa; --panel: #ffffff; --line: #d0d7de; --text: #24292f; --muted: #57606a; }
+    :root { color-scheme: light; --accent: #0969da; --accent-hover: #0550ae; --accent-soft: #ddf4ff; --button-text: #ffffff; --bg: #eaf3ff; --panel: #ffffff; --panel-soft: #f6f8fa; --line: #c8d5e5; --text: #24292f; --muted: #57606a; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Segoe UI, Arial, sans-serif; background: var(--bg); color: var(--text); }
     main { max-width: 980px; margin: 0 auto; padding: 32px 18px; }
@@ -14,17 +14,19 @@
     p { color: var(--muted); }
     section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
     label { display: block; font-weight: 700; margin: 10px 0 6px; }
-    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; min-height: 42px; padding: 10px 12px; font: inherit; }
+    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; min-height: 42px; padding: 10px 12px; font: inherit; background: var(--panel); color: var(--text); }
+    input:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
     textarea { min-height: 96px; resize: vertical; }
-    button, a.button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 800; text-decoration: none; cursor: pointer; }
-    button.secondary { background: #eaeef2; color: var(--text); }
+    button, a.button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--button-text); font-weight: 800; text-decoration: none; cursor: pointer; }
+    button:hover, a.button:hover { background: var(--accent-hover); }
+    button.secondary, a.button.secondary { background: var(--panel-soft); color: var(--text); }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .metric { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .metric { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel-soft); }
     .metric strong { display: block; margin-bottom: 4px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; }
-    th { background: #eaeef2; }
+    th { background: var(--panel-soft); }
     .hidden { display: none; }
     .status { border-left: 5px solid var(--accent); }
     .error { color: #cf222e; font-weight: 700; }
@@ -91,6 +93,58 @@
     const api = "/api/v1/customer-portal";
     const formatMoney = value => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
     const headers = () => ({ "Authorization": `Bearer ${token}`, "Content-Type": "application/json" });
+    const root = document.documentElement;
+    const isHexColor = value => /^#[0-9a-fA-F]{6}$/.test(String(value || ""));
+    const hexToRgb = value => [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16));
+    const toHex = channels => `#${channels.map(channel => Math.max(0, Math.min(Math.round(channel), 255)).toString(16).padStart(2, "0")).join("")}`;
+    const mix = (first, second, secondWeight) => {
+      const firstRgb = hexToRgb(first);
+      const secondRgb = hexToRgb(second);
+      return toHex(firstRgb.map((channel, index) => channel * (1 - secondWeight) + secondRgb[index] * secondWeight));
+    };
+    const luminance = color => {
+      const channels = hexToRgb(color).map(channel => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    };
+    const contrastRatio = (first, second) => {
+      const lighter = Math.max(luminance(first), luminance(second));
+      const darker = Math.min(luminance(first), luminance(second));
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const contrastText = color => contrastRatio(color, "#111827") >= 4.5 ? "#111827" : "#ffffff";
+
+    function applyPalette(primaryColor, theme = "light") {
+      const primary = isHexColor(primaryColor) ? primaryColor : "#0969da";
+      const isDark = theme === "dark";
+      const palette = isDark ? {
+        "--accent": primary,
+        "--accent-hover": mix(primary, "#ffffff", 0.14),
+        "--accent-soft": mix(primary, "#0b1220", 0.52),
+        "--button-text": contrastText(primary),
+        "--bg": mix(primary, "#05070d", 0.82),
+        "--panel": mix(primary, "#111827", 0.82),
+        "--panel-soft": mix(primary, "#1f2937", 0.80),
+        "--line": mix(primary, "#374151", 0.70),
+        "--text": "#f8fafc",
+        "--muted": mix(primary, "#cbd5e1", 0.72),
+      } : {
+        "--accent": primary,
+        "--accent-hover": mix(primary, "#000000", 0.16),
+        "--accent-soft": mix(primary, "#ffffff", 0.84),
+        "--button-text": contrastText(primary),
+        "--bg": mix(primary, "#ffffff", 0.88),
+        "--panel": mix(primary, "#ffffff", 0.96),
+        "--panel-soft": mix(primary, "#ffffff", 0.91),
+        "--line": mix(primary, "#d0d7de", 0.78),
+        "--text": "#111827",
+        "--muted": mix("#57606a", primary, 0.22),
+      };
+      Object.entries(palette).forEach(([key, value]) => root.style.setProperty(key, value));
+      root.style.setProperty("color-scheme", isDark ? "dark" : "light");
+    }
 
     async function loadAppearance() {
       if (!token) return;
@@ -100,7 +154,7 @@
         const data = await response.json();
         if (data.brand_name) document.getElementById("brand").textContent = data.brand_name;
         if (data.brand_subtitle) document.getElementById("subtitle").textContent = data.brand_subtitle;
-        if (data.primary_color) document.documentElement.style.setProperty("--accent", data.primary_color);
+        applyPalette(data.primary_color, data.theme);
       } catch {}
     }
 

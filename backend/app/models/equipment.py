@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Uuid
+from sqlalchemy import ForeignKey, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
@@ -25,10 +26,10 @@ class Equipment(ModelBase, Base):
         nullable=False,
         index=True,
     )
-    customer_id: Mapped[uuid.UUID] = mapped_column(
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("customers.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     category: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -36,6 +37,7 @@ class Equipment(ModelBase, Base):
     model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     special_number: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     serial_number: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     company: Mapped["Company"] = relationship(back_populates="equipment")
@@ -68,6 +70,7 @@ class EquipmentBoard(ModelBase, Base):
     serial_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
     model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     revision: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     equipment: Mapped["Equipment"] = relationship(back_populates="boards")
@@ -97,6 +100,7 @@ class EquipmentBoardComponent(ModelBase, Base):
     quantity: Mapped[str | None] = mapped_column(String(40), nullable=True)
     part_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
     location: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     board: Mapped["EquipmentBoard"] = relationship(back_populates="components")

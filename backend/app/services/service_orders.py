@@ -120,8 +120,8 @@ def create_service_order(
         raise ValueError("Customer not found.")
 
     equipment = get_equipment(db, company_id, payload.equipment_id)
-    if equipment is None or equipment.customer_id != payload.customer_id:
-        raise ValueError("Equipment not found for this customer.")
+    if equipment is None:
+        raise ValueError("Equipment not found.")
 
     if payload.assigned_technician_id is not None:
         validate_technician(db, company_id, payload.assigned_technician_id)

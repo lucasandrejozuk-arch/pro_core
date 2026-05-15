@@ -57,6 +57,7 @@ class UserSummaryResponse(BaseModel):
     id: uuid.UUID
     company_id: uuid.UUID
     sector_id: uuid.UUID | None
+    sector_name: str | None = None
     full_name: str
     email: str
     role: UserRole

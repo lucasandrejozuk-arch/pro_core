@@ -24,6 +24,9 @@ from backend.app.services.equipment import (
     create_board_component,
     create_equipment,
     create_equipment_board,
+    delete_board_component,
+    delete_equipment,
+    delete_equipment_board,
     get_board_component,
     get_equipment_board,
     get_equipment,
@@ -87,6 +90,22 @@ def update_equipment_record(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@router.delete("/{equipment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_equipment_record(
+    equipment_id: uuid.UUID,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> None:
+    equipment = get_equipment(db, current_user.company_id, equipment_id)
+    if equipment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
+
+    try:
+        delete_equipment(db, current_user.company_id, equipment)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
 @router.post(
     "/{equipment_id}/boards",
     response_model=EquipmentBoardResponse,
@@ -118,6 +137,20 @@ def update_equipment_board_record(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
 
     return update_equipment_board(db, board, payload)
+
+
+@router.delete("/{equipment_id}/boards/{board_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_equipment_board_record(
+    equipment_id: uuid.UUID,
+    board_id: uuid.UUID,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> None:
+    board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
+    if board is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
+
+    delete_equipment_board(db, board)
 
 
 @router.post(
@@ -160,3 +193,25 @@ def update_board_component_record(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Component not found.")
 
     return update_board_component(db, component, payload)
+
+
+@router.delete(
+    "/{equipment_id}/boards/{board_id}/components/{component_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_board_component_record(
+    equipment_id: uuid.UUID,
+    board_id: uuid.UUID,
+    component_id: uuid.UUID,
+    current_user: User = Depends(staff_user),
+    db: Session = Depends(get_db),
+) -> None:
+    board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
+    if board is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
+
+    component = get_board_component(db, current_user.company_id, board_id, component_id)
+    if component is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Component not found.")
+
+    delete_board_component(db, component)

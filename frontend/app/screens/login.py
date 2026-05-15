@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -13,6 +12,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from frontend.app.core.display import detect_display_profile
+
 
 class LoginWindow(QWidget):
     login_requested = Signal(str, str)
@@ -20,8 +21,9 @@ class LoginWindow(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
+        profile = detect_display_profile()
         self.setWindowTitle("PRO CORE")
-        self.setMinimumSize(980, 620)
+        self.setMinimumSize(round(980 * profile.ui_scale), round(620 * profile.ui_scale))
         self.setObjectName("loginWindow")
 
         brand = QLabel("PRO CORE")
@@ -34,7 +36,8 @@ class LoginWindow(QWidget):
         brand_panel = QFrame()
         brand_panel.setObjectName("brandPanel")
         brand_layout = QVBoxLayout(brand_panel)
-        brand_layout.setContentsMargins(44, 44, 44, 44)
+        brand_margin = round(44 * profile.ui_scale)
+        brand_layout.setContentsMargins(brand_margin, brand_margin, brand_margin, brand_margin)
         brand_layout.addStretch()
         brand_layout.addWidget(brand)
         brand_layout.addWidget(tagline)
@@ -71,8 +74,9 @@ class LoginWindow(QWidget):
         form_panel = QFrame()
         form_panel.setObjectName("formPanel")
         form_layout = QVBoxLayout(form_panel)
-        form_layout.setContentsMargins(64, 64, 64, 64)
-        form_layout.setSpacing(16)
+        form_margin = round(64 * profile.ui_scale)
+        form_layout.setContentsMargins(form_margin, form_margin, form_margin, form_margin)
+        form_layout.setSpacing(round(16 * profile.ui_scale))
         form_layout.addStretch()
         form_layout.addWidget(heading)
         form_layout.addWidget(helper)

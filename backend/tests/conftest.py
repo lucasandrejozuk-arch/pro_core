@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Generator
 
 import pytest
@@ -7,6 +8,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+os.environ.setdefault("PRO_CORE_BCRYPT_ROUNDS", "4")
 
 import backend.app.models  # noqa: F401
 from backend.app.core.security import hash_password

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     pro_core_api_port: int = Field(default=8000)
     pro_core_secret_key: str = Field(default="change-me-before-production-pro-core-secret-key")
     pro_core_access_token_expire_minutes: int = Field(default=480)
+    pro_core_bcrypt_rounds: int = Field(default=12, ge=4, le=14)
 
     postgres_db: str = Field(default="pro_core")
     postgres_user: str = Field(default="pro_core")

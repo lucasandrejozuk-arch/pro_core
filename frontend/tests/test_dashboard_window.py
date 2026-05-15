@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtCore import QEvent
 
-from frontend.app.screens.dashboard import DashboardWindow
+from frontend.app.core.display import build_display_profile
+from frontend.app.screens.dashboard import DashboardWindow, EquipmentAssetDialog
 
 
 def test_dashboard_is_independent_active_sidebar_module(qtbot) -> None:
@@ -50,6 +53,52 @@ def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:
     assert not window.customer_form_panel.isHidden()
 
 
+def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_rows(
+        "Clientes",
+        [
+            {
+                "id": "customer-1",
+                "name": "Ana Cliente",
+                "email": "ana@example.com",
+                "phone": "(11) 99999-0000",
+            },
+            {
+                "id": "customer-2",
+                "name": "Bruno Cliente",
+                "email": "bruno@example.com",
+                "phone": "(11) 98888-0000",
+            },
+        ],
+        [("Nome", "name"), ("Email", "email"), ("Telefone", "phone")],
+        "customers",
+    )
+
+    assert not window.generic_record_splitter.isHidden()
+    assert window.generic_record_splitter.count() == 2
+    assert window.module_search_input.placeholderText() == "BUSCAR CLIENTES..."
+
+    window.module_search_input.setText("bruno")
+
+    assert window.table.rowCount() == 1
+    assert window.current_rows[0]["id"] == "customer-2"
+    assert "Bruno Cliente" in window.customer_full_summary.toPlainText()
+
+
+def test_visual_density_is_compact_after_polish(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    form_margins = window.customer_form_panel.layout().contentsMargins()
+
+    assert window.table.verticalHeader().defaultSectionSize() == 34
+    assert form_margins.left() <= 10
+    assert window.dashboard_cards["service_orders_open"].minimumHeight() == 88
+
+
 def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
@@ -65,18 +114,68 @@ def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
     assert window.admin_menu_button.isHidden()
 
 
-def test_sidebar_collapse_does_not_resize_sidebar(qtbot) -> None:
+def test_session_footer_shows_session_context(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-    initial_min_width = window.sidebar.minimumWidth()
-    initial_max_width = window.sidebar.maximumWidth()
+
+    window.set_user(
+        {
+            "full_name": "Admin",
+            "email": "admin@example.com",
+            "role": "admin",
+            "sector_name": "Diretoria",
+        }
+    )
+    window.set_session_login_at(datetime(2026, 5, 14, 22, 25, 19))
+    window._set_active_module("equipment")
+
+    footer_text = window.session_footer_label.text()
+    assert "Sessao: Administrador" in footer_text
+    assert "Setor: Diretoria" in footer_text
+    assert "Login: 2026-05-14 22:25:19" in footer_text
+    assert window.session_module_label.text() == "Equipamentos"
+
+
+def test_sidebar_collapse_retracts_floating_menu_without_moving_content(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    initial_width = window.sidebar.width()
+    initial_left_margin = window.content_layout.contentsMargins().left()
 
     window._set_sidebar_collapsed(True)
 
     assert window.sidebar_nav_container.isHidden()
-    assert not window.sidebar_collapsed_label.isHidden()
-    assert window.sidebar.minimumWidth() == initial_min_width
-    assert window.sidebar.maximumWidth() == initial_max_width
+    assert window.session_button.isHidden()
+    assert window.logout_button.isHidden()
+    assert window.sidebar.width() < initial_width
+    assert window.content_layout.contentsMargins().left() == initial_left_margin
+
+
+def test_dashboard_applies_responsive_display_profile(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    profile = build_display_profile(1366, 768)
+
+    window.apply_display_profile(profile)
+
+    assert window.sidebar.minimumWidth() == profile.sidebar_width
+    assert window.sidebar.maximumWidth() == profile.sidebar_width
+    assert (
+        window.content_layout.contentsMargins().left()
+        == profile.content_margin + profile.sidebar_width + 18
+    )
+    assert window.dashboard_grid_columns == 2
+
+
+def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    dashboard_button = window.module_buttons["dashboard"]
+
+    assert dashboard_button.text() == ""
+    assert not dashboard_button.icon().isNull()
+    assert dashboard_button.toolTip()
 
 
 def test_admin_modules_open_from_dedicated_menu(qtbot) -> None:
@@ -105,8 +204,8 @@ def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> No
     wheel_event = QEvent(QEvent.Type.Wheel)
     regular_event = QEvent(QEvent.Type.MouseButtonPress)
 
-    assert window.eventFilter(window.equipment_customer_combo, wheel_event) is True
-    assert window.eventFilter(window.equipment_customer_combo, regular_event) is False
+    assert window.eventFilter(window.service_order_customer_combo, wheel_event) is True
+    assert window.eventFilter(window.service_order_customer_combo, regular_event) is False
 
 
 def test_service_order_populates_workflow_and_full_summary(qtbot) -> None:
@@ -177,17 +276,17 @@ def test_customer_populates_complete_summary(qtbot) -> None:
 def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-    window.set_equipment_customers([{"id": "customer-id", "name": "Cliente Teste"}])
 
-    window._populate_equipment_form(
+    rows = [
         {
             "id": "equipment-id",
-            "customer_id": "customer-id",
+            "customer_id": None,
             "category": "Notebook",
             "brand": "Dell",
             "model": "Latitude",
             "special_number": "NE-01",
             "serial_number": "SER-01",
+            "unit_price": "1500.00",
             "description": "Nao liga",
             "boards": [
                 {
@@ -196,6 +295,7 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
                     "special_number": "PL-01",
                     "model": "MAIN",
                     "revision": "A",
+                    "unit_price": "500.00",
                     "components": [
                         {
                             "id": "component-id",
@@ -203,18 +303,58 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
                             "category": "Capacitor",
                             "part_number": "10uF",
                             "location": "Entrada",
+                            "unit_price": "5.00",
                         }
                     ],
                 }
             ],
         }
-    )
+    ]
+    window.render_rows("Equipamentos", rows, [], "equipment")
 
     summary = window.equipment_full_summary.toPlainText()
-    assert "Cliente: Cliente Teste" in summary
+    assert "Tipo: Notebook" in summary
     assert "Placas vinculadas: 1" in summary
     assert "Componentes cadastrados: 1" in summary
-    assert window.equipment_objects_tree.topLevelItemCount() == 1
+    assert window.equipment_table.rowCount() == 1
+    assert window.equipment_boards_table.rowCount() == 1
+    assert window.equipment_components_table.rowCount() == 1
+    assert "Placa Principal" in window.board_full_summary.toPlainText()
+    assert "C100" in window.component_full_summary.toPlainText()
+
+
+def test_equipment_search_filters_hierarchy(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.render_rows(
+        "Equipamentos",
+        [
+            {"id": "eq-1", "category": "Inversor", "brand": "Siemens", "boards": []},
+            {"id": "eq-2", "category": "Fonte", "brand": "WEG", "boards": []},
+        ],
+        [],
+        "equipment",
+    )
+
+    window.equipment_search_input.setText("weg")
+
+    assert window.equipment_table.rowCount() == 1
+    assert window.equipment_visible_rows[0]["id"] == "eq-2"
+
+
+def test_equipment_asset_dialog_normalizes_money(qtbot) -> None:
+    dialog = EquipmentAssetDialog(
+        "NOVO EQUIPAMENTO",
+        DashboardWindow._equipment_dialog_fields(),
+    )
+    qtbot.addWidget(dialog)
+
+    dialog.inputs["category"].setText("Inversor")  # type: ignore[union-attr]
+    dialog.inputs["unit_price"].setText("1.499,90")  # type: ignore[union-attr]
+    dialog._accept()
+
+    assert dialog.payload()["category"] == "Inversor"
+    assert dialog.payload()["unit_price"] == "1499.90"
 
 
 def test_inventory_populates_summary_and_low_stock_status(qtbot) -> None:
@@ -321,6 +461,9 @@ def test_report_renders_overview_summary(qtbot) -> None:
     assert "Titulo: Relatorio de Clientes" in summary
     assert "Modulo: Clientes" in summary
     assert "Formatos disponiveis: CSV, XLSX e PDF" in summary
+    assert not window.generic_record_splitter.isHidden()
+    assert not window.report_form_panel.isHidden()
+    assert window.module_search_input.isHidden()
 
 
 def test_customer_save_emits_create_payload(qtbot) -> None:

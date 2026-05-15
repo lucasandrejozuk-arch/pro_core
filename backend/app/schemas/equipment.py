@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,6 +13,7 @@ class EquipmentBoardComponentBase(BaseModel):
     quantity: str | None = Field(default=None, max_length=40)
     part_number: str | None = Field(default=None, max_length=120)
     location: str | None = Field(default=None, max_length=120)
+    unit_price: Decimal = Field(default=Decimal("0"), ge=0)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -25,6 +27,7 @@ class EquipmentBoardComponentUpdate(BaseModel):
     quantity: str | None = Field(default=None, max_length=40)
     part_number: str | None = Field(default=None, max_length=120)
     location: str | None = Field(default=None, max_length=120)
+    unit_price: Decimal | None = Field(default=None, ge=0)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -44,6 +47,7 @@ class EquipmentBoardBase(BaseModel):
     serial_number: str | None = Field(default=None, max_length=120)
     model: str | None = Field(default=None, max_length=120)
     revision: str | None = Field(default=None, max_length=80)
+    unit_price: Decimal = Field(default=Decimal("0"), ge=0)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -57,6 +61,7 @@ class EquipmentBoardUpdate(BaseModel):
     serial_number: str | None = Field(default=None, max_length=120)
     model: str | None = Field(default=None, max_length=120)
     revision: str | None = Field(default=None, max_length=80)
+    unit_price: Decimal | None = Field(default=None, ge=0)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -72,12 +77,13 @@ class EquipmentBoardResponse(EquipmentBoardBase):
 
 
 class EquipmentBase(BaseModel):
-    customer_id: uuid.UUID
+    customer_id: uuid.UUID | None = None
     category: str = Field(min_length=1, max_length=80)
     brand: str | None = Field(default=None, max_length=80)
     model: str | None = Field(default=None, max_length=120)
     special_number: str | None = Field(default=None, max_length=120)
     serial_number: str | None = Field(default=None, max_length=120)
+    unit_price: Decimal = Field(default=Decimal("0"), ge=0)
     description: str | None = Field(default=None, max_length=1000)
 
 
@@ -92,6 +98,7 @@ class EquipmentUpdate(BaseModel):
     model: str | None = Field(default=None, max_length=120)
     special_number: str | None = Field(default=None, max_length=120)
     serial_number: str | None = Field(default=None, max_length=120)
+    unit_price: Decimal | None = Field(default=None, ge=0)
     description: str | None = Field(default=None, max_length=1000)
 
 
