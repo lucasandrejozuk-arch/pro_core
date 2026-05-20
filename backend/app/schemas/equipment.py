@@ -41,6 +41,38 @@ class EquipmentBoardComponentResponse(EquipmentBoardComponentBase):
     updated_at: datetime
 
 
+class EquipmentDefectCaseBase(BaseModel):
+    board_id: uuid.UUID | None = None
+    title: str = Field(min_length=1, max_length=160)
+    symptom: str | None = Field(default=None, max_length=2000)
+    root_cause: str | None = Field(default=None, max_length=2000)
+    solution: str | None = Field(default=None, max_length=2000)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class EquipmentDefectCaseCreate(EquipmentDefectCaseBase):
+    pass
+
+
+class EquipmentDefectCaseUpdate(BaseModel):
+    board_id: uuid.UUID | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    symptom: str | None = Field(default=None, max_length=2000)
+    root_cause: str | None = Field(default=None, max_length=2000)
+    solution: str | None = Field(default=None, max_length=2000)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class EquipmentDefectCaseResponse(EquipmentDefectCaseBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    company_id: uuid.UUID
+    equipment_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
 class EquipmentBoardBase(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     special_number: str | None = Field(default=None, max_length=120)
@@ -110,3 +142,4 @@ class EquipmentResponse(EquipmentBase):
     created_at: datetime
     updated_at: datetime
     boards: list[EquipmentBoardResponse] = []
+    defect_cases: list[EquipmentDefectCaseResponse] = []

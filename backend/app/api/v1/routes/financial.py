@@ -15,6 +15,7 @@ from backend.app.services.audit import create_audit_log
 from backend.app.services.financial import (
     cancel_financial_record,
     create_financial_record,
+    delete_financial_record,
     list_financial_records,
     mark_financial_record_paid,
 )
@@ -80,6 +81,16 @@ def cancel_financial_record_item(
 ) -> FinancialRecordResponse:
     record = _get_financial_record(db, current_user.company_id, record_id)
     return cancel_financial_record(db, record)
+
+
+@router.delete("/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_financial_record_item(
+    record_id: uuid.UUID,
+    current_user: User = Depends(admin_or_manager),
+    db: Session = Depends(get_db),
+) -> None:
+    record = _get_financial_record(db, current_user.company_id, record_id)
+    delete_financial_record(db, record)
 
 
 def _get_financial_record(

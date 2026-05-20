@@ -25,6 +25,7 @@ from backend.app.services.service_orders import (
     build_quote_pdf,
     complete_service_order,
     create_service_order,
+    delete_service_order,
     get_service_order,
     list_service_orders,
     register_diagnosis,
@@ -37,6 +38,7 @@ from backend.app.services.users import list_users_by_role
 
 router = APIRouter(prefix="/service-orders", tags=["service-orders"])
 staff_user = require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.TECHNICIAN)
+management_user = require_roles(UserRole.ADMIN, UserRole.MANAGER)
 
 
 def _scoped_technician_ids(db: Session, current_user: User) -> set[uuid.UUID] | None:
@@ -160,6 +162,20 @@ def update_service_order_record(
         return update_service_order(db, current_user.company_id, service_order, payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete("/{service_order_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_service_order_record(
+    service_order_id: uuid.UUID,
+    current_user: User = Depends(management_user),
+    db: Session = Depends(get_db),
+) -> None:
+    service_order = get_service_order(db, current_user.company_id, service_order_id)
+    if service_order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+
+    _ensure_service_order_access(db, current_user, service_order)
+    delete_service_order(db, service_order, current_user.id)
 
 
 @router.post("/{service_order_id}/diagnosis", response_model=ServiceOrderResponse)

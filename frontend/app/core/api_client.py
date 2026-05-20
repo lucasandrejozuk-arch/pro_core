@@ -89,6 +89,9 @@ class ApiClient:
             json=payload,
         )
 
+    def delete_customer(self, access_token: str, customer_id: str) -> None:
+        self._request("DELETE", f"customers/{customer_id}", access_token=access_token)
+
     def list_equipment(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "equipment", access_token=access_token)
 
@@ -119,6 +122,30 @@ class ApiClient:
             f"equipment/{equipment_id}",
             access_token=access_token,
         )
+
+    def export_equipment(self, access_token: str, export_format: str) -> bytes:
+        return self._download(
+            "GET",
+            "equipment/export",
+            access_token=access_token,
+            params={"format": export_format},
+        )
+
+    def import_equipment(
+        self,
+        access_token: str,
+        file_path: str,
+        replace: bool = False,
+    ) -> dict[str, Any]:
+        path = Path(file_path)
+        with path.open("rb") as upload_file:
+            return self._request(
+                "POST",
+                "equipment/import",
+                access_token=access_token,
+                params={"replace": str(replace).lower()},
+                files={"file": (path.name, upload_file, "text/csv")},
+            )
 
     def create_equipment_board(
         self,
@@ -201,6 +228,58 @@ class ApiClient:
             access_token=access_token,
         )
 
+    def list_equipment_defect_cases(
+        self,
+        access_token: str,
+        equipment_id: str,
+        query: str = "",
+    ) -> list[dict[str, Any]]:
+        return self._request_list(
+            "GET",
+            f"equipment/{equipment_id}/defect-cases",
+            access_token=access_token,
+            params={"query": query},
+        )
+
+    def create_equipment_defect_case(
+        self,
+        access_token: str,
+        equipment_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"equipment/{equipment_id}/defect-cases",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def update_equipment_defect_case(
+        self,
+        access_token: str,
+        equipment_id: str,
+        case_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"equipment/{equipment_id}/defect-cases/{case_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    def delete_equipment_defect_case(
+        self,
+        access_token: str,
+        equipment_id: str,
+        case_id: str,
+    ) -> None:
+        self._request(
+            "DELETE",
+            f"equipment/{equipment_id}/defect-cases/{case_id}",
+            access_token=access_token,
+        )
+
     def list_inventory(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "inventory", access_token=access_token)
 
@@ -225,6 +304,9 @@ class ApiClient:
             json=payload,
         )
 
+    def delete_inventory_item(self, access_token: str, item_id: str) -> None:
+        self._request("DELETE", f"inventory/{item_id}", access_token=access_token)
+
     def list_service_orders(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "service-orders", access_token=access_token)
 
@@ -234,6 +316,13 @@ class ApiClient:
             "service-orders",
             access_token=access_token,
             json=payload,
+        )
+
+    def delete_service_order(self, access_token: str, service_order_id: str) -> None:
+        self._request(
+            "DELETE",
+            f"service-orders/{service_order_id}",
+            access_token=access_token,
         )
 
     def update_service_order(
@@ -469,6 +558,9 @@ class ApiClient:
     def get_appearance_settings(self, access_token: str) -> dict[str, Any]:
         return self._request("GET", "settings/appearance", access_token=access_token)
 
+    def get_login_appearance_settings(self) -> dict[str, Any]:
+        return self._request("GET", "settings/login-appearance")
+
     def update_settings(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request(
             "PATCH",
@@ -509,11 +601,17 @@ class ApiClient:
             access_token=access_token,
         )
 
+    def delete_financial_record(self, access_token: str, record_id: str) -> None:
+        self._request("DELETE", f"financial-records/{record_id}", access_token=access_token)
+
     def list_audit_logs(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "audit-logs", access_token=access_token)
 
     def list_notifications(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "notifications", access_token=access_token)
+
+    def list_tools(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "tools", access_token=access_token)
 
     def get_report(self, access_token: str, module_key: str) -> dict[str, Any]:
         return self._request("GET", f"reports/{module_key}", access_token=access_token)

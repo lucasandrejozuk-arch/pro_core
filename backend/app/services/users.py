@@ -5,12 +5,12 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.core.security import hash_password, verify_password
+from backend.app.core.security import hash_password, validate_password_strength, verify_password
 from backend.app.models.enums import UserRole
 from backend.app.models.user import User
 from backend.app.schemas.user import UserCreate, UserUpdate
 from backend.app.services.crud import apply_updates
-from backend.app.services.sectors import get_sector
+from backend.app.services.sectors import get_or_create_admin_sector, get_sector
 
 
 def normalize_email(email: str) -> str:
@@ -84,11 +84,16 @@ def create_user_account(db: Session, company_id: uuid.UUID, payload: UserCreate)
     if get_company_user_by_email(db, company_id, payload.email):
         raise ValueError("Email already registered for this company.")
 
-    _validate_user_sector(db, company_id, payload.sector_id)
+    sector_id = payload.sector_id
+    if payload.role == UserRole.ADMIN and sector_id is None:
+        sector_id = get_or_create_admin_sector(db, company_id).id
+
+    _validate_user_sector(db, company_id, sector_id)
+    validate_password_strength(payload.password)
 
     user = User(
         company_id=company_id,
-        sector_id=payload.sector_id,
+        sector_id=sector_id,
         full_name=payload.full_name,
         email=normalize_email(payload.email),
         password_hash=hash_password(payload.password),
@@ -141,6 +146,7 @@ def _validate_user_sector(
 
 
 def reset_user_password(db: Session, user: User, new_password: str) -> User:
+    validate_password_strength(new_password)
     user.password_hash = hash_password(new_password)
     user.must_change_password = True
     db.add(user)
@@ -167,6 +173,7 @@ def change_user_password(db: Session, user: User, current_password: str, new_pas
     if verify_password(new_password, user.password_hash):
         raise ValueError("New password must be different from the current password.")
 
+    validate_password_strength(new_password)
     user.password_hash = hash_password(new_password)
     user.must_change_password = False
     db.add(user)

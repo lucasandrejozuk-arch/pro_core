@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import uuid
 import json
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from io import BytesIO
@@ -14,9 +14,10 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.models.enums import ServiceOrderEventSource, ServiceOrderStatus, UserRole
-from backend.app.models.inventory import InventoryItem
 from backend.app.models.customer import Customer
+from backend.app.models.enums import ServiceOrderEventSource, ServiceOrderStatus, UserRole
+from backend.app.models.financial import FinancialRecord
+from backend.app.models.inventory import InventoryItem
 from backend.app.models.service_order import (
     ServiceOrder,
     ServiceOrderBudgetItem,
@@ -30,10 +31,10 @@ from backend.app.schemas.service_order import (
     ServiceOrderCreate,
     ServiceOrderUpdate,
 )
+from backend.app.services.audit import create_audit_log
 from backend.app.services.crud import apply_updates
 from backend.app.services.customers import get_customer
 from backend.app.services.equipment import get_equipment
-from backend.app.services.audit import create_audit_log
 
 
 def list_service_orders(
@@ -49,6 +50,8 @@ def list_service_orders(
             selectinload(ServiceOrder.budget_items),
             selectinload(ServiceOrder.events),
             selectinload(ServiceOrder.documents),
+            selectinload(ServiceOrder.customer),
+            selectinload(ServiceOrder.equipment),
         )
         .where(ServiceOrder.company_id == company_id)
         .order_by(ServiceOrder.created_at.desc())
@@ -63,7 +66,9 @@ def list_service_orders(
     if assigned_technician_ids is not None:
         if not assigned_technician_ids:
             return []
-        statement = statement.where(ServiceOrder.assigned_technician_id.in_(assigned_technician_ids))
+        statement = statement.where(
+            ServiceOrder.assigned_technician_id.in_(assigned_technician_ids)
+        )
 
     return list(db.scalars(statement))
 
@@ -79,6 +84,8 @@ def get_service_order(
             selectinload(ServiceOrder.budget_items),
             selectinload(ServiceOrder.events),
             selectinload(ServiceOrder.documents),
+            selectinload(ServiceOrder.customer),
+            selectinload(ServiceOrder.equipment),
         )
         .where(
             ServiceOrder.id == service_order_id,
@@ -188,6 +195,32 @@ def update_service_order(
     db.commit()
     db.refresh(service_order)
     return service_order
+
+
+def delete_service_order(
+    db: Session,
+    service_order: ServiceOrder,
+    actor_user_id: uuid.UUID,
+) -> None:
+    code = service_order.code
+    company_id = service_order.company_id
+    for document in list(service_order.documents):
+        db.delete(document)
+    db.query(FinancialRecord).filter(
+        FinancialRecord.company_id == company_id,
+        FinancialRecord.service_order_id == service_order.id,
+    ).update({"service_order_id": None}, synchronize_session=False)
+    create_audit_log(
+        db,
+        company_id=company_id,
+        actor_user_id=actor_user_id,
+        action="service_order.deleted",
+        entity_type="service_order",
+        entity_id=service_order.id,
+        summary=f"Ordem de servico {code} excluida.",
+    )
+    db.delete(service_order)
+    db.commit()
 
 
 def register_diagnosis(

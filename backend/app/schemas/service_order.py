@@ -80,6 +80,9 @@ class ServiceOrderResponse(BaseModel):
     company_id: uuid.UUID
     customer_id: uuid.UUID
     equipment_id: uuid.UUID
+    customer_name: str | None = None
+    customer_email: str | None = None
+    equipment_label: str | None = None
     assigned_technician_id: uuid.UUID | None
     code: str
     status: ServiceOrderStatus

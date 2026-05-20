@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 os.environ.setdefault("PRO_CORE_BCRYPT_ROUNDS", "4")
 
 import backend.app.models  # noqa: F401
+from backend.app.core.rate_limit import login_rate_limiter
 from backend.app.core.security import hash_password
 from backend.app.db.base import Base
 from backend.app.db.session import get_db
@@ -20,6 +21,7 @@ from backend.app.models.company import Company
 from backend.app.models.enums import UserRole
 from backend.app.models.sector import Sector
 from backend.app.models.user import User
+from backend.app.services.sectors import get_or_create_admin_sector
 
 
 @pytest.fixture
@@ -41,6 +43,8 @@ def db_session() -> Generator[Session]:
 
 @pytest.fixture
 def client(db_session: Session) -> Generator[TestClient]:
+    login_rate_limiter.reset()
+
     def override_get_db() -> Generator[Session]:
         yield db_session
 
@@ -51,6 +55,7 @@ def client(db_session: Session) -> Generator[TestClient]:
         yield test_client
 
     app.dependency_overrides.clear()
+    login_rate_limiter.reset()
 
 
 @pytest.fixture
@@ -70,6 +75,8 @@ def create_user(
     full_name: str,
     sector: Sector | None = None,
 ) -> User:
+    if role == UserRole.ADMIN and sector is None:
+        sector = get_or_create_admin_sector(db, company.id)
     user = User(
         company_id=company.id,
         sector_id=sector.id if sector else None,

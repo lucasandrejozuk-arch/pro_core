@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -17,10 +18,20 @@ from backend.app.models.enums import (
     enum_values,
 )
 
+if TYPE_CHECKING:
+    from backend.app.models.company import Company
+    from backend.app.models.customer import Customer
+    from backend.app.models.document import DocumentAttachment
+    from backend.app.models.equipment import Equipment
+    from backend.app.models.inventory import InventoryItem
+    from backend.app.models.user import User
+
 
 class ServiceOrder(ModelBase, Base):
     __tablename__ = "service_orders"
-    __table_args__ = (UniqueConstraint("company_id", "code", name="uq_service_orders_company_code"),)
+    __table_args__ = (
+        UniqueConstraint("company_id", "code", name="uq_service_orders_company_code"),
+    )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -63,31 +74,62 @@ class ServiceOrder(ModelBase, Base):
     technical_diagnosis: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     quoted_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
-    sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    sla_due_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
     quote_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     approval_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    customer_decision_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    customer_decision_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     customer_decision_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    company: Mapped["Company"] = relationship(back_populates="service_orders")
-    customer: Mapped["Customer"] = relationship(back_populates="service_orders")
-    equipment: Mapped["Equipment"] = relationship(back_populates="service_orders")
-    assigned_technician: Mapped["User | None"] = relationship(
+    company: Mapped[Company] = relationship(back_populates="service_orders")
+    customer: Mapped[Customer] = relationship(back_populates="service_orders")
+    equipment: Mapped[Equipment] = relationship(back_populates="service_orders")
+    assigned_technician: Mapped[User | None] = relationship(
         back_populates="assigned_service_orders",
         foreign_keys=[assigned_technician_id],
     )
-    budget_items: Mapped[list["ServiceOrderBudgetItem"]] = relationship(
+    budget_items: Mapped[list[ServiceOrderBudgetItem]] = relationship(
         back_populates="service_order",
         cascade="all, delete-orphan",
     )
-    events: Mapped[list["ServiceOrderEvent"]] = relationship(
+    events: Mapped[list[ServiceOrderEvent]] = relationship(
         back_populates="service_order",
         cascade="all, delete-orphan",
         order_by="ServiceOrderEvent.created_at",
     )
-    documents: Mapped[list["DocumentAttachment"]] = relationship(back_populates="service_order")
+    documents: Mapped[list[DocumentAttachment]] = relationship(back_populates="service_order")
+
+    @property
+    def customer_name(self) -> str | None:
+        return self.customer.name if self.customer else None
+
+    @property
+    def customer_email(self) -> str | None:
+        return self.customer.email if self.customer else None
+
+    @property
+    def equipment_label(self) -> str | None:
+        if not self.equipment:
+            return None
+        return " - ".join(
+            part
+            for part in (
+                self.equipment.category,
+                self.equipment.brand,
+                self.equipment.model,
+                self.equipment.special_number,
+                self.equipment.serial_number,
+            )
+            if part
+        )
 
 
 class ServiceOrderBudgetItem(ModelBase, Base):
@@ -114,8 +156,8 @@ class ServiceOrderBudgetItem(ModelBase, Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=1, nullable=False)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
 
-    service_order: Mapped["ServiceOrder"] = relationship(back_populates="budget_items")
-    inventory_item: Mapped["InventoryItem | None"] = relationship(back_populates="budget_items")
+    service_order: Mapped[ServiceOrder] = relationship(back_populates="budget_items")
+    inventory_item: Mapped[InventoryItem | None] = relationship(back_populates="budget_items")
 
 
 class ServiceOrderEvent(ModelBase, Base):
@@ -149,5 +191,5 @@ class ServiceOrderEvent(ModelBase, Base):
     message: Mapped[str] = mapped_column(String(1000), nullable=False)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    service_order: Mapped["ServiceOrder"] = relationship(back_populates="events")
-    actor_user: Mapped["User | None"] = relationship(foreign_keys=[actor_user_id])
+    service_order: Mapped[ServiceOrder] = relationship(back_populates="events")
+    actor_user: Mapped[User | None] = relationship(foreign_keys=[actor_user_id])

@@ -9,6 +9,9 @@ from backend.app.models.sector import Sector
 from backend.app.schemas.sector import SectorCreate, SectorUpdate
 from backend.app.services.crud import apply_updates
 
+DEFAULT_ADMIN_SECTOR_NAME = "Administrativo"
+DEFAULT_ADMIN_SECTOR_DESCRIPTION = "Setor administrativo padrao do sistema."
+
 
 def list_sectors(db: Session, company_id: uuid.UUID) -> list[Sector]:
     statement = select(Sector).where(Sector.company_id == company_id).order_by(Sector.name)
@@ -43,6 +46,21 @@ def create_sector(db: Session, company_id: uuid.UUID, payload: SectorCreate) -> 
     db.add(sector)
     db.commit()
     db.refresh(sector)
+    return sector
+
+
+def get_or_create_admin_sector(db: Session, company_id: uuid.UUID) -> Sector:
+    sector = get_sector_by_name(db, company_id, DEFAULT_ADMIN_SECTOR_NAME)
+    if sector is not None:
+        return sector
+
+    sector = Sector(
+        company_id=company_id,
+        name=DEFAULT_ADMIN_SECTOR_NAME,
+        description=DEFAULT_ADMIN_SECTOR_DESCRIPTION,
+    )
+    db.add(sector)
+    db.flush()
     return sector
 
 

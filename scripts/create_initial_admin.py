@@ -10,11 +10,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.exc import SQLAlchemyError  # noqa: E402
 
-from backend.app.core.security import hash_password  # noqa: E402
+from backend.app.core.security import hash_password, validate_password_strength  # noqa: E402
 from backend.app.db.session import SessionLocal  # noqa: E402
 from backend.app.models.company import Company  # noqa: E402
 from backend.app.models.enums import UserRole  # noqa: E402
 from backend.app.models.user import User  # noqa: E402
+from backend.app.services.sectors import get_or_create_admin_sector  # noqa: E402
 from backend.app.services.users import normalize_email  # noqa: E402
 
 
@@ -46,8 +47,11 @@ def main() -> int:
                 db.add(company)
                 db.flush()
 
+            validate_password_strength(args.password)
+            admin_sector = get_or_create_admin_sector(db, company.id)
             admin = User(
                 company_id=company.id,
+                sector_id=admin_sector.id,
                 full_name=args.admin_name.strip(),
                 email=email,
                 password_hash=hash_password(args.password),
@@ -56,7 +60,7 @@ def main() -> int:
             )
             db.add(admin)
             db.commit()
-        except SQLAlchemyError as exc:
+        except (SQLAlchemyError, ValueError) as exc:
             db.rollback()
             print(f"Failed to create initial admin: {exc}")
             return 1

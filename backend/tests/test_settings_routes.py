@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from backend.app.models.user import User
+from backend.app.services.configuration import set_setting_value
 
 
 def _auth_headers(client: TestClient, user: User) -> dict[str, str]:
@@ -88,6 +89,24 @@ def test_authenticated_users_can_read_appearance_settings(
     body = response.json()
     assert body["theme"] == "light"
     assert body["primary_color"] == "#0969da"
+
+
+def test_login_appearance_is_public_and_uses_admin_branding(
+    client: TestClient,
+    db_session,
+    company,
+) -> None:
+    set_setting_value(db_session, company.id, "ui.brand_name", "Pro Assist")
+    set_setting_value(db_session, company.id, "ui.brand_subtitle", "Laboratorio tecnico")
+    db_session.commit()
+
+    response = client.get("/api/v1/settings/login-appearance")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["brand_name"] == "Pro Assist"
+    assert body["brand_subtitle"] == "Laboratorio tecnico"
+    assert body["theme"] == "light"
 
 
 def test_settings_reject_invalid_primary_color(

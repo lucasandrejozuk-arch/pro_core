@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import math
+from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QResizeEvent
+from PySide6.QtGui import QAction, QResizeEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -16,25 +18,50 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSplitter,
+    QSizePolicy,
+    QSlider,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from frontend.app.core.display import DisplayProfile, detect_display_profile
+from frontend.app.core.grid import (
+    add_layout,
+    add_widget,
+    create_grid,
+    span_for_items,
+)
 from frontend.app.core.icons import build_icon
 from frontend.app.widgets import DashboardKpiCard, create_summary_text
+
+
+def confirm_destructive_action(parent: QWidget, title: str, message: str) -> bool:
+    dialog = QMessageBox(parent)
+    dialog.setIcon(QMessageBox.Icon.Warning)
+    dialog.setWindowTitle(title)
+    dialog.setText(message)
+    dialog.setInformativeText("Esta acao nao pode ser desfeita.")
+    dialog.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+    dialog.setDefaultButton(QMessageBox.StandardButton.No)
+    yes_button = dialog.button(QMessageBox.StandardButton.Yes)
+    no_button = dialog.button(QMessageBox.StandardButton.No)
+    if yes_button is not None:
+        yes_button.setText("Excluir")
+    if no_button is not None:
+        no_button.setText("Cancelar")
+    return dialog.exec() == QMessageBox.StandardButton.Yes
 
 
 class EquipmentAssetDialog(QDialog):
@@ -143,12 +170,315 @@ class EquipmentAssetDialog(QDialog):
         return str(decimal_value)
 
 
+class DefectCaseEditDialog(QDialog):
+    def __init__(
+        self,
+        equipment: dict[str, Any],
+        values: dict[str, Any] | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("NOVO CASO DE DEFEITO" if not values else "EDITAR CASO DE DEFEITO")
+        self.setModal(True)
+        self.setObjectName("assetDialog")
+        self._payload: dict[str, Any] = {}
+        values = values or {}
+
+        self.title_input = QLineEdit()
+        self.title_input.setPlaceholderText("Ex.: Falha de comunicacao do modulo")
+        self.title_input.setText(str(values.get("title") or ""))
+
+        self.board_combo = QComboBox()
+        self.board_combo.addItem("(Sem objeto especifico)", None)
+        for board in equipment.get("boards") or []:
+            self.board_combo.addItem(
+                str(board.get("name") or board.get("model") or "Objeto vinculado"),
+                str(board.get("id")),
+            )
+        self._select_combo_value(self.board_combo, str(values.get("board_id") or ""))
+
+        self.symptom_input = self._make_text("Descreva sintomas observados", values.get("symptom"))
+        self.root_cause_input = self._make_text("Descreva a causa raiz", values.get("root_cause"))
+        self.solution_input = self._make_text("Descreva a solucao aplicada", values.get("solution"))
+        self.notes_input = self._make_text("Observacoes adicionais (opcional)", values.get("notes"))
+
+        form = QFormLayout()
+        form.setSpacing(8)
+        form.addRow("Titulo:", self.title_input)
+        form.addRow("Objeto vinculado:", self.board_combo)
+        form.addRow("Sintoma:", self.symptom_input)
+        form.addRow("Causa raiz:", self.root_cause_input)
+        form.addRow("Solucao:", self.solution_input)
+        form.addRow("Observacoes:", self.notes_input)
+
+        self.error_label = QLabel("")
+        self.error_label.setObjectName("errorText")
+
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(self._accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.setObjectName("secondaryButton")
+        cancel_button.clicked.connect(self.reject)
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(save_button)
+        actions.addWidget(cancel_button)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+        layout.addLayout(form)
+        layout.addWidget(self.error_label)
+        layout.addLayout(actions)
+        self.resize(520, 430)
+
+    def payload(self) -> dict[str, Any]:
+        return dict(self._payload)
+
+    def _accept(self) -> None:
+        title = self.title_input.text().strip()
+        if not title:
+            self.error_label.setText("Informe o titulo.")
+            return
+        self._payload = {
+            "board_id": self.board_combo.currentData() or None,
+            "title": title,
+            "symptom": self.symptom_input.toPlainText().strip() or None,
+            "root_cause": self.root_cause_input.toPlainText().strip() or None,
+            "solution": self.solution_input.toPlainText().strip() or None,
+            "notes": self.notes_input.toPlainText().strip() or None,
+        }
+        self.accept()
+
+    @staticmethod
+    def _make_text(placeholder: str, value: Any) -> QTextEdit:
+        widget = QTextEdit()
+        widget.setPlaceholderText(placeholder)
+        widget.setPlainText(str(value or ""))
+        widget.setMinimumHeight(72)
+        return widget
+
+    @staticmethod
+    def _select_combo_value(combo: QComboBox, value: str) -> None:
+        if not value:
+            return
+        for index in range(combo.count()):
+            if str(combo.itemData(index)) == value:
+                combo.setCurrentIndex(index)
+                return
+
+
+class EquipmentDefectCasesDialog(QDialog):
+    def __init__(
+        self,
+        equipment: dict[str, Any],
+        list_cases: Callable[[str], list[dict[str, Any]]],
+        create_case: Callable[[dict[str, Any]], dict[str, Any]],
+        update_case: Callable[[str, dict[str, Any]], dict[str, Any]],
+        delete_case: Callable[[str], None],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.equipment = equipment
+        self._list_cases = list_cases
+        self._create_case = create_case
+        self._update_case = update_case
+        self._delete_case = delete_case
+        self._cases: list[dict[str, Any]] = []
+        self._selected_case_id: str | None = None
+
+        self.setWindowTitle(
+            f"CASOS DE DEFEITO - EQUIPAMENTO {str(equipment.get('id') or '')[:8]}"
+        )
+        self.setObjectName("assetDialog")
+        self.setMinimumSize(920, 520)
+        self._build_ui()
+        self._reload_cases()
+
+    def _build_ui(self) -> None:
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Buscar casos de defeito...")
+        self.search_input.textChanged.connect(self._reload_cases)
+
+        self.table = QTableWidget()
+        self.table.setObjectName("dataTable")
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(
+            ["ID", "TITULO", "SINTOMA", "CAUSA RAIZ", "ATUALIZADO"]
+        )
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.itemSelectionChanged.connect(self._handle_selection)
+
+        self.new_button = QPushButton("+Caso de Defeito")
+        self.new_button.clicked.connect(self._create)
+        self.edit_button = QPushButton("Editar")
+        self.edit_button.setObjectName("secondaryButton")
+        self.edit_button.clicked.connect(self._edit)
+        self.remove_button = QPushButton("Remover")
+        self.remove_button.setObjectName("dangerButton")
+        self.remove_button.clicked.connect(self._remove)
+
+        actions = QHBoxLayout()
+        actions.setSpacing(6)
+        actions.addWidget(self.new_button)
+        actions.addWidget(self.edit_button)
+        actions.addWidget(self.remove_button)
+        actions.addStretch()
+
+        self.summary = create_summary_text(110, 150)
+        self.summary.setPlainText("Selecione um caso para ver detalhes.")
+
+        close_button = QPushButton("Fechar")
+        close_button.setObjectName("secondaryButton")
+        close_button.clicked.connect(self.accept)
+        close_row = QHBoxLayout()
+        close_row.addStretch()
+        close_row.addWidget(close_button)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+        layout.addWidget(self.search_input)
+        layout.addWidget(self.table, 1)
+        layout.addLayout(actions)
+        layout.addWidget(QLabel("RESUMO:"))
+        layout.addWidget(self.summary)
+        layout.addLayout(close_row)
+
+    def _reload_cases(self) -> None:
+        try:
+            self._cases = self._list_cases(self.search_input.text().strip())
+        except Exception as exc:
+            self.summary.setPlainText(f"Falha ao carregar casos: {exc}")
+            self._cases = []
+        self._fill_table()
+
+    def _fill_table(self) -> None:
+        self.table.blockSignals(True)
+        self.table.setRowCount(len(self._cases))
+        for row_index, defect_case in enumerate(self._cases):
+            values = [
+                str(defect_case.get("id") or "")[:8],
+                str(defect_case.get("title") or ""),
+                str(defect_case.get("symptom") or ""),
+                str(defect_case.get("root_cause") or ""),
+                str(defect_case.get("updated_at") or ""),
+            ]
+            for column_index, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setData(Qt.ItemDataRole.UserRole, str(defect_case.get("id") or ""))
+                self.table.setItem(row_index, column_index, item)
+        self.table.blockSignals(False)
+        if self._cases:
+            self.table.selectRow(0)
+        else:
+            self._selected_case_id = None
+            self.summary.setPlainText("Nenhum caso encontrado.")
+        self._update_actions()
+
+    def _handle_selection(self) -> None:
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            self._selected_case_id = None
+            self.summary.setPlainText("Selecione um caso para ver detalhes.")
+            self._update_actions()
+            return
+        row_index = selected_items[0].row()
+        if row_index >= len(self._cases):
+            return
+        defect_case = self._cases[row_index]
+        self._selected_case_id = str(defect_case.get("id") or "")
+        self.summary.setPlainText(self._format_case_summary(defect_case))
+        self._update_actions()
+
+    def _create(self) -> None:
+        dialog = DefectCaseEditDialog(self.equipment, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            saved = self._create_case(dialog.payload())
+            self._selected_case_id = str(saved.get("id") or "")
+        except Exception as exc:
+            self.summary.setPlainText(f"Falha ao salvar caso: {exc}")
+            return
+        self._reload_cases()
+
+    def _edit(self) -> None:
+        defect_case = self._selected_case()
+        if not defect_case:
+            return
+        dialog = DefectCaseEditDialog(self.equipment, defect_case, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._update_case(str(defect_case["id"]), dialog.payload())
+        except Exception as exc:
+            self.summary.setPlainText(f"Falha ao atualizar caso: {exc}")
+            return
+        self._reload_cases()
+
+    def _remove(self) -> None:
+        defect_case = self._selected_case()
+        if not defect_case:
+            return
+        if not confirm_destructive_action(
+            self,
+            "Remover caso de defeito",
+            "Remover o caso de defeito selecionado?",
+        ):
+            return
+        try:
+            self._delete_case(str(defect_case["id"]))
+        except Exception as exc:
+            self.summary.setPlainText(f"Falha ao remover caso: {exc}")
+            return
+        self._selected_case_id = None
+        self._reload_cases()
+
+    def _selected_case(self) -> dict[str, Any] | None:
+        for defect_case in self._cases:
+            if str(defect_case.get("id")) == self._selected_case_id:
+                return defect_case
+        return None
+
+    def _update_actions(self) -> None:
+        has_case = bool(self._selected_case_id)
+        self.edit_button.setEnabled(has_case)
+        self.remove_button.setEnabled(has_case)
+
+    def _format_case_summary(self, defect_case: dict[str, Any]) -> str:
+        board_name = "Equipamento"
+        board_id = str(defect_case.get("board_id") or "")
+        for board in self.equipment.get("boards") or []:
+            if str(board.get("id")) == board_id:
+                board_name = str(board.get("name") or board.get("model") or "Objeto vinculado")
+                break
+        return "\n".join(
+            [
+                f"ID: {defect_case.get('id') or '-'}",
+                f"Objeto vinculado: {board_name}",
+                f"Titulo: {defect_case.get('title') or '-'}",
+                f"Sintoma: {defect_case.get('symptom') or '-'}",
+                f"Causa raiz: {defect_case.get('root_cause') or '-'}",
+                f"Solucao: {defect_case.get('solution') or '-'}",
+                f"Observacoes: {defect_case.get('notes') or '-'}",
+                f"Atualizado em: {defect_case.get('updated_at') or '-'}",
+            ]
+        )
+
+
 class DashboardWindow(QWidget):
     logout_requested = Signal()
     module_selected = Signal(str)
     refresh_requested = Signal()
     customer_create_requested = Signal(dict)
     customer_update_requested = Signal(str, dict)
+    customer_delete_requested = Signal(str)
     customer_document_upload_requested = Signal(str, str, str)
     equipment_create_requested = Signal(dict)
     equipment_update_requested = Signal(str, dict)
@@ -159,12 +489,17 @@ class DashboardWindow(QWidget):
     equipment_component_create_requested = Signal(str, str, dict)
     equipment_component_update_requested = Signal(str, str, str, dict)
     equipment_component_delete_requested = Signal(str, str, str)
+    equipment_defect_cases_requested = Signal(str)
+    equipment_import_requested = Signal(str, bool)
+    equipment_export_requested = Signal(str, str)
     inventory_create_requested = Signal(dict)
     inventory_update_requested = Signal(str, dict)
+    inventory_delete_requested = Signal(str)
     sector_create_requested = Signal(dict)
     sector_update_requested = Signal(str, dict)
     service_order_create_requested = Signal(dict)
     service_order_update_requested = Signal(str, dict)
+    service_order_delete_requested = Signal(str)
     service_order_diagnosis_requested = Signal(str, str)
     service_order_budget_item_requested = Signal(str, dict)
     service_order_submit_quote_requested = Signal(str)
@@ -178,12 +513,14 @@ class DashboardWindow(QWidget):
     user_password_reset_requested = Signal(str, str)
     password_reset_resolve_requested = Signal(str, str)
     settings_update_requested = Signal(dict)
+    ui_scale_changed = Signal(float)
     backup_run_requested = Signal()
     report_view_requested = Signal(str)
     report_export_requested = Signal(str, str, str)
     financial_create_requested = Signal(dict)
     financial_mark_paid_requested = Signal(str)
     financial_cancel_requested = Signal(str)
+    financial_delete_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -207,6 +544,11 @@ class DashboardWindow(QWidget):
         self.selected_financial_record_id: str | None = None
         self.selected_service_order_document_path: str | None = None
         self.current_report_module_key = "service_orders"
+        self.current_tools: list[dict[str, Any]] = []
+        self.current_settings: dict[str, Any] = {}
+        self.ui_scale_min = 0.82
+        self.ui_scale_max = 1.18
+        self.ui_scale_value = 1.0
         self.current_user_role = ""
         self.equipment_customers: list[dict[str, Any]] = []
         self.service_order_customers: list[dict[str, Any]] = []
@@ -216,6 +558,8 @@ class DashboardWindow(QWidget):
         self.current_user: dict[str, Any] = {}
         self.session_login_at: datetime | None = None
         self.sidebar_collapsed = False
+        self.record_editor_collapsed = True
+        self.record_editor_width = 720
         self.admin_module_keys = (
             "financial",
             "notifications",
@@ -232,14 +576,16 @@ class DashboardWindow(QWidget):
         self.setMinimumSize(1120, 720)
         self.setObjectName("dashboardWindow")
 
-        self.sidebar_expanded_width = 72
-        self.sidebar_collapsed_width = 44
+        self.sidebar_expanded_width = 68
+        self.sidebar_collapsed_width = 36
         self.sidebar_margin = 18
         self.sidebar_icon_color = "#ffffff"
+        self.record_editor_icon_color = "#0969da"
+        self.record_editor_active_icon_color = "#ffffff"
         self.sidebar_icon_size = QSize(22, 22)
         self.sidebar_buttons_by_icon: dict[QPushButton, str] = {}
 
-        self.sidebar = QFrame(self)
+        self.sidebar = QFrame()
         self.sidebar.setObjectName("sidebar")
         self.sidebar.setFixedWidth(self.sidebar_expanded_width)
 
@@ -251,9 +597,9 @@ class DashboardWindow(QWidget):
         self.sidebar_text.setObjectName("sidebarText")
         self.sidebar_text.hide()
 
-        sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(10, 10, 10, 10)
-        sidebar_layout.setSpacing(10)
+        self.sidebar_layout = QVBoxLayout(self.sidebar)
+        self.sidebar_layout.setContentsMargins(8, 8, 8, 8)
+        self.sidebar_layout.setSpacing(8)
 
         self.sidebar_toggle_button = QPushButton("")
         self.sidebar_toggle_button.setObjectName("sidebarToggleButton")
@@ -261,7 +607,7 @@ class DashboardWindow(QWidget):
         self.sidebar_toggle_button.setToolTip("Recolher menu")
         self.sidebar_toggle_button.clicked.connect(self._toggle_sidebar)
         self._configure_sidebar_button(self.sidebar_toggle_button, "menu", "Recolher menu")
-        sidebar_layout.addWidget(self.sidebar_toggle_button)
+        self.sidebar_layout.addWidget(self.sidebar_toggle_button)
 
         self.sidebar_collapsed_label = QLabel("")
         self.sidebar_collapsed_label.setObjectName("sidebarSessionInfo")
@@ -280,7 +626,15 @@ class DashboardWindow(QWidget):
             "customers": "customers",
             "equipment": "equipment",
             "inventory": "inventory",
-            "admin_menu": "admin",
+            "tools": "tools",
+            "financial": "financial",
+            "notifications": "notifications",
+            "sectors": "sectors",
+            "users": "users",
+            "password_resets": "password_resets",
+            "settings": "settings",
+            "reports": "reports",
+            "audit_logs": "audit_logs",
         }
         self.module_labels = {
             "dashboard": "Dashboard",
@@ -288,6 +642,7 @@ class DashboardWindow(QWidget):
             "customers": "Clientes",
             "equipment": "Equipamentos",
             "inventory": "Estoque",
+            "tools": "Ferramentas",
             "sectors": "Setores",
             "users": "Usuarios",
             "password_resets": "Solicitacoes de senha",
@@ -303,6 +658,7 @@ class DashboardWindow(QWidget):
             "customers": "Cadastro e relacionamento de clientes",
             "equipment": "Gestao hierarquica de ativos, objetos e componentes",
             "inventory": "Estoque, custos e niveis minimos",
+            "tools": "Calculadoras e utilitarios por perfil operacional",
             "sectors": "Setores, liderancas e estrutura operacional",
             "users": "Contas, perfis, setores e seguranca",
             "password_resets": "Atendimento de solicitacoes de acesso",
@@ -325,9 +681,21 @@ class DashboardWindow(QWidget):
         }
         self.record_module_keys = self.searchable_module_keys | {"reports"}
         module_groups = [
-            ("OPERACAO", ("dashboard", "service_orders")),
+            ("OPERACAO", ("dashboard", "service_orders", "tools")),
             ("CADASTROS", ("customers", "equipment", "inventory")),
-            ("GESTAO", ("admin_menu",)),
+            (
+                "GESTAO",
+                (
+                    "financial",
+                    "reports",
+                    "sectors",
+                    "users",
+                    "password_resets",
+                    "settings",
+                    "notifications",
+                    "audit_logs",
+                ),
+            ),
         ]
 
         for caption, module_keys in module_groups:
@@ -337,34 +705,25 @@ class DashboardWindow(QWidget):
                 separator.setFixedHeight(1)
                 sidebar_nav_layout.addWidget(separator)
             for module_key in module_keys:
-                button_label = (
-                    "Area Administrativa"
-                    if module_key == "admin_menu"
-                    else self.module_labels[module_key]
-                )
                 button = QPushButton("")
                 button.setObjectName("navButton")
-                button.setCheckable(module_key != "admin_menu")
+                button.setCheckable(True)
                 button.setCursor(Qt.CursorShape.PointingHandCursor)
                 button.setProperty("active", "false")
                 self._configure_sidebar_button(
                     button,
                     self.module_icon_names[module_key],
-                    f"{caption.title()} - {button_label}",
+                    f"{caption.title()} - {self.module_labels[module_key]}",
                 )
-                if module_key == "admin_menu":
-                    button.clicked.connect(self._open_admin_menu)
-                    self.admin_menu_button = button
-                else:
-                    button.clicked.connect(
-                        lambda checked=False, key=module_key: self.module_selected.emit(key)
-                    )
-                    self.module_buttons[module_key] = button
+                button.clicked.connect(
+                    lambda checked=False, key=module_key: self.module_selected.emit(key)
+                )
+                self.module_buttons[module_key] = button
                 sidebar_nav_layout.addWidget(button)
 
-        sidebar_layout.addWidget(self.sidebar_nav_container)
+        self.sidebar_layout.addWidget(self.sidebar_nav_container)
 
-        sidebar_layout.addStretch()
+        self.sidebar_layout.addStretch()
 
         self.session_info_label = QLabel("")
         self.session_info_label.setObjectName("sidebarSessionInfo")
@@ -374,21 +733,26 @@ class DashboardWindow(QWidget):
         self.session_button = QPushButton("")
         self.session_button.setObjectName("sidebarFooterButton")
         self.session_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._configure_sidebar_button(self.session_button, "session", "Sessao ativa")
-        sidebar_layout.addWidget(self.session_button)
+        self._configure_sidebar_button(
+            self.session_button,
+            "settings",
+            "Personalizacao e configuracoes",
+        )
+        self.session_button.clicked.connect(self._open_settings_dialog)
+        self.sidebar_layout.addWidget(self.session_button)
 
         self.logout_button = QPushButton("")
         self.logout_button.setObjectName("sidebarFooterButton")
         self.logout_button.setToolTip("Sair")
         self._configure_sidebar_button(self.logout_button, "logout", "Sair")
         self.logout_button.clicked.connect(self.logout_requested.emit)
-        sidebar_layout.addWidget(self.logout_button)
+        self.sidebar_layout.addWidget(self.logout_button)
 
         content = QFrame()
         content.setObjectName("contentPanel")
-        self.content_layout = QVBoxLayout(content)
-        self.content_layout.setContentsMargins(28, 28, 28, 28)
-        self.content_layout.setSpacing(20)
+        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.content_layout = create_grid(spacing=20, margins=(28, 28, 28, 28))
+        content.setLayout(self.content_layout)
 
         self.title_label = QLabel("Dashboard")
         self.title_label.setObjectName("pageTitle")
@@ -426,7 +790,12 @@ class DashboardWindow(QWidget):
 
         self.dashboard_grid_widget = QWidget()
         self.dashboard_grid_widget.setObjectName("dashboardGrid")
-        self.dashboard_grid_layout = QGridLayout(self.dashboard_grid_widget)
+        self.dashboard_grid_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Minimum,
+        )
+        self.dashboard_grid_layout = create_grid(spacing=8)
+        self.dashboard_grid_widget.setLayout(self.dashboard_grid_layout)
         self.dashboard_grid_layout.setSpacing(8)
         self.dashboard_cards: dict[str, DashboardKpiCard] = {}
         self.dashboard_card_order: list[str] = []
@@ -452,10 +821,14 @@ class DashboardWindow(QWidget):
             card.clicked.connect(self.module_selected.emit)
             self.dashboard_cards[key] = card
             self.dashboard_card_order.append(key)
-            self.dashboard_grid_layout.addWidget(card, index // 4, index % 4)
+            self.dashboard_grid_layout.addWidget(card, index // 4, (index % 4) * 3, 1, 3)
 
         self.dashboard_alerts_frame = QFrame()
         self.dashboard_alerts_frame.setObjectName("dashboardAlertsFrame")
+        self.dashboard_alerts_frame.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
         self.dashboard_alerts_layout = QVBoxLayout(self.dashboard_alerts_frame)
         self.dashboard_alerts_layout.setContentsMargins(10, 10, 10, 10)
         self.dashboard_alerts_layout.setSpacing(6)
@@ -478,6 +851,7 @@ class DashboardWindow(QWidget):
 
         self.table = QTableWidget()
         self.table.setObjectName("dataTable")
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setAlternatingRowColors(True)
@@ -490,12 +864,16 @@ class DashboardWindow(QWidget):
         self.table.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.table.setMinimumHeight(220)
         self.table.setShowGrid(False)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._open_record_table_context_menu)
         self.table.itemSelectionChanged.connect(self._handle_table_selection)
 
         self.customer_form_panel = self._build_customer_form()
         self.customer_form_panel.hide()
         self.equipment_form_panel = self._build_equipment_form()
         self.equipment_form_panel.hide()
+        self.tools_form_panel = self._build_tools_form()
+        self.tools_form_panel.hide()
         self.inventory_form_panel = self._build_inventory_form()
         self.inventory_form_panel.hide()
         self.service_order_form_panel = self._build_service_order_form()
@@ -516,9 +894,29 @@ class DashboardWindow(QWidget):
         self.audit_form_panel.hide()
         self.notifications_form_panel = self._build_notifications_form()
         self.notifications_form_panel.hide()
+        for module_panel in (
+            self.equipment_form_panel,
+            self.tools_form_panel,
+            self.settings_form_panel,
+            self.customer_form_panel,
+            self.inventory_form_panel,
+            self.service_order_form_panel,
+            self.sector_form_panel,
+            self.user_form_panel,
+            self.password_reset_form_panel,
+            self.report_form_panel,
+            self.financial_form_panel,
+            self.audit_form_panel,
+            self.notifications_form_panel,
+        ):
+            module_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self.record_list_panel = QFrame()
         self.record_list_panel.setObjectName("recordListPanel")
+        self.record_list_panel.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
         record_list_layout = QVBoxLayout(self.record_list_panel)
         record_list_layout.setContentsMargins(0, 0, 0, 0)
         record_list_layout.setSpacing(7)
@@ -530,6 +928,10 @@ class DashboardWindow(QWidget):
 
         self.generic_form_column = QFrame()
         self.generic_form_column.setObjectName("recordEditorPanel")
+        self.generic_form_column.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Expanding,
+        )
         generic_form_layout = QVBoxLayout(self.generic_form_column)
         generic_form_layout.setContentsMargins(0, 0, 0, 0)
         generic_form_layout.setSpacing(0)
@@ -544,28 +946,66 @@ class DashboardWindow(QWidget):
         generic_form_layout.addWidget(self.audit_form_panel)
         generic_form_layout.addWidget(self.notifications_form_panel)
 
-        self.generic_record_splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.generic_record_splitter.setObjectName("recordModuleSplitter")
-        self.generic_record_splitter.addWidget(self.record_list_panel)
-        self.generic_record_splitter.addWidget(self.generic_form_column)
-        self.generic_record_splitter.setStretchFactor(0, 3)
-        self.generic_record_splitter.setStretchFactor(1, 4)
-        self.generic_record_splitter.setSizes([760, 980])
+        self.record_editor_toggle_button = QPushButton("")
+        self.record_editor_toggle_button.setObjectName("recordEditorToggleButton")
+        self.record_editor_toggle_button.setCheckable(True)
+        self.record_editor_toggle_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.record_editor_toggle_button.setText("E\nd\ni\nt\no\nr")
+        self.record_editor_toggle_button.setToolTip("Abrir editor de registro")
+        self.record_editor_toggle_button.setIcon(
+            build_icon("panel", self.record_editor_icon_color, 18)
+        )
+        self.record_editor_toggle_button.setIconSize(QSize(16, 16))
+        self.record_editor_toggle_button.setFixedSize(42, 132)
+        self.record_editor_toggle_button.toggled.connect(self._set_record_editor_open)
 
-        self.content_layout.addWidget(header_bar)
-        self.content_layout.addWidget(self.dashboard_section_title)
-        self.content_layout.addWidget(self.dashboard_greeting_label)
-        self.content_layout.addWidget(self.dashboard_last_refresh_label)
-        self.content_layout.addWidget(self.dashboard_grid_widget)
-        self.content_layout.addWidget(self.dashboard_alerts_frame)
-        self.content_layout.addWidget(self.generic_record_splitter)
-        self.content_layout.addWidget(self.equipment_form_panel)
-        self.content_layout.addWidget(self.settings_form_panel)
-        self.content_layout.addStretch()
+        self.record_toggle_rail = QFrame()
+        self.record_toggle_rail.setObjectName("recordToggleRail")
+        self.record_toggle_rail.setFixedWidth(50)
+        self.record_toggle_rail.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Expanding,
+        )
+        record_toggle_layout = QVBoxLayout(self.record_toggle_rail)
+        record_toggle_layout.setContentsMargins(0, 4, 0, 0)
+        record_toggle_layout.setSpacing(0)
+        record_toggle_layout.addWidget(
+            self.record_editor_toggle_button,
+            0,
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter,
+        )
+        record_toggle_layout.addStretch()
+
+        self.generic_record_container = QFrame()
+        self.generic_record_container.setObjectName("recordModuleContainer")
+        self.generic_record_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
+        generic_record_layout = QHBoxLayout(self.generic_record_container)
+        generic_record_layout.setContentsMargins(0, 0, 0, 0)
+        generic_record_layout.setSpacing(8)
+        self.generic_form_column.setParent(self.generic_record_container)
+        self.generic_form_column.hide()
+        generic_record_layout.addWidget(self.record_list_panel, 1)
+        generic_record_layout.addWidget(self.record_toggle_rail)
+
+        add_widget(self.content_layout, header_bar, 0)
+        add_widget(self.content_layout, self.dashboard_section_title, 1)
+        add_widget(self.content_layout, self.dashboard_greeting_label, 2)
+        add_widget(self.content_layout, self.dashboard_last_refresh_label, 3)
+        add_widget(self.content_layout, self.dashboard_grid_widget, 4)
+        add_widget(self.content_layout, self.dashboard_alerts_frame, 5)
+        add_widget(self.content_layout, self.generic_record_container, 6)
+        add_widget(self.content_layout, self.equipment_form_panel, 7)
+        add_widget(self.content_layout, self.tools_form_panel, 8)
+        add_widget(self.content_layout, self.settings_form_panel, 9)
+        self._reset_content_row_stretches()
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         scroll_area.setWidget(content)
 
         self.session_footer = QFrame()
@@ -586,15 +1026,23 @@ class DashboardWindow(QWidget):
         self.session_timer.timeout.connect(self._refresh_session_footer)
         self.session_timer.start()
 
+        main_area = QFrame()
+        main_area.setObjectName("mainArea")
+        main_area_layout = QHBoxLayout(main_area)
+        main_area_layout.setContentsMargins(0, 0, 0, 0)
+        main_area_layout.setSpacing(0)
+        main_area_layout.addWidget(self.sidebar)
+        main_area_layout.addWidget(scroll_area, 1)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(scroll_area)
+        layout.addWidget(main_area, 1)
         layout.addWidget(self.session_footer)
         self._apply_compact_density()
         self._install_input_guards()
         self.apply_display_profile()
-        self.sidebar.raise_()
+        self._set_record_editor_open(False)
         self._mark_active_nav(self.active_module_key)
 
     def _configure_sidebar_button(self, button: QPushButton, icon_name: str, tooltip: str) -> None:
@@ -636,6 +1084,15 @@ class DashboardWindow(QWidget):
             button.setIcon(build_icon(icon_name, color))
             button.setIconSize(self.sidebar_icon_size)
 
+        if hasattr(self, "record_editor_toggle_button"):
+            self._refresh_record_editor_button_icon()
+
+    def apply_record_editor_icon_colors(self, inactive_color: str, active_color: str) -> None:
+        self.record_editor_icon_color = inactive_color
+        self.record_editor_active_icon_color = active_color
+        if hasattr(self, "record_editor_toggle_button"):
+            self._refresh_record_editor_button_icon()
+
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.Wheel and isinstance(watched, (QComboBox, QAbstractSpinBox)):
             return True
@@ -650,10 +1107,19 @@ class DashboardWindow(QWidget):
             self._set_dashboard_grid_columns(2)
         elif self.width() >= 1500:
             self._set_dashboard_grid_columns(4)
-        self._position_sidebar()
+        self._position_record_editor()
 
     def apply_display_profile(self, profile: DisplayProfile | None = None) -> None:
         active_profile = profile or detect_display_profile()
+        self.ui_scale_min = active_profile.ui_scale_min
+        self.ui_scale_max = active_profile.ui_scale_max
+        self.ui_scale_value = active_profile.ui_scale
+        if hasattr(self, "settings_ui_scale_slider"):
+            self.configure_ui_scale(
+                active_profile.ui_scale_min,
+                active_profile.ui_scale_max,
+                active_profile.ui_scale,
+            )
         self.sidebar_expanded_width = active_profile.sidebar_width
         self.sidebar_collapsed_width = active_profile.collapsed_sidebar_width
         self.sidebar_margin = active_profile.content_margin
@@ -661,27 +1127,79 @@ class DashboardWindow(QWidget):
             self.sidebar_collapsed_width if self.sidebar_collapsed else self.sidebar_expanded_width
         )
         self.content_layout.setContentsMargins(
-            active_profile.content_margin + active_profile.sidebar_width + 18,
+            active_profile.content_margin,
             active_profile.content_margin,
             active_profile.content_margin,
             active_profile.content_margin,
         )
         self.content_layout.setSpacing(active_profile.section_spacing)
         self.dashboard_grid_layout.setSpacing(max(6, active_profile.section_spacing // 2))
+        self.record_editor_width = int(max(640, min(round(720 * active_profile.ui_scale), 900)))
         self._set_dashboard_grid_columns(active_profile.dashboard_columns)
+        self._sync_active_module_space(self.active_module_key)
         self._position_sidebar()
+        self._position_record_editor()
 
     def _position_sidebar(self) -> None:
         if not hasattr(self, "sidebar"):
             return
 
-        footer_height = self.session_footer.height() if hasattr(self, "session_footer") else 0
-        height = max(280, self.height() - footer_height - (self.sidebar_margin * 2))
         width = (
             self.sidebar_collapsed_width if self.sidebar_collapsed else self.sidebar_expanded_width
         )
-        self.sidebar.setGeometry(self.sidebar_margin, self.sidebar_margin, width, height)
-        self.sidebar.raise_()
+        self.sidebar.setFixedWidth(width)
+
+    def _reset_content_row_stretches(self) -> None:
+        if not hasattr(self, "content_layout"):
+            return
+        for row in range(10):
+            self.content_layout.setRowStretch(row, 0)
+
+    def _sync_active_module_space(self, module_key: str) -> None:
+        self._reset_content_row_stretches()
+        if module_key in self.record_module_keys:
+            self.content_layout.setRowStretch(6, 1)
+            return
+        if module_key == "equipment":
+            self.content_layout.setRowStretch(7, 1)
+            return
+        if module_key == "tools":
+            self.content_layout.setRowStretch(8, 1)
+            return
+        if module_key == "settings":
+            self.content_layout.setRowStretch(9, 1)
+            return
+        if module_key == "dashboard":
+            self.content_layout.setRowStretch(5, 1)
+
+    def _position_record_editor(self) -> None:
+        if not hasattr(self, "generic_form_column"):
+            return
+
+        is_record_module = self.active_module_key in self.record_module_keys
+        is_open = not self.record_editor_collapsed
+        self.generic_form_column.setVisible(is_record_module and is_open)
+        if not is_record_module or not is_open:
+            return
+
+        rail_width = self.record_toggle_rail.width() if hasattr(self, "record_toggle_rail") else 88
+        margin = 10
+        available_width = max(320, self.generic_record_container.width() - rail_width - margin)
+        target_width = max(self.record_editor_width, round(available_width * 0.46))
+        width = min(target_width, available_width)
+        height = max(260, self.generic_record_container.height())
+        x = max(0, self.generic_record_container.width() - rail_width - width - margin)
+        self.generic_form_column.setGeometry(x, 0, width, height)
+        self.generic_form_column.raise_()
+        self.record_toggle_rail.raise_()
+
+    def _refresh_record_editor_button_icon(self) -> None:
+        is_open = not self.record_editor_collapsed
+        icon_color = (
+            self.record_editor_active_icon_color if is_open else self.record_editor_icon_color
+        )
+        self.record_editor_toggle_button.setIcon(build_icon("panel", icon_color, 18))
+        self.record_editor_toggle_button.setIconSize(QSize(16, 16))
 
     def _set_dashboard_grid_columns(self, columns: int) -> None:
         normalized_columns = max(1, min(columns, 4))
@@ -691,11 +1209,14 @@ class DashboardWindow(QWidget):
         while self.dashboard_grid_layout.count():
             self.dashboard_grid_layout.takeAt(0)
 
+        card_span = span_for_items(normalized_columns)
         for index, key in enumerate(self.dashboard_card_order):
             self.dashboard_grid_layout.addWidget(
                 self.dashboard_cards[key],
                 index // normalized_columns,
-                index % normalized_columns,
+                (index % normalized_columns) * card_span,
+                1,
+                card_span,
             )
         self.dashboard_grid_columns = normalized_columns
 
@@ -718,11 +1239,11 @@ class DashboardWindow(QWidget):
             )
         )
         self.session_button.setToolTip(self.session_info_label.text())
-        self.admin_menu_button.setVisible(
-            not self.sidebar_collapsed and bool(self._allowed_admin_modules())
-        )
+        self._sync_module_visibility()
         if "users_total" in self.dashboard_cards:
             self.dashboard_cards["users_total"].setVisible(role_key in {"admin", "manager"})
+        if "customers_total" in self.dashboard_cards:
+            self.dashboard_cards["customers_total"].setVisible(role_key in {"admin", "manager"})
         self._refresh_session_footer()
 
     def set_session_login_at(self, login_at: datetime | None) -> None:
@@ -782,17 +1303,225 @@ class DashboardWindow(QWidget):
         self.sidebar_nav_container.setVisible(not collapsed)
         self.session_button.setVisible(not collapsed)
         self.logout_button.setVisible(not collapsed)
-        self.admin_menu_button.setVisible(not collapsed and bool(self._allowed_admin_modules()))
+        self._sync_module_visibility()
         tooltip = "Expandir menu" if collapsed else "Recolher menu"
         self.sidebar_toggle_button.setToolTip(tooltip)
+        self.sidebar_layout.setContentsMargins(
+            3 if collapsed else 8,
+            3 if collapsed else 8,
+            3 if collapsed else 8,
+            3 if collapsed else 8,
+        )
+        collapsed_button_size = max(24, self.sidebar_collapsed_width - 6)
         self.sidebar_toggle_button.setFixedSize(
-            32 if collapsed else 44,
-            44,
+            collapsed_button_size if collapsed else 44,
+            collapsed_button_size if collapsed else 44,
+        )
+        self.sidebar_toggle_button.setIconSize(
+            QSize(17 if collapsed else 22, 17 if collapsed else 22)
         )
         self.sidebar.setFixedWidth(
             self.sidebar_collapsed_width if collapsed else self.sidebar_expanded_width
         )
         self._position_sidebar()
+
+    def _set_record_editor_open(self, is_open: bool) -> None:
+        self.record_editor_collapsed = not is_open
+        self.record_editor_toggle_button.setToolTip(
+            "Fechar editor de registro" if is_open else "Abrir editor de registro"
+        )
+        self.record_editor_toggle_button.setProperty(
+            "collapsed",
+            "false" if is_open else "true",
+        )
+        self.record_editor_toggle_button.style().unpolish(self.record_editor_toggle_button)
+        self.record_editor_toggle_button.style().polish(self.record_editor_toggle_button)
+        self._refresh_record_editor_button_icon()
+        self._position_record_editor()
+
+    def _open_record_editor(self) -> None:
+        if self.active_module_key not in self.record_module_keys:
+            return
+        if not self.record_editor_toggle_button.isChecked():
+            self.record_editor_toggle_button.setChecked(True)
+            return
+        self._position_record_editor()
+
+    def _open_record_table_context_menu(self, position) -> None:
+        if self.active_module_key not in self.record_module_keys:
+            return
+
+        clicked_item = self.table.itemAt(position)
+        if clicked_item is not None:
+            self.table.selectRow(clicked_item.row())
+
+        menu = QMenu(self)
+        has_selection = bool(self.table.selectedItems())
+
+        if self.active_module_key in {
+            "customers",
+            "inventory",
+            "service_orders",
+            "sectors",
+            "users",
+            "financial",
+        }:
+            new_action = QAction("Novo", self)
+            new_action.triggered.connect(self._new_current_record_from_context)
+            menu.addAction(new_action)
+
+        edit_label = "Resolver" if self.active_module_key == "password_resets" else "Editar"
+        if self.active_module_key in {"audit_logs", "notifications"}:
+            edit_label = "Ver detalhes"
+        edit_action = QAction(edit_label, self)
+        edit_action.setEnabled(has_selection)
+        edit_action.triggered.connect(self._open_record_editor)
+        menu.addAction(edit_action)
+
+        delete_callback = self._delete_callback_for_active_module()
+        if delete_callback is not None:
+            delete_action = QAction("Excluir", self)
+            delete_action.setEnabled(has_selection)
+            delete_action.triggered.connect(delete_callback)
+            menu.addAction(delete_action)
+
+        if self.active_module_key == "financial":
+            menu.addSeparator()
+            paid_action = QAction("Marcar como pago", self)
+            paid_action.setEnabled(has_selection)
+            paid_action.triggered.connect(self._request_financial_mark_paid)
+            menu.addAction(paid_action)
+            cancel_action = QAction("Cancelar lancamento", self)
+            cancel_action.setEnabled(has_selection)
+            cancel_action.triggered.connect(self._request_financial_cancel)
+            menu.addAction(cancel_action)
+
+        if self.active_module_key == "reports":
+            menu.addSeparator()
+            view_action = QAction("Gerar relatorio", self)
+            view_action.triggered.connect(self._request_report_view)
+            menu.addAction(view_action)
+
+        menu.exec(self.table.viewport().mapToGlobal(position))
+
+    def _open_equipment_table_context_menu(self, table: QTableWidget, position) -> None:
+        clicked_item = table.itemAt(position)
+        if clicked_item is not None:
+            table.selectRow(clicked_item.row())
+
+        menu = QMenu(self)
+        if table is self.equipment_table:
+            menu.addAction(
+                self._context_action(
+                    "Novo equipamento",
+                    self._open_equipment_create_dialog,
+                )
+            )
+            menu.addAction(
+                self._context_action(
+                    "Editar equipamento",
+                    self._open_equipment_edit_dialog,
+                    bool(self.selected_equipment_id),
+                )
+            )
+            menu.addAction(
+                self._context_action(
+                    "Excluir equipamento",
+                    self._request_equipment_delete,
+                    bool(self.selected_equipment_id),
+                )
+            )
+            menu.addSeparator()
+            menu.addAction(
+                self._context_action(
+                    "Casos de defeito",
+                    self._request_equipment_defect_cases_open,
+                    bool(self.selected_equipment_id),
+                )
+            )
+        elif table is self.equipment_boards_table:
+            menu.addAction(
+                self._context_action(
+                    "Novo objeto vinculado",
+                    self._request_equipment_board_create,
+                    bool(self.selected_equipment_id),
+                )
+            )
+            menu.addAction(
+                self._context_action(
+                    "Editar objeto",
+                    self._open_equipment_board_edit_dialog,
+                    bool(self.selected_equipment_board_id),
+                )
+            )
+            menu.addAction(
+                self._context_action(
+                    "Excluir objeto",
+                    self._request_equipment_board_delete,
+                    bool(self.selected_equipment_board_id),
+                )
+            )
+        elif table is self.equipment_components_table:
+            menu.addAction(
+                self._context_action(
+                    "Novo componente",
+                    self._request_equipment_component_create,
+                    bool(self.selected_equipment_board_id),
+                )
+            )
+            menu.addAction(
+                self._context_action(
+                    "Editar componente",
+                    self._open_equipment_component_edit_dialog,
+                    bool(self.selected_equipment_component_id),
+                )
+            )
+            menu.addAction(
+                self._context_action(
+                    "Excluir componente",
+                    self._request_equipment_component_delete,
+                    bool(self.selected_equipment_component_id),
+                )
+            )
+
+        if not menu.actions():
+            return
+        menu.exec(table.viewport().mapToGlobal(position))
+
+    def _context_action(
+        self,
+        label: str,
+        callback: Callable[[], None],
+        enabled: bool = True,
+    ) -> QAction:
+        action = QAction(label, self)
+        action.setEnabled(enabled)
+        action.triggered.connect(callback)
+        return action
+
+    def _new_current_record_from_context(self) -> None:
+        clear_callbacks = {
+            "customers": self.clear_customer_form,
+            "inventory": self.clear_inventory_form,
+            "service_orders": self.clear_service_order_form,
+            "sectors": self.clear_sector_form,
+            "users": self.clear_user_form,
+            "password_resets": self.clear_password_reset_form,
+            "reports": self.clear_report_form,
+            "financial": self.clear_financial_form,
+        }
+        callback = clear_callbacks.get(self.active_module_key)
+        if callback is not None:
+            callback()
+        self._open_record_editor()
+
+    def _delete_callback_for_active_module(self) -> Callable[[], None] | None:
+        return {
+            "customers": self._request_customer_delete,
+            "inventory": self._request_inventory_delete,
+            "service_orders": self._request_service_order_delete,
+            "financial": self._request_financial_delete,
+        }.get(self.active_module_key)
 
     def _open_admin_menu(self) -> None:
         allowed_modules = self._allowed_admin_modules()
@@ -852,6 +1581,178 @@ class DashboardWindow(QWidget):
     def _select_admin_module(self, dialog: QDialog, module_key: str) -> None:
         dialog.accept()
         self.module_selected.emit(module_key)
+
+    def _open_settings_dialog(self) -> None:
+        dialog = QDialog(self)
+        dialog.setObjectName("assetDialog")
+        dialog.setWindowTitle("Personalizacao e Configuracoes")
+        dialog.setModal(True)
+        dialog.resize(680, 520)
+
+        settings = dict(self.current_settings)
+        tabs = QTabWidget()
+
+        company_name = self._dialog_line_edit(settings, "company_name", "Minha Assistencia")
+        trade_name = self._dialog_line_edit(settings, "trade_name", "Nome fantasia")
+        document_number = self._dialog_line_edit(settings, "document_number", "Documento")
+        company_email = self._dialog_line_edit(settings, "email", "Email")
+        company_phone = self._dialog_line_edit(settings, "phone", "Telefone")
+        company_tab = QWidget()
+        company_form = QFormLayout(company_tab)
+        company_form.setSpacing(8)
+        company_form.addRow("Empresa", company_name)
+        company_form.addRow("Nome fantasia", trade_name)
+        company_form.addRow("Documento", document_number)
+        company_form.addRow("Email", company_email)
+        company_form.addRow("Telefone", company_phone)
+
+        brand_name = self._dialog_line_edit(settings, "brand_name", "Nome exibido")
+        brand_subtitle = self._dialog_line_edit(settings, "brand_subtitle", "Subtitulo")
+        primary_color = self._dialog_line_edit(settings, "primary_color", "#0969da")
+        theme_combo = QComboBox()
+        theme_combo.addItem("Claro", "light")
+        theme_combo.addItem("Escuro", "dark")
+        self._select_combo_value(theme_combo, str(settings.get("theme") or "dark"))
+        scale_label = QLabel(f"{round(self.ui_scale_value * 100)}%")
+        scale_label.setObjectName("mutedText")
+        scale_slider = QSlider(Qt.Orientation.Horizontal)
+        scale_slider.setMinimum(round(self.ui_scale_min * 100))
+        scale_slider.setMaximum(round(self.ui_scale_max * 100))
+        scale_slider.setValue(round(self.ui_scale_value * 100))
+
+        def handle_scale_change(value: int) -> None:
+            scale_label.setText(f"{value}%")
+            self.ui_scale_changed.emit(value / 100)
+
+        scale_slider.valueChanged.connect(handle_scale_change)
+        appearance_tab = QWidget()
+        appearance_form = QFormLayout(appearance_tab)
+        appearance_form.setSpacing(8)
+        appearance_form.addRow("Nome exibido", brand_name)
+        appearance_form.addRow("Subtitulo", brand_subtitle)
+        appearance_form.addRow("Cor principal", primary_color)
+        appearance_form.addRow("Tema", theme_combo)
+        appearance_form.addRow("Escala", scale_slider)
+        appearance_form.addRow("", scale_label)
+
+        backup_enabled = QCheckBox("Backup automatico ativo")
+        backup_enabled.setChecked(bool(settings.get("backup_enabled", True)))
+        backup_interval = self._dialog_line_edit(settings, "backup_interval_hours", "24")
+        backup_path = self._dialog_line_edit(settings, "backup_storage_path", "backups")
+        backup_last_run = QLabel(str(settings.get("backup_last_run_at") or "Ultimo backup: nunca"))
+        backup_last_run.setObjectName("mutedText")
+        backup_run_button = QPushButton("Executar backup agora")
+        backup_run_button.setObjectName("secondaryButton")
+        backup_run_button.clicked.connect(self.backup_run_requested.emit)
+        backup_tab = QWidget()
+        backup_form = QFormLayout(backup_tab)
+        backup_form.setSpacing(8)
+        backup_form.addRow("", backup_enabled)
+        backup_form.addRow("Intervalo (horas)", backup_interval)
+        backup_form.addRow("Destino", backup_path)
+        backup_form.addRow("Status", backup_last_run)
+        backup_form.addRow("", backup_run_button)
+
+        session_tab = QWidget()
+        session_layout = QVBoxLayout(session_tab)
+        session_layout.setContentsMargins(8, 8, 8, 8)
+        session_summary = create_summary_text(160, 220)
+        session_summary.setPlainText(self.session_footer_label.text())
+        session_layout.addWidget(session_summary)
+
+        tabs.addTab(company_tab, "Empresa")
+        tabs.addTab(appearance_tab, "Aparencia")
+        tabs.addTab(backup_tab, "Backup")
+        tabs.addTab(session_tab, "Sessao")
+
+        status_label = QLabel("")
+        status_label.setObjectName("mutedText")
+        save_button = QPushButton("Salvar")
+        cancel_button = QPushButton("Fechar")
+        cancel_button.setObjectName("secondaryButton")
+        cancel_button.clicked.connect(dialog.reject)
+
+        def save_settings() -> None:
+            values = {
+                "company_name": company_name.text().strip(),
+                "trade_name": trade_name.text().strip() or None,
+                "document_number": document_number.text().strip() or None,
+                "email": company_email.text().strip() or None,
+                "phone": company_phone.text().strip() or None,
+                "brand_name": brand_name.text().strip() or None,
+                "brand_subtitle": brand_subtitle.text().strip() or None,
+                "primary_color": primary_color.text().strip() or "#0969da",
+                "theme": str(theme_combo.currentData() or "light"),
+                "backup_enabled": backup_enabled.isChecked(),
+                "backup_storage_path": backup_path.text().strip(),
+            }
+            if not values["company_name"]:
+                status_label.setObjectName("errorText")
+                status_label.setText("Informe o nome da empresa.")
+                status_label.style().unpolish(status_label)
+                status_label.style().polish(status_label)
+                return
+            if not self._is_hex_color(str(values["primary_color"])):
+                status_label.setObjectName("errorText")
+                status_label.setText("Cor principal deve usar #RRGGBB.")
+                status_label.style().unpolish(status_label)
+                status_label.style().polish(status_label)
+                return
+            try:
+                values["backup_interval_hours"] = int(backup_interval.text().strip())
+            except ValueError:
+                status_label.setObjectName("errorText")
+                status_label.setText("Intervalo de backup deve ser inteiro.")
+                status_label.style().unpolish(status_label)
+                status_label.style().polish(status_label)
+                return
+            if not values["backup_storage_path"]:
+                status_label.setObjectName("errorText")
+                status_label.setText("Informe a pasta de backup.")
+                status_label.style().unpolish(status_label)
+                status_label.style().polish(status_label)
+                return
+            self.settings_update_requested.emit(values)
+            dialog.accept()
+
+        save_button.clicked.connect(save_settings)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(cancel_button)
+        actions.addWidget(save_button)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
+        layout.addWidget(tabs)
+        layout.addWidget(status_label)
+        layout.addLayout(actions)
+        dialog.exec()
+
+    @staticmethod
+    def _dialog_line_edit(
+        settings: dict[str, Any],
+        key: str,
+        placeholder: str,
+    ) -> QLineEdit:
+        line_edit = QLineEdit()
+        line_edit.setPlaceholderText(placeholder)
+        value = settings.get(key)
+        if value is not None:
+            line_edit.setText(str(value))
+        return line_edit
+
+    def _sync_module_visibility(self) -> None:
+        allowed_admin_modules = set(self._allowed_admin_modules())
+        for module_key, button in self.module_buttons.items():
+            if module_key == "customers":
+                visible = self.current_user_role in {"admin", "manager"}
+            elif module_key in self.admin_module_keys:
+                visible = module_key in allowed_admin_modules
+            else:
+                visible = True
+            button.setVisible(not self.sidebar_collapsed and visible)
 
     def _allowed_admin_modules(self) -> tuple[str, ...]:
         if self.current_user_role == "admin":
@@ -1075,11 +1976,6 @@ class DashboardWindow(QWidget):
             button.style().unpolish(button)
             button.style().polish(button)
 
-        admin_active = module_key in self.admin_module_keys
-        self.admin_menu_button.setProperty("active", "true" if admin_active else "false")
-        self.admin_menu_button.style().unpolish(self.admin_menu_button)
-        self.admin_menu_button.style().polish(self.admin_menu_button)
-
     def _build_customer_form(self) -> QFrame:
         panel = QFrame()
         panel.setObjectName("formPanel")
@@ -1138,12 +2034,9 @@ class DashboardWindow(QWidget):
         contact_layout.addWidget(contact_title)
         contact_layout.addLayout(contact_form_layout)
 
-        fields_layout = QGridLayout()
-        fields_layout.setSpacing(12)
-        fields_layout.addWidget(identity_panel, 0, 0)
-        fields_layout.addWidget(contact_panel, 0, 1)
-        fields_layout.setColumnStretch(0, 1)
-        fields_layout.setColumnStretch(1, 1)
+        fields_layout = create_grid(spacing=8)
+        add_widget(fields_layout, identity_panel, 0, 0, 6)
+        add_widget(fields_layout, contact_panel, 0, 6, 6)
 
         self.customer_form_status = QLabel("")
         self.customer_form_status.setObjectName("mutedText")
@@ -1151,6 +2044,11 @@ class DashboardWindow(QWidget):
         self.customer_new_button = QPushButton("Novo")
         self.customer_new_button.setObjectName("secondaryButton")
         self.customer_new_button.clicked.connect(self.clear_customer_form)
+
+        self.customer_delete_button = QPushButton("Excluir")
+        self.customer_delete_button.setObjectName("dangerButton")
+        self.customer_delete_button.setEnabled(False)
+        self.customer_delete_button.clicked.connect(self._request_customer_delete)
 
         self.customer_save_button = QPushButton("Salvar cliente")
         self.customer_save_button.clicked.connect(self._request_customer_save)
@@ -1174,6 +2072,7 @@ class DashboardWindow(QWidget):
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.customer_new_button)
+        actions.addWidget(self.customer_delete_button)
         actions.addWidget(self.customer_save_button)
 
         document_actions = QHBoxLayout()
@@ -1182,8 +2081,8 @@ class DashboardWindow(QWidget):
         document_actions.addWidget(self.customer_upload_document_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addLayout(fields_layout)
         layout.addWidget(details_title)
@@ -1227,6 +2126,24 @@ class DashboardWindow(QWidget):
         self.equipment_remove_button = QPushButton("Remover")
         self.equipment_remove_button.setObjectName("dangerButton")
         self.equipment_remove_button.clicked.connect(self._request_equipment_delete)
+        self.equipment_import_button = QPushButton("Importar CSV")
+        self.equipment_import_button.setObjectName("secondaryButton")
+        self.equipment_import_button.clicked.connect(self._request_equipment_import)
+        self.equipment_export_csv_button = QPushButton("Exportar CSV")
+        self.equipment_export_csv_button.setObjectName("secondaryButton")
+        self.equipment_export_csv_button.clicked.connect(
+            lambda: self._request_equipment_export("csv")
+        )
+        self.equipment_export_pdf_button = QPushButton("Exportar PDF")
+        self.equipment_export_pdf_button.setObjectName("secondaryButton")
+        self.equipment_export_pdf_button.clicked.connect(
+            lambda: self._request_equipment_export("pdf")
+        )
+        self.equipment_defect_cases_button = QPushButton("Casos de Defeito")
+        self.equipment_defect_cases_button.setObjectName("secondaryButton")
+        self.equipment_defect_cases_button.clicked.connect(
+            self._request_equipment_defect_cases_open
+        )
 
         self.equipment_context_label = QLabel("_SELECIONE UM EQUIPAMENTO_")
         self.equipment_context_label.setObjectName("mutedText")
@@ -1286,8 +2203,8 @@ class DashboardWindow(QWidget):
         self.equipment_form_status.setObjectName("mutedText")
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addWidget(
@@ -1300,6 +2217,10 @@ class DashboardWindow(QWidget):
                     self.equipment_new_button,
                     self.equipment_edit_button,
                     self.equipment_remove_button,
+                    self.equipment_import_button,
+                    self.equipment_export_csv_button,
+                    self.equipment_export_pdf_button,
+                    self.equipment_defect_cases_button,
                 ],
             )
         )
@@ -1363,12 +2284,9 @@ class DashboardWindow(QWidget):
         details_layout.addWidget(details_title)
         details_layout.addWidget(summary)
 
-        grid_layout = QGridLayout()
-        grid_layout.setSpacing(10)
-        grid_layout.addLayout(table_layout, 0, 0)
-        grid_layout.addLayout(details_layout, 0, 1)
-        grid_layout.setColumnStretch(0, 3)
-        grid_layout.setColumnStretch(1, 2)
+        grid_layout = create_grid(spacing=10)
+        add_layout(grid_layout, table_layout, 0, 0, 7)
+        add_layout(grid_layout, details_layout, 0, 7, 5)
 
         actions = QHBoxLayout()
         actions.setSpacing(6)
@@ -1397,10 +2315,443 @@ class DashboardWindow(QWidget):
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.setAlternatingRowColors(True)
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        table.customContextMenuRequested.connect(
+            lambda position, source_table=table: self._open_equipment_table_context_menu(
+                source_table,
+                position,
+            )
+        )
         table.verticalHeader().setVisible(False)
         table.horizontalHeader().setStretchLastSection(True)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.setMinimumHeight(minimum_height)
+
+    def _build_tools_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+
+        title = QLabel("CALCULADORAS ELETRICAS")
+        title.setObjectName("pageTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.tools_tabs = QTabWidget()
+        self.tools_tabs.setObjectName("toolsTabs")
+
+        history_title = QLabel("HISTORICO RAPIDO")
+        history_title.setObjectName("formGroupTitle")
+        self.tools_history_text = create_summary_text(76, 96)
+        self.tools_history_text.setPlainText("Os ultimos calculos aparecerao aqui.")
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+        layout.addWidget(title)
+        layout.addWidget(self.tools_tabs, 1)
+        layout.addWidget(history_title)
+        layout.addWidget(self.tools_history_text)
+        return panel
+
+    def render_tools(self, tools: list[dict[str, Any]]) -> None:
+        self._set_active_module("tools")
+        self.current_tools = list(tools)
+        self.tools_tabs.clear()
+        tool_ids = {str(tool.get("id") or "") for tool in tools}
+        if not tool_ids:
+            self.tools_tabs.addTab(
+                self._build_tool_message("Nenhuma ferramenta disponivel."),
+                "Aviso",
+            )
+            return
+        if "ohm" in tool_ids:
+            self.tools_tabs.addTab(self._build_ohm_tool(), "Lei de Ohm")
+        if "power" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Potencia",
+                    [
+                        ("Tensao (V)", "voltage"),
+                        ("Corrente (A)", "current"),
+                        ("Resistencia (ohm)", "resistance"),
+                    ],
+                    self._calculate_power_tool,
+                ),
+                "Potencia",
+            )
+        if "led" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "LED",
+                    [
+                        ("Fonte (V)", "supply"),
+                        ("LED Vf (V)", "forward"),
+                        ("Corrente (mA)", "current_ma"),
+                    ],
+                    self._calculate_led_tool,
+                ),
+                "LED",
+            )
+        if "divider" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Divisor",
+                    [("Vin (V)", "vin"), ("R1 (ohm)", "r1"), ("R2 (ohm)", "r2")],
+                    self._calculate_divider_tool,
+                ),
+                "Divisor",
+            )
+        if "battery" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Bateria",
+                    [
+                        ("Capacidade (mAh)", "capacity"),
+                        ("Consumo (mA)", "load"),
+                        ("Eficiencia (%)", "efficiency"),
+                    ],
+                    self._calculate_battery_tool,
+                ),
+                "Bateria",
+            )
+        if "resistor_color" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Codigo de Cor de Resistores",
+                    [
+                        ("Digito 1", "digit_1"),
+                        ("Digito 2", "digit_2"),
+                        ("Multiplicador", "multiplier"),
+                    ],
+                    self._calculate_resistor_color_tool,
+                ),
+                "Codigo de Cor de Resistores",
+            )
+        if "resistor_assoc" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Assoc. de Resistores",
+                    [("Resistores", "values")],
+                    self._calculate_resistor_assoc_tool,
+                ),
+                "Assoc. de Resistores",
+            )
+        if "awg" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "AWG/mm2",
+                    [("AWG", "awg")],
+                    self._calculate_awg_tool,
+                ),
+                "AWG/mm2",
+            )
+        if "markup" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Markup",
+                    [("Custo", "cost"), ("Margem (%)", "margin")],
+                    self._calculate_markup_tool,
+                ),
+                "Markup",
+            )
+        if "installment" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Parcelamento",
+                    [("Valor", "amount"), ("Parcelas", "installments")],
+                    self._calculate_installment_tool,
+                ),
+                "Parcelamento",
+            )
+        if "sla" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "SLA",
+                    [("Horas contratadas", "hours"), ("Horas consumidas", "used")],
+                    self._calculate_sla_tool,
+                ),
+                "SLA",
+            )
+        if "stock_reorder" in tool_ids:
+            self.tools_tabs.addTab(
+                self._build_generic_tool(
+                    "Reposicao de Estoque",
+                    [("Estoque atual", "current"), ("Minimo", "minimum"), ("Lote", "batch")],
+                    self._calculate_stock_reorder_tool,
+                ),
+                "Reposicao de Estoque",
+            )
+
+    def _build_tool_message(self, message: str) -> QWidget:
+        widget = QWidget()
+        label = QLabel(message)
+        label.setObjectName("mutedText")
+        layout = QVBoxLayout(widget)
+        layout.addWidget(label)
+        layout.addStretch()
+        return widget
+
+    def _build_ohm_tool(self) -> QWidget:
+        widget = QWidget()
+        form_panel = QFrame()
+        form_panel.setObjectName("formSubPanel")
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.addWidget(form_panel)
+        layout.addStretch()
+
+        self.ohm_target_combo = QComboBox()
+        self.ohm_target_combo.addItem("Tensao", "voltage")
+        self.ohm_target_combo.addItem("Corrente", "current")
+        self.ohm_target_combo.addItem("Resistencia", "resistance")
+        self.ohm_voltage_input = QLineEdit()
+        self.ohm_voltage_input.setPlaceholderText("Tensao (V)")
+        self.ohm_current_input = QLineEdit()
+        self.ohm_current_input.setPlaceholderText("Corrente (A)")
+        self.ohm_resistance_input = QLineEdit()
+        self.ohm_resistance_input.setPlaceholderText("Resistencia (ohm)")
+        self.ohm_result = create_summary_text(56, 72)
+        self.ohm_result.setPlainText("")
+
+        form = QFormLayout()
+        form.setSpacing(8)
+        form.addRow("Calcular:", self.ohm_target_combo)
+        form.addRow("Tensao (V):", self.ohm_voltage_input)
+        form.addRow("Corrente (A):", self.ohm_current_input)
+        form.addRow("Resistencia (ohm):", self.ohm_resistance_input)
+
+        calculate_button = QPushButton("Calcular")
+        calculate_button.clicked.connect(self._calculate_ohm_tool)
+
+        panel_layout = QVBoxLayout(form_panel)
+        panel_layout.setContentsMargins(10, 10, 10, 10)
+        panel_layout.setSpacing(8)
+        panel_layout.addLayout(form)
+        panel_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
+        panel_layout.addWidget(self.ohm_result)
+
+        self.ohm_target_combo.currentIndexChanged.connect(self._update_ohm_fields)
+        self._update_ohm_fields()
+        return widget
+
+    def _build_generic_tool(
+        self,
+        title: str,
+        fields: list[tuple[str, str]],
+        calculator: Callable[[dict[str, QLineEdit]], str],
+    ) -> QWidget:
+        widget = QWidget()
+        panel = QFrame()
+        panel.setObjectName("formSubPanel")
+        inputs: dict[str, QLineEdit] = {}
+        form = QFormLayout()
+        form.setSpacing(8)
+        for label, key in fields:
+            input_widget = QLineEdit()
+            input_widget.setPlaceholderText(label)
+            inputs[key] = input_widget
+            form.addRow(f"{label}:", input_widget)
+        result = create_summary_text(56, 72)
+
+        def run_calculation() -> None:
+            try:
+                text = calculator(inputs)
+            except ValueError as exc:
+                text = str(exc)
+            result.setPlainText(text)
+            self._push_tools_history(f"{title}: {text}")
+
+        calculate_button = QPushButton("Calcular")
+        calculate_button.clicked.connect(run_calculation)
+
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(10, 10, 10, 10)
+        panel_layout.setSpacing(8)
+        panel_layout.addLayout(form)
+        panel_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
+        panel_layout.addWidget(result)
+
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.addWidget(panel)
+        layout.addStretch()
+        return widget
+
+    def _update_ohm_fields(self) -> None:
+        target = str(self.ohm_target_combo.currentData() or "voltage")
+        mapping = {
+            "voltage": self.ohm_voltage_input,
+            "current": self.ohm_current_input,
+            "resistance": self.ohm_resistance_input,
+        }
+        placeholders = {
+            "voltage": "Tensao (V)",
+            "current": "Corrente (A)",
+            "resistance": "Resistencia (ohm)",
+        }
+        for key, input_widget in mapping.items():
+            blocked = key == target
+            input_widget.setReadOnly(blocked)
+            input_widget.clear()
+            input_widget.setPlaceholderText(
+                "Bloqueado: sera calculado" if blocked else placeholders[key]
+            )
+
+    def _calculate_ohm_tool(self) -> None:
+        target = str(self.ohm_target_combo.currentData() or "voltage")
+        voltage = self._optional_float(self.ohm_voltage_input.text())
+        current = self._optional_float(self.ohm_current_input.text())
+        resistance = self._optional_float(self.ohm_resistance_input.text())
+        if target == "voltage":
+            if current is None or resistance is None:
+                text = "Informe corrente e resistencia."
+            else:
+                text = f"Tensao: {self._format_number(current * resistance)} V"
+        elif target == "current":
+            if voltage is None or resistance in {None, 0}:
+                text = "Informe tensao e resistencia maior que zero."
+            else:
+                text = f"Corrente: {self._format_number(voltage / resistance)} A"
+        elif voltage is None or current in {None, 0}:
+            text = "Informe tensao e corrente maior que zero."
+        else:
+            text = f"Resistencia: {self._format_number(voltage / current)} ohm"
+        self.ohm_result.setPlainText(text)
+        self._push_tools_history(f"Lei de Ohm: {text}")
+
+    def _calculate_power_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        voltage = self._optional_float(inputs["voltage"].text())
+        current = self._optional_float(inputs["current"].text())
+        resistance = self._optional_float(inputs["resistance"].text())
+        if voltage is not None and current is not None:
+            return f"Potencia: {self._format_number(voltage * current)} W"
+        if current is not None and resistance is not None:
+            return f"Potencia: {self._format_number((current**2) * resistance)} W"
+        if voltage is not None and resistance not in {None, 0}:
+            return f"Potencia: {self._format_number((voltage**2) / resistance)} W"
+        raise ValueError("Informe V/I, I/R ou V/R.")
+
+    def _calculate_led_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        supply = self._required_float(inputs["supply"].text(), "fonte")
+        forward = self._required_float(inputs["forward"].text(), "Vf")
+        current_ma = self._required_float(inputs["current_ma"].text(), "corrente")
+        if supply <= forward or current_ma <= 0:
+            raise ValueError("Fonte deve ser maior que Vf e corrente deve ser positiva.")
+        current = current_ma / 1000
+        resistor = (supply - forward) / current
+        power = current * current * resistor
+        return (
+            f"Resistor: {self._format_number(resistor)} ohm | "
+            f"Potencia: {self._format_number(power)} W"
+        )
+
+    def _calculate_divider_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        vin = self._required_float(inputs["vin"].text(), "Vin")
+        r1 = self._required_float(inputs["r1"].text(), "R1")
+        r2 = self._required_float(inputs["r2"].text(), "R2")
+        if r1 <= 0 or r2 <= 0:
+            raise ValueError("R1 e R2 devem ser maiores que zero.")
+        return f"Vout: {self._format_number(vin * (r2 / (r1 + r2)))} V"
+
+    def _calculate_battery_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        capacity = self._required_float(inputs["capacity"].text(), "capacidade")
+        load = self._required_float(inputs["load"].text(), "consumo")
+        efficiency = self._optional_float(inputs["efficiency"].text()) or 100.0
+        if capacity <= 0 or load <= 0 or efficiency <= 0:
+            raise ValueError("Valores devem ser positivos.")
+        autonomy = (capacity / load) * (efficiency / 100)
+        return f"Autonomia estimada: {self._format_number(autonomy)} h"
+
+    def _calculate_resistor_color_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        digit_1 = int(self._required_float(inputs["digit_1"].text(), "digito 1"))
+        digit_2 = int(self._required_float(inputs["digit_2"].text(), "digito 2"))
+        multiplier = self._required_float(inputs["multiplier"].text(), "multiplicador")
+        if digit_1 < 0 or digit_1 > 9 or digit_2 < 0 or digit_2 > 9:
+            raise ValueError("Digitos devem ficar entre 0 e 9.")
+        return f"Resistencia: {self._format_number(((digit_1 * 10) + digit_2) * multiplier)} ohm"
+
+    def _calculate_resistor_assoc_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        values = [
+            self._required_float(token, "resistor")
+            for token in inputs["values"].text().replace(";", ",").split(",")
+            if token.strip()
+        ]
+        if not values or any(value <= 0 for value in values):
+            raise ValueError("Informe resistores positivos separados por virgula.")
+        series = sum(values)
+        parallel = 1 / sum(1 / value for value in values)
+        return (
+            f"Serie: {self._format_number(series)} ohm | "
+            f"Paralelo: {self._format_number(parallel)} ohm"
+        )
+
+    def _calculate_awg_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        awg = self._required_float(inputs["awg"].text(), "AWG")
+        if awg < -5 or awg > 50:
+            raise ValueError("AWG fora da faixa -5 a 50.")
+        diameter = 0.127 * (92 ** ((36 - awg) / 39))
+        area = (math.pi / 4) * (diameter**2)
+        return (
+            f"Area: {self._format_number(area)} mm2 | "
+            f"Diametro: {self._format_number(diameter)} mm"
+        )
+
+    def _calculate_markup_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        cost = self._required_float(inputs["cost"].text(), "custo")
+        margin = self._required_float(inputs["margin"].text(), "margem")
+        if cost < 0 or margin >= 100:
+            raise ValueError("Custo deve ser positivo e margem menor que 100%.")
+        return f"Preco de venda: R$ {self._format_number(cost / (1 - (margin / 100)))}"
+
+    def _calculate_installment_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        amount = self._required_float(inputs["amount"].text(), "valor")
+        installments = int(self._required_float(inputs["installments"].text(), "parcelas"))
+        if installments <= 0:
+            raise ValueError("Parcelas deve ser maior que zero.")
+        return f"Parcela: R$ {self._format_number(amount / installments)}"
+
+    def _calculate_sla_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        hours = self._required_float(inputs["hours"].text(), "horas contratadas")
+        used = self._required_float(inputs["used"].text(), "horas consumidas")
+        return f"Saldo de SLA: {self._format_number(hours - used)} h"
+
+    def _calculate_stock_reorder_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        current = self._required_float(inputs["current"].text(), "estoque atual")
+        minimum = self._required_float(inputs["minimum"].text(), "minimo")
+        batch = self._optional_float(inputs["batch"].text()) or 1
+        needed = max(0, minimum - current)
+        lots = math.ceil(needed / batch) if batch > 0 else 0
+        return f"Necessidade: {self._format_number(needed)} unidade(s) | Lotes: {lots}"
+
+    def _push_tools_history(self, text: str) -> None:
+        current_lines = [
+            line
+            for line in self.tools_history_text.toPlainText().splitlines()
+            if line.strip() and "ultimos calculos" not in line.lower()
+        ]
+        current_lines.append(text)
+        self.tools_history_text.setPlainText("\n".join(current_lines[-10:]))
+
+    @staticmethod
+    def _optional_float(value: str) -> float | None:
+        text = value.strip().replace(",", ".")
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+    def _required_float(self, value: str, label: str) -> float:
+        parsed = self._optional_float(value)
+        if parsed is None:
+            raise ValueError(f"Informe {label}.")
+        return parsed
+
+    @staticmethod
+    def _format_number(value: float) -> str:
+        if abs(value - round(value)) < 0.000001:
+            return str(int(round(value)))
+        return f"{value:.4f}".rstrip("0").rstrip(".")
 
     def _build_inventory_form(self) -> QFrame:
         panel = QFrame()
@@ -1462,17 +2813,23 @@ class DashboardWindow(QWidget):
         self.inventory_new_button.setObjectName("secondaryButton")
         self.inventory_new_button.clicked.connect(self.clear_inventory_form)
 
+        self.inventory_delete_button = QPushButton("Excluir")
+        self.inventory_delete_button.setObjectName("dangerButton")
+        self.inventory_delete_button.setEnabled(False)
+        self.inventory_delete_button.clicked.connect(self._request_inventory_delete)
+
         self.inventory_save_button = QPushButton("Salvar item")
         self.inventory_save_button.clicked.connect(self._request_inventory_save)
 
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.inventory_new_button)
+        actions.addWidget(self.inventory_delete_button)
         actions.addWidget(self.inventory_save_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(inventory_fields_panel)
         layout.addWidget(self.inventory_stock_status)
@@ -1602,12 +2959,9 @@ class DashboardWindow(QWidget):
         technical_fields_layout.addWidget(technical_fields_title)
         technical_fields_layout.addLayout(technical_form_layout)
 
-        fields_layout = QGridLayout()
-        fields_layout.setSpacing(12)
-        fields_layout.addWidget(record_fields, 0, 0)
-        fields_layout.addWidget(technical_fields, 0, 1)
-        fields_layout.setColumnStretch(0, 1)
-        fields_layout.setColumnStretch(1, 1)
+        fields_layout = create_grid(spacing=8)
+        add_widget(fields_layout, record_fields, 0, 0, 6)
+        add_widget(fields_layout, technical_fields, 0, 6, 6)
 
         self.service_order_form_status = QLabel("")
         self.service_order_form_status.setObjectName("mutedText")
@@ -1631,6 +2985,11 @@ class DashboardWindow(QWidget):
         self.service_order_new_button = QPushButton("Nova")
         self.service_order_new_button.setObjectName("secondaryButton")
         self.service_order_new_button.clicked.connect(self.clear_service_order_form)
+
+        self.service_order_delete_button = QPushButton("Excluir")
+        self.service_order_delete_button.setObjectName("dangerButton")
+        self.service_order_delete_button.setEnabled(False)
+        self.service_order_delete_button.clicked.connect(self._request_service_order_delete)
 
         self.service_order_save_button = QPushButton("Salvar OS")
         self.service_order_save_button.clicked.connect(self._request_service_order_save)
@@ -1682,6 +3041,7 @@ class DashboardWindow(QWidget):
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.service_order_new_button)
+        actions.addWidget(self.service_order_delete_button)
         actions.addWidget(self.service_order_save_button)
 
         flow_actions = QHBoxLayout()
@@ -1700,8 +3060,8 @@ class DashboardWindow(QWidget):
         document_actions.addWidget(self.service_order_upload_document_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(self.service_order_workflow_hint)
         layout.addWidget(workflow_panel)
@@ -1766,8 +3126,8 @@ class DashboardWindow(QWidget):
         actions.addWidget(self.sector_save_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(sector_fields_panel)
         layout.addWidget(sector_details_title)
@@ -1842,12 +3202,9 @@ class DashboardWindow(QWidget):
         security_panel_layout.addWidget(security_title)
         security_panel_layout.addLayout(security_layout)
 
-        fields_layout = QGridLayout()
-        fields_layout.setSpacing(12)
-        fields_layout.addWidget(identity_panel, 0, 0)
-        fields_layout.addWidget(security_panel, 0, 1)
-        fields_layout.setColumnStretch(0, 1)
-        fields_layout.setColumnStretch(1, 1)
+        fields_layout = create_grid(spacing=8)
+        add_widget(fields_layout, identity_panel, 0, 0, 7)
+        add_widget(fields_layout, security_panel, 0, 7, 5)
 
         user_details_title = QLabel("DADOS COMPLETOS")
         user_details_title.setObjectName("formGroupTitle")
@@ -1874,8 +3231,8 @@ class DashboardWindow(QWidget):
         actions.addWidget(self.user_save_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addLayout(fields_layout)
         layout.addWidget(user_details_title)
@@ -1930,8 +3287,8 @@ class DashboardWindow(QWidget):
         actions.addWidget(self.password_reset_resolve_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(password_reset_panel)
         layout.addWidget(password_reset_details_title)
@@ -1975,6 +3332,14 @@ class DashboardWindow(QWidget):
         self.settings_theme_combo = QComboBox()
         self.settings_theme_combo.addItem("Claro", "light")
         self.settings_theme_combo.addItem("Escuro", "dark")
+
+        self.settings_ui_scale_label = QLabel("100%")
+        self.settings_ui_scale_label.setObjectName("mutedText")
+        self.settings_ui_scale_slider = QSlider(Qt.Orientation.Horizontal)
+        self.settings_ui_scale_slider.setMinimum(82)
+        self.settings_ui_scale_slider.setMaximum(118)
+        self.settings_ui_scale_slider.setValue(100)
+        self.settings_ui_scale_slider.valueChanged.connect(self._handle_ui_scale_slider_changed)
 
         self.settings_backup_enabled_checkbox = QCheckBox("Backup automatico ativo")
         self.settings_backup_enabled_checkbox.setChecked(True)
@@ -2025,6 +3390,10 @@ class DashboardWindow(QWidget):
         operation_layout = QFormLayout()
         operation_layout.setSpacing(10)
         operation_layout.addRow("Tema", self.settings_theme_combo)
+        scale_row = QHBoxLayout()
+        scale_row.addWidget(self.settings_ui_scale_slider, 1)
+        scale_row.addWidget(self.settings_ui_scale_label)
+        operation_layout.addRow("Escala da interface", scale_row)
         operation_layout.addRow("", self.settings_backup_enabled_checkbox)
         operation_layout.addRow("Intervalo", self.settings_backup_interval_input)
         operation_layout.addRow("Destino", self.settings_backup_path_input)
@@ -2039,13 +3408,10 @@ class DashboardWindow(QWidget):
         operation_panel_layout.addWidget(operation_title)
         operation_panel_layout.addLayout(operation_layout)
 
-        fields_layout = QGridLayout()
-        fields_layout.setSpacing(12)
-        fields_layout.addWidget(company_panel, 0, 0)
-        fields_layout.addWidget(branding_panel, 0, 1)
-        fields_layout.addWidget(operation_panel, 1, 0, 1, 2)
-        fields_layout.setColumnStretch(0, 1)
-        fields_layout.setColumnStretch(1, 1)
+        fields_layout = create_grid(spacing=8)
+        add_widget(fields_layout, company_panel, 0, 0, 6)
+        add_widget(fields_layout, branding_panel, 0, 6, 6)
+        add_widget(fields_layout, operation_panel, 1)
 
         settings_details_title = QLabel("RESUMO OPERACIONAL")
         settings_details_title.setObjectName("formGroupTitle")
@@ -2067,8 +3433,8 @@ class DashboardWindow(QWidget):
         actions.addWidget(self.settings_save_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addLayout(fields_layout)
         layout.addWidget(settings_details_title)
@@ -2144,8 +3510,8 @@ class DashboardWindow(QWidget):
         actions.addWidget(self.report_export_pdf_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(report_filter_panel)
         layout.addWidget(self.report_summary_label)
@@ -2209,6 +3575,10 @@ class DashboardWindow(QWidget):
         self.financial_cancel_button = QPushButton("Cancelar")
         self.financial_cancel_button.setObjectName("secondaryButton")
         self.financial_cancel_button.clicked.connect(self._request_financial_cancel)
+        self.financial_delete_button = QPushButton("Excluir")
+        self.financial_delete_button.setObjectName("dangerButton")
+        self.financial_delete_button.setEnabled(False)
+        self.financial_delete_button.clicked.connect(self._request_financial_delete)
         self.financial_save_button = QPushButton("Salvar lancamento")
         self.financial_save_button.clicked.connect(self._request_financial_save)
 
@@ -2217,11 +3587,12 @@ class DashboardWindow(QWidget):
         actions.addWidget(self.financial_new_button)
         actions.addWidget(self.financial_paid_button)
         actions.addWidget(self.financial_cancel_button)
+        actions.addWidget(self.financial_delete_button)
         actions.addWidget(self.financial_save_button)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(form_panel)
         layout.addWidget(details_title)
@@ -2238,8 +3609,8 @@ class DashboardWindow(QWidget):
         title.setObjectName("sectionTitle")
         self.audit_full_summary = create_summary_text()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(self.audit_full_summary)
         return panel
@@ -2251,8 +3622,8 @@ class DashboardWindow(QWidget):
         title.setObjectName("sectionTitle")
         self.notifications_full_summary = create_summary_text()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(self.notifications_full_summary)
         return panel
@@ -2269,6 +3640,7 @@ class DashboardWindow(QWidget):
         self.customer_active_checkbox.setChecked(True)
         self.customer_full_summary.setPlainText("Novo registro de cliente.")
         self.customer_form_status.setText("Novo cliente.")
+        self.customer_delete_button.setEnabled(False)
         self.table.clearSelection()
 
     def set_customer_form_status(self, message: str, is_error: bool = False) -> None:
@@ -2278,8 +3650,10 @@ class DashboardWindow(QWidget):
         self.customer_form_status.style().polish(self.customer_form_status)
 
     def set_customer_form_loading(self, is_loading: bool) -> None:
+        has_selection = bool(self.selected_customer_id)
         self.customer_save_button.setEnabled(not is_loading)
         self.customer_new_button.setEnabled(not is_loading)
+        self.customer_delete_button.setEnabled(not is_loading and has_selection)
         self.customer_save_button.setText("Salvando..." if is_loading else "Salvar cliente")
 
     def set_customer_document_upload_loading(self, is_loading: bool) -> None:
@@ -2331,6 +3705,12 @@ class DashboardWindow(QWidget):
         self.equipment_new_button.setEnabled(not is_loading)
         self.equipment_edit_button.setEnabled(not is_loading and bool(self.selected_equipment_id))
         self.equipment_remove_button.setEnabled(not is_loading and bool(self.selected_equipment_id))
+        self.equipment_defect_cases_button.setEnabled(
+            not is_loading and bool(self.selected_equipment_id)
+        )
+        self.equipment_import_button.setEnabled(not is_loading)
+        self.equipment_export_csv_button.setEnabled(not is_loading)
+        self.equipment_export_pdf_button.setEnabled(not is_loading)
         self.equipment_new_button.setText("Salvando..." if is_loading else "+Equipamento")
 
     def set_equipment_object_loading(self, is_loading: bool) -> None:
@@ -2360,6 +3740,7 @@ class DashboardWindow(QWidget):
         self.inventory_full_summary.setPlainText("Novo registro de estoque.")
         self._set_inventory_stock_status("Status: novo item.", "info")
         self.inventory_form_status.setText("Novo item de estoque.")
+        self.inventory_delete_button.setEnabled(False)
         self.table.clearSelection()
 
     def set_inventory_form_status(self, message: str, is_error: bool = False) -> None:
@@ -2369,8 +3750,10 @@ class DashboardWindow(QWidget):
         self.inventory_form_status.style().polish(self.inventory_form_status)
 
     def set_inventory_form_loading(self, is_loading: bool) -> None:
+        has_selection = bool(self.selected_inventory_item_id)
         self.inventory_save_button.setEnabled(not is_loading)
         self.inventory_new_button.setEnabled(not is_loading)
+        self.inventory_delete_button.setEnabled(not is_loading and has_selection)
         self.inventory_save_button.setText("Salvando..." if is_loading else "Salvar item")
 
     def _set_inventory_stock_status(self, message: str, level: str) -> None:
@@ -2453,6 +3836,7 @@ class DashboardWindow(QWidget):
         self._update_service_order_workflow(None)
         self._set_service_order_flow_buttons_enabled(False)
         self.service_order_form_status.setText("Nova ordem de servico.")
+        self.service_order_delete_button.setEnabled(False)
         self.table.clearSelection()
 
     def set_service_order_form_status(self, message: str, is_error: bool = False) -> None:
@@ -2464,6 +3848,9 @@ class DashboardWindow(QWidget):
     def set_service_order_form_loading(self, is_loading: bool) -> None:
         self.service_order_save_button.setEnabled(not is_loading)
         self.service_order_new_button.setEnabled(not is_loading)
+        self.service_order_delete_button.setEnabled(
+            not is_loading and bool(self.selected_service_order_id)
+        )
         if self.selected_service_order_id:
             self._set_service_order_flow_buttons_enabled(not is_loading)
         self.service_order_save_button.setText("Salvando..." if is_loading else "Salvar OS")
@@ -2471,6 +3858,9 @@ class DashboardWindow(QWidget):
     def set_service_order_action_loading(self, is_loading: bool) -> None:
         self.service_order_save_button.setEnabled(not is_loading)
         self.service_order_new_button.setEnabled(not is_loading)
+        self.service_order_delete_button.setEnabled(
+            not is_loading and bool(self.selected_service_order_id)
+        )
         self._set_service_order_flow_buttons_enabled(
             not is_loading and bool(self.selected_service_order_id)
         )
@@ -2595,6 +3985,7 @@ class DashboardWindow(QWidget):
         )
 
     def clear_settings_form(self) -> None:
+        self.current_settings = {}
         self.settings_company_name_input.clear()
         self.settings_trade_name_input.clear()
         self.settings_document_input.clear()
@@ -2667,6 +4058,7 @@ class DashboardWindow(QWidget):
         self.financial_form_status.setText("Novo lancamento.")
         self.financial_paid_button.setEnabled(False)
         self.financial_cancel_button.setEnabled(False)
+        self.financial_delete_button.setEnabled(False)
         self.table.clearSelection()
 
     def set_financial_form_status(self, message: str, is_error: bool = False) -> None:
@@ -2681,6 +4073,7 @@ class DashboardWindow(QWidget):
         self.financial_new_button.setEnabled(not is_loading)
         self.financial_paid_button.setEnabled(not is_loading and has_selection)
         self.financial_cancel_button.setEnabled(not is_loading and has_selection)
+        self.financial_delete_button.setEnabled(not is_loading and has_selection)
         self.financial_save_button.setText("Salvando..." if is_loading else "Salvar lancamento")
 
     def clear_audit_form(self) -> None:
@@ -2717,13 +4110,14 @@ class DashboardWindow(QWidget):
         self.dashboard_last_refresh_label.setVisible(module_key == "dashboard")
         self.dashboard_grid_widget.setVisible(module_key == "dashboard")
         self.dashboard_alerts_frame.setVisible(module_key == "dashboard")
-        self.generic_record_splitter.setVisible(module_key in self.record_module_keys)
-        self.data_title.setVisible(module_key not in {"dashboard", "equipment"})
-        self.data_description.setVisible(module_key not in {"dashboard", "equipment"})
+        self.generic_record_container.setVisible(module_key in self.record_module_keys)
+        self.data_title.setVisible(module_key not in {"dashboard", "equipment", "tools"})
+        self.data_description.setVisible(module_key not in {"dashboard", "equipment", "tools"})
         self.module_search_input.setVisible(module_key in self.searchable_module_keys)
         self.table.setVisible(module_key in self.searchable_module_keys or module_key == "reports")
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
+        self.tools_form_panel.setVisible(module_key == "tools")
         self.inventory_form_panel.setVisible(module_key == "inventory")
         self.service_order_form_panel.setVisible(module_key == "service_orders")
         self.sector_form_panel.setVisible(module_key == "sectors")
@@ -2734,6 +4128,14 @@ class DashboardWindow(QWidget):
         self.financial_form_panel.setVisible(module_key == "financial")
         self.audit_form_panel.setVisible(module_key == "audit_logs")
         self.notifications_form_panel.setVisible(module_key == "notifications")
+        self._sync_active_module_space(module_key)
+        if module_key in self.record_module_keys:
+            self.record_editor_toggle_button.blockSignals(True)
+            self.record_editor_toggle_button.setChecked(False)
+            self.record_editor_toggle_button.blockSignals(False)
+            self._set_record_editor_open(False)
+        else:
+            self.generic_form_column.hide()
         if module_key == "customers":
             self.clear_customer_form()
         elif module_key == "equipment":
@@ -2758,6 +4160,7 @@ class DashboardWindow(QWidget):
             self.clear_audit_form()
         elif module_key == "notifications":
             self.clear_notifications_form()
+        self._position_record_editor()
 
     def _handle_table_selection(self) -> None:
         if self.active_module_key not in {
@@ -2835,6 +4238,7 @@ class DashboardWindow(QWidget):
         self.customer_document_path_input.clear()
         self.customer_active_checkbox.setChecked(bool(customer.get("is_active", True)))
         self.customer_full_summary.setPlainText(self._format_customer_full_summary(customer))
+        self.customer_delete_button.setEnabled(True)
         self.set_customer_form_status("Editando cliente selecionado.")
 
     def _request_customer_save(self) -> None:
@@ -2871,6 +4275,18 @@ class DashboardWindow(QWidget):
             return
 
         self.customer_create_requested.emit(payload)
+
+    def _request_customer_delete(self) -> None:
+        if not self.selected_customer_id:
+            self.set_customer_form_status("Selecione um cliente.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir cliente",
+            "Excluir o cliente selecionado?",
+        ):
+            return
+        self.customer_delete_requested.emit(self.selected_customer_id)
 
     def _select_customer_document(self) -> None:
         file_path, _selected_filter = QFileDialog.getOpenFileName(
@@ -3108,16 +4524,80 @@ class DashboardWindow(QWidget):
         if not equipment:
             self.set_equipment_form_status("Selecione um equipamento.", is_error=True)
             return
-        if (
-            QMessageBox.question(
-                self,
-                "Remover equipamento",
-                "Remover o equipamento selecionado?",
-            )
-            != QMessageBox.StandardButton.Yes
+        if not confirm_destructive_action(
+            self,
+            "Remover equipamento",
+            "Remover o equipamento selecionado?",
         ):
             return
         self.equipment_delete_requested.emit(str(equipment["id"]))
+
+    def _request_equipment_import(self) -> None:
+        file_path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Importar Equipamentos - CSV",
+            "",
+            "CSV (*.csv)",
+        )
+        if not file_path:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Importar Equipamentos",
+            "Deseja substituir os equipamentos atuais? Escolha Nao para apenas adicionar.",
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Cancel:
+            return
+        replace = answer == QMessageBox.StandardButton.Yes
+        self.equipment_import_requested.emit(file_path, replace)
+
+    def _request_equipment_export(self, export_format: str) -> None:
+        extension = export_format.lower()
+        file_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Exportar Equipamentos",
+            f"equipamentos.{extension}",
+            f"{extension.upper()} (*.{extension})",
+        )
+        if not file_path:
+            return
+        if not file_path.lower().endswith(f".{extension}"):
+            file_path = f"{file_path}.{extension}"
+        self.equipment_export_requested.emit(export_format, file_path)
+
+    def _request_equipment_defect_cases_open(self) -> None:
+        equipment = self._selected_equipment()
+        if not equipment:
+            self.set_equipment_form_status("Selecione um equipamento.", is_error=True)
+            return
+        self.equipment_defect_cases_requested.emit(str(equipment["id"]))
+
+    def open_equipment_defect_cases_dialog(
+        self,
+        equipment_id: str,
+        list_cases: Callable[[str], list[dict[str, Any]]],
+        create_case: Callable[[dict[str, Any]], dict[str, Any]],
+        update_case: Callable[[str, dict[str, Any]], dict[str, Any]],
+        delete_case: Callable[[str], None],
+    ) -> None:
+        equipment = self._find_by_id(self.current_rows, equipment_id)
+        if not equipment:
+            self.set_equipment_form_status("Equipamento nao encontrado.", is_error=True)
+            return
+        dialog = EquipmentDefectCasesDialog(
+            equipment,
+            list_cases=list_cases,
+            create_case=create_case,
+            update_case=update_case,
+            delete_case=delete_case,
+            parent=self,
+        )
+        dialog.exec()
+        self.equipment_form_status.setText("Casos de defeito atualizados.")
 
     def _request_equipment_board_create(self) -> None:
         equipment = self._selected_equipment()
@@ -3159,13 +4639,10 @@ class DashboardWindow(QWidget):
         if not equipment or not board:
             self.set_equipment_form_status("Selecione um objeto vinculado.", is_error=True)
             return
-        if (
-            QMessageBox.question(
-                self,
-                "Remover objeto",
-                "Remover o objeto vinculado selecionado?",
-            )
-            != QMessageBox.StandardButton.Yes
+        if not confirm_destructive_action(
+            self,
+            "Remover objeto",
+            "Remover o objeto vinculado selecionado?",
         ):
             return
         self.equipment_board_delete_requested.emit(str(equipment["id"]), str(board["id"]))
@@ -3221,13 +4698,10 @@ class DashboardWindow(QWidget):
         if not equipment or not board or not component:
             self.set_equipment_form_status("Selecione um componente.", is_error=True)
             return
-        if (
-            QMessageBox.question(
-                self,
-                "Remover componente",
-                "Remover o componente selecionado?",
-            )
-            != QMessageBox.StandardButton.Yes
+        if not confirm_destructive_action(
+            self,
+            "Remover componente",
+            "Remover o componente selecionado?",
         ):
             return
         self.equipment_component_delete_requested.emit(
@@ -3242,6 +4716,7 @@ class DashboardWindow(QWidget):
         has_component = bool(self.selected_equipment_component_id)
         self.equipment_edit_button.setEnabled(has_equipment)
         self.equipment_remove_button.setEnabled(has_equipment)
+        self.equipment_defect_cases_button.setEnabled(has_equipment)
         self.board_add_button.setEnabled(has_equipment)
         self.board_edit_button.setEnabled(has_board)
         self.board_remove_button.setEnabled(has_board)
@@ -3454,6 +4929,7 @@ class DashboardWindow(QWidget):
             )
         else:
             self._set_inventory_stock_status("Estoque em nivel operacional.", "info")
+        self.inventory_delete_button.setEnabled(True)
         self.set_inventory_form_status("Editando item selecionado.")
 
     def _request_inventory_save(self) -> None:
@@ -3486,6 +4962,18 @@ class DashboardWindow(QWidget):
             return
 
         self.inventory_create_requested.emit(payload)
+
+    def _request_inventory_delete(self) -> None:
+        if not self.selected_inventory_item_id:
+            self.set_inventory_form_status("Selecione um item.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir item",
+            "Excluir o item de estoque selecionado?",
+        ):
+            return
+        self.inventory_delete_requested.emit(self.selected_inventory_item_id)
 
     def _populate_service_order_form(self, service_order: dict[str, Any]) -> None:
         self.selected_service_order_id = str(service_order["id"])
@@ -3531,6 +5019,7 @@ class DashboardWindow(QWidget):
             self._format_service_order_documents(service_order)
         )
         self._set_service_order_flow_buttons_enabled(True)
+        self.service_order_delete_button.setEnabled(True)
         self.set_service_order_form_status("Editando ordem de servico selecionada.")
 
     def _request_service_order_save(self) -> None:
@@ -3572,6 +5061,18 @@ class DashboardWindow(QWidget):
             "problem_description": problem_description,
         }
         self.service_order_create_requested.emit(payload)
+
+    def _request_service_order_delete(self) -> None:
+        if not self.selected_service_order_id:
+            self.set_service_order_form_status("Selecione uma OS.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir OS",
+            "Excluir a ordem de servico selecionada?",
+        ):
+            return
+        self.service_order_delete_requested.emit(self.selected_service_order_id)
 
     def _request_service_order_diagnosis(self) -> None:
         if not self.selected_service_order_id:
@@ -3861,6 +5362,7 @@ class DashboardWindow(QWidget):
         self.financial_full_summary.setPlainText(self._format_financial_summary(record))
         self.financial_paid_button.setEnabled(str(record.get("status") or "") == "open")
         self.financial_cancel_button.setEnabled(str(record.get("status") or "") == "open")
+        self.financial_delete_button.setEnabled(True)
         self.set_financial_form_status("Editando lancamento selecionado.")
 
     def _request_financial_save(self) -> None:
@@ -3899,7 +5401,20 @@ class DashboardWindow(QWidget):
             return
         self.financial_cancel_requested.emit(self.selected_financial_record_id)
 
+    def _request_financial_delete(self) -> None:
+        if not self.selected_financial_record_id:
+            self.set_financial_form_status("Selecione um lancamento.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir lancamento",
+            "Excluir o lancamento financeiro selecionado?",
+        ):
+            return
+        self.financial_delete_requested.emit(self.selected_financial_record_id)
+
     def _populate_settings_form(self, settings: dict[str, Any]) -> None:
+        self.current_settings = dict(settings)
         self.settings_company_name_input.setText(str(settings.get("company_name") or ""))
         self.settings_trade_name_input.setText(str(settings.get("trade_name") or ""))
         self.settings_document_input.setText(str(settings.get("document_number") or ""))
@@ -3923,6 +5438,22 @@ class DashboardWindow(QWidget):
         self.settings_full_summary.setPlainText(self._format_settings_summary(settings))
         self.apply_branding(settings)
         self.set_settings_form_status("Configuracoes carregadas.")
+
+    def configure_ui_scale(self, minimum: float, maximum: float, current: float) -> None:
+        self.ui_scale_min = minimum
+        self.ui_scale_max = maximum
+        self.ui_scale_value = current
+        self.settings_ui_scale_slider.blockSignals(True)
+        self.settings_ui_scale_slider.setMinimum(round(minimum * 100))
+        self.settings_ui_scale_slider.setMaximum(round(maximum * 100))
+        self.settings_ui_scale_slider.setValue(round(current * 100))
+        self.settings_ui_scale_slider.blockSignals(False)
+        self.settings_ui_scale_label.setText(f"{round(current * 100)}%")
+
+    def _handle_ui_scale_slider_changed(self, value: int) -> None:
+        self.ui_scale_value = value / 100
+        self.settings_ui_scale_label.setText(f"{value}%")
+        self.ui_scale_changed.emit(self.ui_scale_value)
 
     def _request_settings_save(self) -> None:
         company_name = self.settings_company_name_input.text().strip()
@@ -4227,6 +5758,7 @@ class DashboardWindow(QWidget):
             f"Subtitulo: {self._format_value(settings.get('brand_subtitle')) or '-'}",
             f"Cor principal: {self._format_value(settings.get('primary_color')) or '#0969da'}",
             f"Tema: {theme}",
+            f"Escala da interface: {round(self.ui_scale_value * 100)}%",
             f"Backup automatico: {backup_enabled}",
             f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
             f"Destino: {self._format_value(settings.get('backup_storage_path')) or 'backups'}",

@@ -4,6 +4,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from frontend.app.core.display import detect_display_profile
+from frontend.app.core.grid import add_widget, create_grid
 
 
 class PasswordChangeWindow(QWidget):
@@ -58,14 +59,15 @@ class PasswordChangeWindow(QWidget):
         panel_layout.addWidget(self.error_label)
         panel_layout.addWidget(self.submit_button)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            round(96 * profile.ui_scale),
-            round(64 * profile.ui_scale),
-            round(96 * profile.ui_scale),
-            round(64 * profile.ui_scale),
+        margin_x = round(64 * profile.ui_scale)
+        margin_y = round(48 * profile.ui_scale)
+        layout = create_grid(
+            spacing=round(16 * profile.ui_scale),
+            margins=(margin_x, margin_y, margin_x, margin_y),
         )
-        layout.addWidget(panel)
+        self.setLayout(layout)
+        add_widget(layout, panel, 0, 3, 6)
+        layout.setRowStretch(0, 1)
 
     def set_loading(self, is_loading: bool) -> None:
         self.submit_button.setEnabled(not is_loading)

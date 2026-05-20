@@ -15,6 +15,8 @@ BRAND_SUBTITLE_SETTING_KEY = "ui.brand_subtitle"
 PRIMARY_COLOR_SETTING_KEY = "ui.primary_color"
 DEFAULT_THEME = "light"
 DEFAULT_PRIMARY_COLOR = "#0969da"
+DEFAULT_LOGIN_BRAND_NAME = "PRO CORE"
+DEFAULT_LOGIN_BRAND_SUBTITLE = "Gestao completa para assistencias tecnicas"
 
 
 def get_system_settings(db: Session, company_id: uuid.UUID) -> dict:
@@ -118,6 +120,29 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
         "brand_subtitle": get_setting_value(db, company_id, BRAND_SUBTITLE_SETTING_KEY) or None,
         "primary_color": primary_color,
         "theme": theme,
+    }
+
+
+def get_login_appearance_settings(db: Session) -> dict:
+    statement = (
+        select(Company)
+        .where(Company.is_active.is_(True))
+        .order_by(Company.created_at.asc(), Company.id.asc())
+    )
+    company = db.scalars(statement).first()
+    if company is None:
+        return {
+            "brand_name": DEFAULT_LOGIN_BRAND_NAME,
+            "brand_subtitle": DEFAULT_LOGIN_BRAND_SUBTITLE,
+            "primary_color": DEFAULT_PRIMARY_COLOR,
+            "theme": DEFAULT_THEME,
+        }
+
+    appearance = get_appearance_settings(db, company.id)
+    return {
+        **appearance,
+        "brand_name": appearance["brand_name"] or DEFAULT_LOGIN_BRAND_NAME,
+        "brand_subtitle": appearance["brand_subtitle"] or DEFAULT_LOGIN_BRAND_SUBTITLE,
     }
 
 

@@ -6,8 +6,13 @@ from PySide6.QtWidgets import QApplication
 type Rgb = tuple[int, int, int]
 
 
-def apply_theme(app: QApplication, theme: str = "light", primary_color: str | None = None) -> None:
-    app.setFont(QFont("Segoe UI", 9))
+def apply_theme(
+    app: QApplication,
+    theme: str = "light",
+    primary_color: str | None = None,
+    ui_scale: float = 1.0,
+) -> None:
+    app.setFont(QFont("Segoe UI", max(8, min(round(9 * ui_scale), 12))))
     is_dark = theme == "dark"
     default_color = "#1f6feb" if is_dark else "#0969da"
     accent_color = _safe_hex_color(primary_color, default_color)
@@ -153,6 +158,7 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QWidget#loginWindow,
         QWidget#passwordWindow,
         QWidget#dashboardWindow,
+        QMessageBox,
         QDialog#adminMenuDialog,
         QDialog#assetDialog {{
             background-color: {palette["app_bg"]};
@@ -210,6 +216,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLabel#errorText {{
             color: {palette["danger"]};
         }}
+        QMessageBox QLabel {{
+            color: {palette["text"]};
+            background-color: transparent;
+        }}
         QLabel#statusBanner {{
             background-color: {palette["status_bg"]};
             border-color: {palette["primary"]};
@@ -259,8 +269,9 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QFrame#formPanel,
         QFrame#recordEditorPanel {{
-            background-color: transparent;
-            border: 0;
+            background-color: {palette["surface"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 6px;
         }}
         QFrame#moduleCard,
         QFrame#dashboardKpiCard,
@@ -268,6 +279,15 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QFrame#recordListPanel {{
             background-color: {palette["surface"]};
             border-color: {palette["line"]};
+        }}
+        QFrame#recordModuleContainer {{
+            background-color: transparent;
+            border: 0;
+        }}
+        QFrame#recordToggleRail {{
+            background-color: {palette["surface"]};
+            border-left: 1px solid {palette["line"]};
+            border-right: 1px solid {palette["line"]};
         }}
         QFrame#headerBar {{
             background-color: transparent;
@@ -303,17 +323,13 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QFrame#contentPanel {{
             background-color: {palette["surface"]};
             border: 1px solid {palette["line"]};
-            border-radius: 8px;
-        }}
-        QSplitter#recordModuleSplitter::handle {{
-            background-color: {palette["line"]};
-            margin: 4px 8px;
-            width: 1px;
+            border-radius: 6px;
         }}
         QFrame#sidebar {{
-            background-color: {palette["primary"]};
-            border: 1px solid {palette["primary_hover"]};
-            border-radius: 8px;
+            background-color: {palette["sidebar"]};
+            border: 0;
+            border-right: 1px solid {palette["line"]};
+            border-radius: 0;
         }}
         QFrame#sidebarSeparator {{
             background-color: rgba(255, 255, 255, 0.24);
@@ -328,21 +344,44 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLineEdit,
         QComboBox,
         QTreeWidget,
-        QTextEdit {{
+        QTextEdit,
+        QTabWidget::pane {{
             background-color: {palette["input_bg"]};
             border-color: {palette["line"]};
-            border-radius: 5px;
+            border-radius: 4px;
             color: {palette["text"]};
-            min-height: 30px;
-            padding: 4px 9px;
+            min-height: 26px;
+            padding: 3px 8px;
+        }}
+        QTabBar::tab {{
+            background-color: transparent;
+            color: {palette["muted"]};
+            min-height: 28px;
+            padding: 4px 10px;
+            border-bottom: 2px solid transparent;
+        }}
+        QTabBar::tab:selected {{
+            color: {palette["text"]};
+            border-bottom-color: {palette["primary"]};
+        }}
+        QSlider::groove:horizontal {{
+            height: 4px;
+            background-color: {palette["line"]};
+            border-radius: 2px;
+        }}
+        QSlider::handle:horizontal {{
+            width: 16px;
+            margin: -6px 0;
+            background-color: {palette["primary"]};
+            border-radius: 8px;
         }}
         QLineEdit#moduleSearch,
         QLineEdit#sectionSearch {{
             background-color: {palette["input_bg"]};
             border: 1px solid {palette["line"]};
-            border-radius: 5px;
-            padding: 5px 9px;
-            min-height: 28px;
+            border-radius: 4px;
+            padding: 4px 8px;
+            min-height: 26px;
             color: {palette["text"]};
         }}
         QLineEdit#moduleSearch:focus,
@@ -362,10 +401,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QPushButton {{
             background-color: {palette["primary"]};
             color: {palette["button_text"]};
-            border-radius: 5px;
+            border-radius: 4px;
             font-weight: 700;
-            min-height: 28px;
-            padding: 5px 10px;
+            min-height: 26px;
+            padding: 4px 9px;
         }}
         QPushButton:hover {{
             background-color: {palette["primary_hover"]};
@@ -391,17 +430,40 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QPushButton#sidebarToggleButton,
         QPushButton#sidebarFooterButton {{
             background-color: rgba(255, 255, 255, 0.14);
-            border-radius: 8px;
+            border-radius: 6px;
             padding: 0;
+            text-align: center;
         }}
         QPushButton#sidebarToggleButton:hover,
         QPushButton#sidebarFooterButton:hover {{
             background-color: rgba(255, 255, 255, 0.22);
         }}
+        QPushButton#recordEditorToggleButton {{
+            background-color: {palette["surface_alt"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 6px;
+            color: {palette["primary"]};
+            padding: 0;
+            text-align: center;
+        }}
+        QPushButton#recordEditorToggleButton:hover {{
+            background-color: {palette["primary_subtle"]};
+            border-color: {palette["primary"]};
+        }}
+        QPushButton#recordEditorToggleButton[collapsed="false"] {{
+            background-color: {palette["primary"]};
+            border-color: {palette["primary"]};
+            color: {palette["button_text"]};
+        }}
         QPushButton#navButton {{
             background-color: transparent;
-            border-radius: 8px;
+            border-radius: 6px;
             padding: 0;
+            text-align: center;
+            min-width: 42px;
+            max-width: 42px;
+            min-height: 42px;
+            max-height: 42px;
         }}
         QPushButton#navButton:hover {{
             background-color: rgba(255, 255, 255, 0.16);
@@ -431,7 +493,7 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-bottom-color: {palette["line"]};
             color: {palette["text"]};
             font-weight: 700;
-            min-height: 30px;
+            min-height: 26px;
         }}
         QScrollBar::handle:vertical {{
             background-color: {palette["line"]};

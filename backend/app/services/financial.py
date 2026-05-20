@@ -100,3 +100,8 @@ def cancel_financial_record(db: Session, record: FinancialRecord) -> FinancialRe
     db.commit()
     db.refresh(record)
     return record
+
+
+def delete_financial_record(db: Session, record: FinancialRecord) -> None:
+    db.delete(record)
+    db.commit()

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.models.customer import Customer
+from backend.app.models.equipment import Equipment
+from backend.app.models.service_order import ServiceOrder
 from backend.app.schemas.customer import CustomerCreate, CustomerUpdate
 from backend.app.services.crud import apply_updates
 
@@ -42,3 +45,30 @@ def update_customer(db: Session, customer: Customer, payload: CustomerUpdate) ->
     db.refresh(customer)
     return customer
 
+
+def delete_customer(db: Session, company_id: uuid.UUID, customer: Customer) -> None:
+    service_order_count = db.scalar(
+        select(func.count())
+        .select_from(ServiceOrder)
+        .where(
+            ServiceOrder.company_id == company_id,
+            ServiceOrder.customer_id == customer.id,
+        )
+    )
+    if service_order_count:
+        raise ValueError("Cliente possui ordens de servico vinculadas.")
+
+    db.execute(
+        update(Equipment)
+        .where(
+            Equipment.company_id == company_id,
+            Equipment.customer_id == customer.id,
+        )
+        .values(customer_id=None)
+    )
+    db.delete(customer)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise ValueError("Cliente possui vinculos que impedem a exclusao.") from exc

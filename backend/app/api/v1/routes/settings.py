@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -16,18 +18,22 @@ from backend.app.schemas.configuration import (
 from backend.app.services.backup import run_database_backup
 from backend.app.services.configuration import (
     get_appearance_settings,
+    get_login_appearance_settings,
     get_system_settings,
     update_system_settings,
 )
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 admin_user = require_roles(UserRole.ADMIN)
+CurrentUser = Annotated[User, Depends(get_current_user)]
+AdminUser = Annotated[User, Depends(admin_user)]
+DatabaseSession = Annotated[Session, Depends(get_db)]
 
 
 @router.get("/appearance", response_model=AppearanceSettingsResponse)
 def get_appearance(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: CurrentUser,
+    db: DatabaseSession,
 ) -> AppearanceSettingsResponse:
     try:
         return get_appearance_settings(db, current_user.company_id)
@@ -35,10 +41,15 @@ def get_appearance(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
+@router.get("/login-appearance", response_model=AppearanceSettingsResponse)
+def get_login_appearance(db: DatabaseSession) -> AppearanceSettingsResponse:
+    return get_login_appearance_settings(db)
+
+
 @router.get("", response_model=SystemSettingsResponse)
 def get_settings(
-    current_user: User = Depends(admin_user),
-    db: Session = Depends(get_db),
+    current_user: AdminUser,
+    db: DatabaseSession,
 ) -> SystemSettingsResponse:
     try:
         return get_system_settings(db, current_user.company_id)
@@ -49,8 +60,8 @@ def get_settings(
 @router.patch("", response_model=SystemSettingsResponse)
 def update_settings(
     payload: SystemSettingsUpdate,
-    current_user: User = Depends(admin_user),
-    db: Session = Depends(get_db),
+    current_user: AdminUser,
+    db: DatabaseSession,
 ) -> SystemSettingsResponse:
     try:
         return update_system_settings(db, current_user.company_id, payload)
@@ -60,8 +71,8 @@ def update_settings(
 
 @router.post("/backup/run", response_model=BackupRunResponse)
 def run_backup(
-    current_user: User = Depends(admin_user),
-    db: Session = Depends(get_db),
+    current_user: AdminUser,
+    db: DatabaseSession,
 ) -> BackupRunResponse:
     try:
         return run_database_backup(db, current_user.company_id)

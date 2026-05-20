@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from frontend.app.core.display import build_display_profile
+from frontend.app.core.icons import build_app_icon, build_icon
 from frontend.app.themes.styles import build_theme_palette
 
 
@@ -10,10 +11,11 @@ def test_display_profile_detects_compact_monitor() -> None:
     assert profile.compact is True
     assert profile.should_maximize is True
     assert profile.dashboard_columns == 2
-    assert 62 <= profile.sidebar_width <= 78
-    assert 40 <= profile.collapsed_sidebar_width <= 48
+    assert 58 <= profile.sidebar_width <= 74
+    assert 32 <= profile.collapsed_sidebar_width <= 38
     assert 14 <= profile.content_margin <= 28
     assert 10 <= profile.section_spacing <= 18
+    assert profile.ui_scale_min <= profile.ui_scale <= profile.ui_scale_max
 
 
 def test_display_profile_uses_wide_layout_for_large_monitor() -> None:
@@ -22,6 +24,7 @@ def test_display_profile_uses_wide_layout_for_large_monitor() -> None:
     assert profile.compact is False
     assert profile.should_maximize is False
     assert profile.dashboard_columns == 4
+    assert build_display_profile(1920, 1080, 1.21).ui_scale == 1.21
 
 
 def test_theme_palette_derives_background_from_primary_color() -> None:
@@ -45,3 +48,8 @@ def test_theme_palette_keeps_selection_readable() -> None:
 
     assert palette["selection_bg"] == "#0f766e"
     assert palette["selection_text"] in {"#111827", "#ffffff"}
+
+
+def test_application_icons_are_available() -> None:
+    assert not build_icon("dashboard").isNull()
+    assert not build_app_icon().isNull()

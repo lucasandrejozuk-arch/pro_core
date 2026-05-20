@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from backend.app.models.enums import UserRole
 
-
 ROLE_PERMISSIONS: dict[UserRole, tuple[str, ...]] = {
     UserRole.ADMIN: (
         "dashboard:view",
@@ -10,6 +9,7 @@ ROLE_PERMISSIONS: dict[UserRole, tuple[str, ...]] = {
         "customers:*",
         "equipment:*",
         "inventory:*",
+        "tools:*",
         "financial:*",
         "reports:*",
         "users:*",
@@ -24,6 +24,7 @@ ROLE_PERMISSIONS: dict[UserRole, tuple[str, ...]] = {
         "customers:*",
         "equipment:*",
         "inventory:*",
+        "tools:view",
         "financial:*",
         "reports:view",
         "users:sector",
@@ -34,9 +35,9 @@ ROLE_PERMISSIONS: dict[UserRole, tuple[str, ...]] = {
     UserRole.TECHNICIAN: (
         "dashboard:view",
         "service_orders:assigned",
-        "customers:view",
         "equipment:view",
         "inventory:view",
+        "tools:view",
     ),
     UserRole.CUSTOMER: (
         "customer_portal:view",

@@ -23,6 +23,7 @@ def test_login_returns_token_and_user_data(client: TestClient, admin_user: User)
     assert body["must_change_password"] is True
     assert body["user"]["email"] == "admin@example.com"
     assert body["user"]["role"] == "admin"
+    assert body["user"]["sector_name"] == "Administrativo"
     assert "service_orders:*" in body["user"]["permissions"]
 
 
@@ -81,3 +82,22 @@ def test_login_rejects_invalid_password(client: TestClient, admin_user: User) ->
     )
 
     assert response.status_code == 401
+
+
+def test_login_rate_limits_repeated_invalid_passwords(
+    client: TestClient,
+    admin_user: User,
+) -> None:
+    for _ in range(5):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": admin_user.email, "password": "wrong"},
+        )
+        assert response.status_code == 401
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_user.email, "password": "wrong"},
+    )
+
+    assert response.status_code == 429

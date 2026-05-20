@@ -1,11 +1,10 @@
 """Database models."""
 
+from backend.app.models.audit import AuditLog
 from backend.app.models.company import Company
 from backend.app.models.configuration import AppSetting, BackupPolicy
 from backend.app.models.customer import Customer
 from backend.app.models.document import DocumentAttachment
-from backend.app.models.equipment import Equipment, EquipmentBoard, EquipmentBoardComponent
-from backend.app.models.audit import AuditLog
 from backend.app.models.enums import (
     BudgetItemType,
     DocumentType,
@@ -17,6 +16,12 @@ from backend.app.models.enums import (
     ServiceOrderPriority,
     ServiceOrderStatus,
     UserRole,
+)
+from backend.app.models.equipment import (
+    Equipment,
+    EquipmentBoard,
+    EquipmentBoardComponent,
+    EquipmentDefectCase,
 )
 from backend.app.models.financial import FinancialRecord
 from backend.app.models.inventory import InventoryItem
@@ -42,6 +47,7 @@ __all__ = [
     "Equipment",
     "EquipmentBoard",
     "EquipmentBoardComponent",
+    "EquipmentDefectCase",
     "FinancialRecord",
     "FinancialRecordStatus",
     "FinancialRecordType",

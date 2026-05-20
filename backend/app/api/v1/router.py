@@ -15,6 +15,7 @@ from backend.app.api.v1.routes import (
     sectors,
     service_orders,
     settings,
+    tools,
     users,
 )
 
@@ -33,4 +34,5 @@ api_router.include_router(reports.router)
 api_router.include_router(sectors.router)
 api_router.include_router(service_orders.router)
 api_router.include_router(settings.router)
+api_router.include_router(tools.router)
 api_router.include_router(users.router)

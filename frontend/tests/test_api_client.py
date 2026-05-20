@@ -316,6 +316,32 @@ def test_equipment_delete_methods_send_delete_requests() -> None:
     ]
 
 
+def test_business_delete_methods_send_delete_requests() -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "DELETE"
+        assert request.headers["Authorization"] == "Bearer token"
+        paths.append(request.url.path)
+        return httpx.Response(204)
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.delete_customer("token", "customer-id") is None
+    assert client.delete_inventory_item("token", "item-id") is None
+    assert client.delete_service_order("token", "os-id") is None
+    assert client.delete_financial_record("token", "record-id") is None
+    assert paths == [
+        "/api/v1/customers/customer-id",
+        "/api/v1/inventory/item-id",
+        "/api/v1/service-orders/os-id",
+        "/api/v1/financial-records/record-id",
+    ]
+
+
 def test_equipment_nested_update_methods_send_patch_requests() -> None:
     payload = {"unit_price": "12.50"}
     paths: list[str] = []
@@ -345,6 +371,67 @@ def test_equipment_nested_update_methods_send_patch_requests() -> None:
         "/api/v1/equipment/equipment-id/boards/board-id",
         "/api/v1/equipment/equipment-id/boards/board-id/components/component-id",
     ]
+
+
+def test_equipment_import_export_and_defect_case_methods(tmp_path) -> None:
+    csv_path = tmp_path / "equipment.csv"
+    csv_path.write_text("Tipo;Marca\nFonte;Siemens\n", encoding="utf-8")
+    expected_paths = [
+        ("GET", "/api/v1/equipment/export"),
+        ("POST", "/api/v1/equipment/import"),
+        ("GET", "/api/v1/equipment/equipment-id/defect-cases"),
+        ("POST", "/api/v1/equipment/equipment-id/defect-cases"),
+        ("PATCH", "/api/v1/equipment/equipment-id/defect-cases/case-id"),
+        ("DELETE", "/api/v1/equipment/equipment-id/defect-cases/case-id"),
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        method, path = expected_paths.pop(0)
+        assert request.method == method
+        assert request.url.path == path
+        assert request.headers["Authorization"] == "Bearer token"
+        if path.endswith("/export"):
+            assert request.url.params["format"] == "csv"
+            return httpx.Response(200, content=b"Tipo\nFonte\n")
+        if path.endswith("/import"):
+            assert request.url.params["replace"] == "false"
+            assert b"equipment.csv" in request.content
+            return httpx.Response(200, json={"processed_rows": 1})
+        if method == "GET":
+            assert request.url.params["query"] == "falha"
+            return httpx.Response(200, json=[{"id": "case-id"}])
+        if method == "POST":
+            assert json.loads(request.content)["title"] == "Falha"
+            return httpx.Response(201, json={"id": "case-id", "title": "Falha"})
+        if method == "PATCH":
+            assert json.loads(request.content)["solution"] == "OK"
+            return httpx.Response(200, json={"id": "case-id", "solution": "OK"})
+        return httpx.Response(204)
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.export_equipment("token", "csv") == b"Tipo\nFonte\n"
+    assert client.import_equipment("token", str(csv_path))["processed_rows"] == 1
+    defect_cases = client.list_equipment_defect_cases("token", "equipment-id", "falha")
+    created_case = client.create_equipment_defect_case(
+        "token",
+        "equipment-id",
+        {"title": "Falha"},
+    )
+    updated_case = client.update_equipment_defect_case(
+        "token",
+        "equipment-id",
+        "case-id",
+        {"solution": "OK"},
+    )
+    assert defect_cases[0]["id"] == "case-id"
+    assert created_case["id"] == "case-id"
+    assert updated_case["solution"] == "OK"
+    assert client.delete_equipment_defect_case("token", "equipment-id", "case-id") is None
+    assert expected_paths == []
 
 
 def test_create_inventory_item_posts_payload() -> None:
@@ -650,6 +737,31 @@ def test_get_appearance_settings_returns_payload() -> None:
     assert response["brand_name"] == "Pro Assist"
 
 
+def test_get_login_appearance_settings_is_public() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/settings/login-appearance"
+        assert "Authorization" not in request.headers
+        return httpx.Response(
+            200,
+            json={
+                "brand_name": "Pro Assist",
+                "brand_subtitle": "Laboratorio tecnico",
+                "primary_color": "#0f766e",
+                "theme": "dark",
+            },
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.get_login_appearance_settings()
+
+    assert response["brand_subtitle"] == "Laboratorio tecnico"
+
+
 def test_update_settings_patches_payload() -> None:
     payload = {
         "company_name": "Assistencia Atualizada",
@@ -730,6 +842,21 @@ def test_financial_and_admin_lists_call_expected_endpoints() -> None:
     assert client.list_financial_records("token") == []
     assert client.list_audit_logs("token") == []
     assert client.list_notifications("token") == []
+
+
+def test_list_tools_calls_tools_endpoint() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/tools"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[{"id": "ohm", "name": "Lei de Ohm"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.list_tools("token")[0]["id"] == "ohm"
 
 
 def test_create_financial_record_posts_payload() -> None:

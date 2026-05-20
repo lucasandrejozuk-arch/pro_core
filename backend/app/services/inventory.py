@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.models.inventory import InventoryItem
+from backend.app.models.service_order import ServiceOrderBudgetItem
 from backend.app.schemas.inventory import InventoryItemCreate, InventoryItemUpdate
 from backend.app.services.crud import apply_updates
 
@@ -54,3 +56,16 @@ def update_inventory_item(
     db.refresh(item)
     return item
 
+
+def delete_inventory_item(db: Session, item: InventoryItem) -> None:
+    db.execute(
+        update(ServiceOrderBudgetItem)
+        .where(ServiceOrderBudgetItem.inventory_item_id == item.id)
+        .values(inventory_item_id=None)
+    )
+    db.delete(item)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise ValueError("Item possui vinculos que impedem a exclusao.") from exc

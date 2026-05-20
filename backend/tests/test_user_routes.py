@@ -75,7 +75,7 @@ def test_admin_can_create_update_list_and_reset_user_password(
             "full_name": "Tecnico Novo",
             "email": "tecnico.novo@example.com",
             "role": "technician",
-            "password": "Temp123",
+            "password": "Temp1234",
         },
     )
     assert create_response.status_code == 201
@@ -129,7 +129,7 @@ def test_manager_cannot_create_admin_user(
             "full_name": "Admin Indevido",
             "email": "admin.indevido@example.com",
             "role": "admin",
-            "password": "Temp123",
+            "password": "Temp1234",
         },
     )
 
@@ -152,12 +152,34 @@ def test_admin_can_assign_user_to_company_sector(
             "email": "tecnico.setor@example.com",
             "role": "technician",
             "sector_id": str(sector.id),
-            "password": "Temp123",
+            "password": "Temp1234",
         },
     )
 
     assert response.status_code == 201
     assert response.json()["sector_id"] == str(sector.id)
+
+
+def test_admin_created_without_sector_uses_administrativo_sector(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/api/v1/users",
+        headers=auth_headers,
+        json={
+            "full_name": "Admin Setor Padrao",
+            "email": "admin.setor@example.com",
+            "role": "admin",
+            "password": "AdminTemp123",
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["role"] == "admin"
+    assert body["sector_id"] is not None
+    assert body["sector_name"] == "Administrativo"
 
 
 def test_manager_creates_and_lists_only_technicians_from_own_sector(
@@ -184,7 +206,7 @@ def test_manager_creates_and_lists_only_technicians_from_own_sector(
             "email": "tecnico.local@example.com",
             "role": "technician",
             "sector_id": str(other_sector.id),
-            "password": "Temp123",
+            "password": "Temp1234",
         },
     )
 

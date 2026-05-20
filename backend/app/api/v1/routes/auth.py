@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import get_current_user
+from backend.app.core.config import get_settings
 from backend.app.core.permissions import permissions_for_role
+from backend.app.core.rate_limit import login_rate_limiter
 from backend.app.core.security import create_access_token
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -24,16 +28,38 @@ from backend.app.services.users import authenticate_user, change_user_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+DatabaseSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(request: Request, payload: LoginRequest, db: DatabaseSession) -> TokenResponse:
+    settings = get_settings()
+    client_host = request.client.host if request.client else "unknown"
+    rate_limit_key = f"{client_host}:{payload.email}"
+    if login_rate_limiter.is_limited(
+        key=rate_limit_key,
+        max_attempts=settings.pro_core_login_rate_limit_attempts,
+        window_seconds=settings.pro_core_login_rate_limit_window_seconds,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Try again later.",
+        )
+
     user = authenticate_user(db, payload.email, payload.password)
     if user is None:
+        login_rate_limiter.record_failure(
+            key=rate_limit_key,
+            window_seconds=settings.pro_core_login_rate_limit_window_seconds,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    login_rate_limiter.clear(rate_limit_key)
 
     access_token = create_access_token(
         subject=str(user.id),
@@ -56,7 +82,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 @router.post("/password-reset-requests", response_model=PasswordResetRequestPublicResponse)
 def request_password_reset(
     payload: PasswordResetRequestCreate,
-    db: Session = Depends(get_db),
+    db: DatabaseSession,
 ) -> PasswordResetRequestPublicResponse:
     create_password_reset_request(db, payload.email)
     return PasswordResetRequestPublicResponse(
@@ -65,7 +91,7 @@ def request_password_reset(
 
 
 @router.get("/me", response_model=UserProfileResponse)
-def me(current_user: User = Depends(get_current_user)) -> UserProfileResponse:
+def me(current_user: CurrentUser) -> UserProfileResponse:
     profile = UserProfileResponse.model_validate(current_user)
     profile.permissions = permissions_for_role(current_user.role)
     return profile
@@ -74,8 +100,8 @@ def me(current_user: User = Depends(get_current_user)) -> UserProfileResponse:
 @router.post("/change-password", response_model=UserProfileResponse)
 def change_password(
     payload: PasswordChangeRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: CurrentUser,
+    db: DatabaseSession,
 ) -> User:
     try:
         return change_user_password(

@@ -40,11 +40,15 @@ class Equipment(ModelBase, Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
-    company: Mapped["Company"] = relationship(back_populates="equipment")
-    customer: Mapped["Customer"] = relationship(back_populates="equipment")
-    service_orders: Mapped[list["ServiceOrder"]] = relationship(back_populates="equipment")
-    documents: Mapped[list["DocumentAttachment"]] = relationship(back_populates="equipment")
-    boards: Mapped[list["EquipmentBoard"]] = relationship(
+    company: Mapped[Company] = relationship(back_populates="equipment")
+    customer: Mapped[Customer] = relationship(back_populates="equipment")
+    service_orders: Mapped[list[ServiceOrder]] = relationship(back_populates="equipment")
+    documents: Mapped[list[DocumentAttachment]] = relationship(back_populates="equipment")
+    boards: Mapped[list[EquipmentBoard]] = relationship(
+        back_populates="equipment",
+        cascade="all, delete-orphan",
+    )
+    defect_cases: Mapped[list[EquipmentDefectCase]] = relationship(
         back_populates="equipment",
         cascade="all, delete-orphan",
     )
@@ -73,11 +77,12 @@ class EquipmentBoard(ModelBase, Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
-    equipment: Mapped["Equipment"] = relationship(back_populates="boards")
-    components: Mapped[list["EquipmentBoardComponent"]] = relationship(
+    equipment: Mapped[Equipment] = relationship(back_populates="boards")
+    components: Mapped[list[EquipmentBoardComponent]] = relationship(
         back_populates="board",
         cascade="all, delete-orphan",
     )
+    defect_cases: Mapped[list[EquipmentDefectCase]] = relationship(back_populates="board")
 
 
 class EquipmentBoardComponent(ModelBase, Base):
@@ -103,4 +108,35 @@ class EquipmentBoardComponent(ModelBase, Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
-    board: Mapped["EquipmentBoard"] = relationship(back_populates="components")
+    board: Mapped[EquipmentBoard] = relationship(back_populates="components")
+
+
+class EquipmentDefectCase(ModelBase, Base):
+    __tablename__ = "equipment_defect_cases"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    equipment_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("equipment.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    board_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("equipment_boards.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    symptom: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    root_cause: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    solution: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+
+    equipment: Mapped[Equipment] = relationship(back_populates="defect_cases")
+    board: Mapped[EquipmentBoard | None] = relationship(back_populates="defect_cases")

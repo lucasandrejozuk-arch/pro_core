@@ -16,6 +16,7 @@ from backend.app.schemas.inventory import (
 )
 from backend.app.services.inventory import (
     create_inventory_item,
+    delete_inventory_item,
     get_inventory_item,
     list_inventory_items,
     update_inventory_item,
@@ -68,3 +69,18 @@ def update_inventory_record(
 
     return update_inventory_item(db, item, payload)
 
+
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_inventory_record(
+    item_id: uuid.UUID,
+    current_user: User = Depends(inventory_user),
+    db: Session = Depends(get_db),
+) -> None:
+    item = get_inventory_item(db, current_user.company_id, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found.")
+
+    try:
+        delete_inventory_item(db, item)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

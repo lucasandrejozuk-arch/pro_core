@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from PySide6.QtCore import QEvent
+from PySide6.QtWidgets import QMessageBox
 
 from frontend.app.core.display import build_display_profile
+from frontend.app.core.grid import GRID_COLUMNS
 from frontend.app.screens.dashboard import DashboardWindow, EquipmentAssetDialog
 
 
@@ -53,6 +55,41 @@ def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:
     assert not window.customer_form_panel.isHidden()
 
 
+def test_sidebar_is_fixed_in_main_layout(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    main_area = window.layout().itemAt(0).widget()
+    assert main_area.objectName() == "mainArea"
+    assert main_area.layout().itemAt(0).widget() is window.sidebar
+    assert main_area.layout().itemAt(1).widget().inherits("QScrollArea")
+    assert window.sidebar.parentWidget() is main_area
+
+
+def test_dashboard_content_uses_12_column_grid(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    assert window.content_layout.columnCount() == GRID_COLUMNS
+    assert all(window.content_layout.columnStretch(column) == 1 for column in range(GRID_COLUMNS))
+    assert window.content_layout.getItemPosition(0) == (0, 0, 1, GRID_COLUMNS)
+    assert window.content_layout.rowStretch(5) == 1
+    assert window.content_layout.rowStretch(6) == 0
+    assert window.content_layout.rowStretch(10) == 0
+
+    window.render_rows("Clientes", [], [("Nome", "name")], "customers")
+    assert window.content_layout.rowStretch(6) == 1
+    assert window.content_layout.rowStretch(7) == 0
+
+    window._set_dashboard_grid_columns(4)
+    assert window.dashboard_grid_layout.getItemPosition(0) == (0, 0, 1, 3)
+    assert window.dashboard_grid_layout.getItemPosition(1) == (0, 3, 1, 3)
+
+    window._set_dashboard_grid_columns(2)
+    assert window.dashboard_grid_layout.getItemPosition(0) == (0, 0, 1, 6)
+    assert window.dashboard_grid_layout.getItemPosition(1) == (0, 6, 1, 6)
+
+
 def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
@@ -77,8 +114,9 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
         "customers",
     )
 
-    assert not window.generic_record_splitter.isHidden()
-    assert window.generic_record_splitter.count() == 2
+    assert not window.generic_record_container.isHidden()
+    assert not window.record_toggle_rail.isHidden()
+    assert window.generic_form_column.isHidden()
     assert window.module_search_input.placeholderText() == "BUSCAR CLIENTES..."
 
     window.module_search_input.setText("bruno")
@@ -86,6 +124,51 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     assert window.table.rowCount() == 1
     assert window.current_rows[0]["id"] == "customer-2"
     assert "Bruno Cliente" in window.customer_full_summary.toPlainText()
+
+
+def test_record_editor_button_opens_floating_side_panel(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.render_rows(
+        "Clientes",
+        [{"id": "1", "name": "Cliente"}],
+        [("Nome", "name")],
+        "customers",
+    )
+
+    assert window.record_editor_collapsed is True
+    window.record_editor_toggle_button.setChecked(True)
+
+    assert not window.generic_form_column.isHidden()
+    assert window.record_editor_toggle_button.property("collapsed") == "false"
+    assert window.generic_form_column.parentWidget() is window.generic_record_container
+    assert window.generic_form_column.width() >= min(window.record_editor_width, 520)
+    assert window.record_editor_toggle_button.text() == "E\nd\ni\nt\no\nr"
+    assert window.record_editor_toggle_button.height() > window.record_editor_toggle_button.width()
+    assert window.record_toggle_rail.width() <= 50
+
+    window.record_editor_toggle_button.setChecked(False)
+
+    assert window.record_editor_collapsed is True
+    assert window.generic_form_column.isHidden()
+
+
+def test_record_table_context_actions_open_editor_and_clear_form(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.render_rows(
+        "Clientes",
+        [{"id": "customer-id", "name": "Cliente", "email": "c@e.com", "phone": "(11) 99999-0000"}],
+        [("Nome", "name")],
+        "customers",
+    )
+    window._populate_customer_form(window.current_rows[0])
+
+    window._new_current_record_from_context()
+
+    assert window.selected_customer_id is None
+    assert not window.generic_form_column.isHidden()
+    assert window.record_editor_toggle_button.isChecked()
 
 
 def test_visual_density_is_compact_after_polish(qtbot) -> None:
@@ -111,7 +194,100 @@ def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
         }
     )
 
-    assert window.admin_menu_button.isHidden()
+    for module_key in window.admin_module_keys:
+        assert window.module_buttons[module_key].isHidden()
+
+
+def test_customer_module_is_hidden_for_technician(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.set_user(
+        {
+            "full_name": "Tecnico",
+            "email": "tecnico@example.com",
+            "role": "technician",
+        }
+    )
+
+    assert window.module_buttons["customers"].isHidden()
+    assert window.dashboard_cards["customers_total"].isHidden()
+
+
+def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    monkeypatch.setattr(
+        "frontend.app.screens.dashboard.confirm_destructive_action",
+        lambda *args, **kwargs: True,
+    )
+    emitted: list[tuple[str, str]] = []
+    window.customer_delete_requested.connect(lambda value: emitted.append(("customer", value)))
+    window.inventory_delete_requested.connect(lambda value: emitted.append(("inventory", value)))
+    window.service_order_delete_requested.connect(
+        lambda value: emitted.append(("service_order", value))
+    )
+    window.financial_delete_requested.connect(lambda value: emitted.append(("financial", value)))
+
+    window.render_rows(
+        "Clientes",
+        [{"id": "customer-id", "name": "Cliente", "email": "c@e.com", "phone": "(11) 99999-0000"}],
+        [("Nome", "name")],
+        "customers",
+    )
+    window._request_customer_delete()
+
+    window.render_rows(
+        "Estoque",
+        [{"id": "item-id", "name": "Peca", "quantity": "1", "minimum_quantity": "0"}],
+        [("Nome", "name")],
+        "inventory",
+    )
+    window._request_inventory_delete()
+
+    window.set_service_order_dependencies(
+        customers=[{"id": "customer-id", "name": "Cliente"}],
+        equipment=[{"id": "equipment-id", "category": "Fonte"}],
+        technicians=[],
+    )
+    window.render_rows(
+        "Ordens",
+        [
+            {
+                "id": "os-id",
+                "code": "OS-1",
+                "customer_id": "customer-id",
+                "equipment_id": "equipment-id",
+                "status": "open",
+                "problem_description": "Nao liga",
+            }
+        ],
+        [("Codigo", "code")],
+        "service_orders",
+    )
+    window._request_service_order_delete()
+
+    window.render_rows(
+        "Financeiro",
+        [
+            {
+                "id": "record-id",
+                "record_type": "receivable",
+                "description": "Receber",
+                "amount": "10",
+            }
+        ],
+        [("Descricao", "description")],
+        "financial",
+    )
+    window._request_financial_delete()
+
+    assert emitted == [
+        ("customer", "customer-id"),
+        ("inventory", "item-id"),
+        ("service_order", "os-id"),
+        ("financial", "record-id"),
+    ]
 
 
 def test_session_footer_shows_session_context(qtbot) -> None:
@@ -136,7 +312,7 @@ def test_session_footer_shows_session_context(qtbot) -> None:
     assert window.session_module_label.text() == "Equipamentos"
 
 
-def test_sidebar_collapse_retracts_floating_menu_without_moving_content(qtbot) -> None:
+def test_sidebar_collapse_keeps_fixed_lateral_rail_without_moving_content(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
     initial_width = window.sidebar.width()
@@ -148,6 +324,8 @@ def test_sidebar_collapse_retracts_floating_menu_without_moving_content(qtbot) -
     assert window.session_button.isHidden()
     assert window.logout_button.isHidden()
     assert window.sidebar.width() < initial_width
+    assert window.sidebar.height() > 52
+    assert window.sidebar.parentWidget().objectName() == "mainArea"
     assert window.content_layout.contentsMargins().left() == initial_left_margin
 
 
@@ -160,10 +338,7 @@ def test_dashboard_applies_responsive_display_profile(qtbot) -> None:
 
     assert window.sidebar.minimumWidth() == profile.sidebar_width
     assert window.sidebar.maximumWidth() == profile.sidebar_width
-    assert (
-        window.content_layout.contentsMargins().left()
-        == profile.content_margin + profile.sidebar_width + 18
-    )
+    assert window.content_layout.contentsMargins().left() == profile.content_margin
     assert window.dashboard_grid_columns == 2
 
 
@@ -178,13 +353,14 @@ def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
     assert dashboard_button.toolTip()
 
 
-def test_admin_modules_open_from_dedicated_menu(qtbot) -> None:
+def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
     window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
 
-    assert "users" not in window.module_buttons
-    assert not window.admin_menu_button.isHidden()
+    assert "users" in window.module_buttons
+    assert not window.module_buttons["users"].isHidden()
+    assert not window.module_buttons["settings"].isHidden()
     assert window._allowed_admin_modules() == (
         "financial",
         "notifications",
@@ -342,6 +518,47 @@ def test_equipment_search_filters_hierarchy(qtbot) -> None:
     assert window.equipment_visible_rows[0]["id"] == "eq-2"
 
 
+def test_equipment_import_export_and_defect_case_buttons_emit(qtbot, monkeypatch) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.render_rows(
+        "Equipamentos",
+        [{"id": "eq-1", "category": "Fonte", "brand": "WEG", "boards": []}],
+        [],
+        "equipment",
+    )
+    emitted_cases: list[str] = []
+    emitted_exports: list[tuple[str, str]] = []
+    emitted_imports: list[tuple[str, bool]] = []
+    window.equipment_defect_cases_requested.connect(emitted_cases.append)
+    window.equipment_export_requested.connect(
+        lambda export_format, path: emitted_exports.append((export_format, path))
+    )
+    window.equipment_import_requested.connect(
+        lambda path, replace: emitted_imports.append((path, replace))
+    )
+    monkeypatch.setattr(
+        "frontend.app.screens.dashboard.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: ("C:/tmp/equipamentos.csv", "CSV"),
+    )
+    monkeypatch.setattr(
+        "frontend.app.screens.dashboard.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: ("C:/tmp/equipamentos.csv", "CSV"),
+    )
+    monkeypatch.setattr(
+        "frontend.app.screens.dashboard.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+
+    window._request_equipment_defect_cases_open()
+    window._request_equipment_export("csv")
+    window._request_equipment_import()
+
+    assert emitted_cases == ["eq-1"]
+    assert emitted_exports == [("csv", "C:/tmp/equipamentos.csv")]
+    assert emitted_imports == [("C:/tmp/equipamentos.csv", False)]
+
+
 def test_equipment_asset_dialog_normalizes_money(qtbot) -> None:
     dialog = EquipmentAssetDialog(
         "NOVO EQUIPAMENTO",
@@ -355,6 +572,44 @@ def test_equipment_asset_dialog_normalizes_money(qtbot) -> None:
 
     assert dialog.payload()["category"] == "Inversor"
     assert dialog.payload()["unit_price"] == "1499.90"
+
+
+def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_tools(
+        [
+            {"id": "ohm", "name": "Lei de Ohm"},
+            {"id": "awg", "name": "AWG/mm2"},
+        ]
+    )
+
+    assert window.active_module_key == "tools"
+    assert not window.tools_form_panel.isHidden()
+    assert window.tools_tabs.count() == 2
+    assert window.tools_tabs.tabText(0) == "Lei de Ohm"
+
+    window.ohm_target_combo.setCurrentIndex(0)
+    window.ohm_current_input.setText("2")
+    window.ohm_resistance_input.setText("10")
+    window._calculate_ohm_tool()
+
+    assert "20 V" in window.ohm_result.toPlainText()
+    assert "Lei de Ohm" in window.tools_history_text.toPlainText()
+
+
+def test_ui_scale_slider_emits_live_scale(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[float] = []
+    window.ui_scale_changed.connect(emitted.append)
+
+    window.configure_ui_scale(0.86, 1.14, 1.0)
+    window.settings_ui_scale_slider.setValue(108)
+
+    assert emitted[-1] == 1.08
+    assert window.settings_ui_scale_label.text() == "108%"
 
 
 def test_inventory_populates_summary_and_low_stock_status(qtbot) -> None:
@@ -461,7 +716,7 @@ def test_report_renders_overview_summary(qtbot) -> None:
     assert "Titulo: Relatorio de Clientes" in summary
     assert "Modulo: Clientes" in summary
     assert "Formatos disponiveis: CSV, XLSX e PDF" in summary
-    assert not window.generic_record_splitter.isHidden()
+    assert not window.generic_record_container.isHidden()
     assert not window.report_form_panel.isHidden()
     assert window.module_search_input.isHidden()
 
