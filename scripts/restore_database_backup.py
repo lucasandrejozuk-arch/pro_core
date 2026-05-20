@@ -8,7 +8,9 @@ from pathlib import Path
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Restore a PRO CORE PostgreSQL backup dump.")
     parser.add_argument("--dump-file", required=True, help="Path to the .dump file.")
-    parser.add_argument("--container", default="pro_core_postgres", help="PostgreSQL Docker container.")
+    parser.add_argument(
+        "--container", default="pro_core_postgres", help="PostgreSQL Docker container."
+    )
     parser.add_argument("--database", default="pro_core", help="Target database name.")
     parser.add_argument("--user", default="pro_core", help="PostgreSQL user.")
     return parser.parse_args()

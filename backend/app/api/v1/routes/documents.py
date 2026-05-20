@@ -76,7 +76,9 @@ def download_document_record(
 
     document_path = resolve_document_path(document)
     if not document_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found."
+        )
 
     return FileResponse(
         path=document_path,

@@ -91,7 +91,7 @@ class DashboardMixin5:
             module_key not in {"dashboard", "equipment", "tools", "admin_area"}
         )
         self.module_search_input.setVisible(module_key in self.searchable_module_keys)
-        self.table.setVisible(module_key in self.searchable_module_keys or module_key == "reports")
+        self.table.setVisible(module_key in self.searchable_module_keys)
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
         self.tools_form_panel.setVisible(module_key == "tools")
@@ -101,11 +101,8 @@ class DashboardMixin5:
         self.user_form_panel.setVisible(module_key == "users")
         self.password_reset_form_panel.setVisible(module_key == "password_resets")
         self.settings_form_panel.setVisible(module_key == "settings")
-        self.report_form_panel.setVisible(module_key == "reports")
-        self.financial_form_panel.setVisible(module_key == "financial")
         self.admin_area_panel.setVisible(module_key == "admin_area")
         self.audit_form_panel.setVisible(module_key == "audit_logs")
-        self.notifications_form_panel.setVisible(module_key == "notifications")
         self._sync_active_module_space(module_key)
         if module_key in self.record_module_keys:
             self._set_record_editor_open(False)
@@ -127,16 +124,10 @@ class DashboardMixin5:
             self.clear_password_reset_form()
         elif module_key == "settings":
             self.clear_settings_form()
-        elif module_key == "reports":
-            self.clear_report_form()
-        elif module_key == "financial":
-            self.clear_financial_form()
         elif module_key == "admin_area":
             self._clear_current_selection()
         elif module_key == "audit_logs":
             self.clear_audit_form()
-        elif module_key == "notifications":
-            self.clear_notifications_form()
         self._position_record_editor()
 
     def _handle_table_selection(self) -> None:
@@ -148,9 +139,7 @@ class DashboardMixin5:
             "sectors",
             "users",
             "password_resets",
-            "financial",
             "audit_logs",
-            "notifications",
         }:
             return
 
@@ -191,18 +180,9 @@ class DashboardMixin5:
             self._populate_password_reset_form(selected_row)
             return
 
-        if self.active_module_key == "financial":
-            self._populate_financial_form(selected_row)
-            return
-
         if self.active_module_key == "audit_logs":
             self.audit_full_summary.setPlainText(self._format_audit_summary(selected_row))
-            return
-
-        if self.active_module_key == "notifications":
-            self.notifications_full_summary.setPlainText(
-                self._format_notification_summary(selected_row)
-            )
+            self.audit_delete_button.setEnabled(True)
             return
 
         self._populate_user_form(selected_row)
@@ -899,4 +879,3 @@ class DashboardMixin5:
                 "multiline": True,
             },
         ]
-

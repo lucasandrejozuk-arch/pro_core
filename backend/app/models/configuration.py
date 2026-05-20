@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
 from backend.app.models.common import ModelBase
+
+if TYPE_CHECKING:
+    from backend.app.models.company import Company
 
 
 class AppSetting(ModelBase, Base):
@@ -24,7 +28,7 @@ class AppSetting(ModelBase, Base):
     value: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    company: Mapped["Company"] = relationship(back_populates="settings")
+    company: Mapped[Company] = relationship(back_populates="settings")
 
 
 class BackupPolicy(ModelBase, Base):
@@ -41,5 +45,4 @@ class BackupPolicy(ModelBase, Base):
     storage_path: Mapped[str] = mapped_column(String(1000), default="backups", nullable=False)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    company: Mapped["Company"] = relationship(back_populates="backup_policies")
-
+    company: Mapped[Company] = relationship(back_populates="backup_policies")

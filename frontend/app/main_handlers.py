@@ -447,6 +447,23 @@ class ProCoreHandlersMixin:
         self.dashboard_window.set_sector_form_status("Setor atualizado.")
         self.load_module("sectors")
 
+    def handle_sector_delete(self, sector_id: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_sector_form_loading(True)
+        try:
+            self.api_client.delete_sector(self.session.access_token, sector_id)
+        except ApiError as exc:
+            self.dashboard_window.set_sector_form_loading(False)
+            self.dashboard_window.set_sector_form_status(exc.display_message, is_error=True)
+            return
+
+        self.dashboard_window.set_sector_form_loading(False)
+        self.dashboard_window.set_sector_form_status("Setor excluido.")
+        self.load_module("sectors")
+
     def handle_service_order_create(self, payload: dict) -> None:
         if not self.session.access_token:
             self.show_login()
@@ -664,6 +681,23 @@ class ProCoreHandlersMixin:
         self.dashboard_window.set_user_form_status("Senha redefinida.")
         self.load_module("users")
 
+    def handle_user_delete(self, user_id: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        self.dashboard_window.set_user_form_loading(True)
+        try:
+            self.api_client.delete_user(self.session.access_token, user_id)
+        except ApiError as exc:
+            self.dashboard_window.set_user_form_loading(False)
+            self.dashboard_window.set_user_form_status(exc.display_message, is_error=True)
+            return
+
+        self.dashboard_window.set_user_form_loading(False)
+        self.dashboard_window.set_user_form_status("Usuario excluido.")
+        self.load_module("users")
+
     def handle_password_reset_request(self, email: str) -> None:
         self.login_window.set_password_reset_loading(True)
         try:
@@ -746,105 +780,19 @@ class ProCoreHandlersMixin:
             f"Backup validado: {backup.get('file_name')}"
         )
 
-    def handle_report_view(self, module_key: str) -> None:
+    def handle_audit_log_delete(self, log_id: str) -> None:
         if not self.session.access_token:
             self.show_login()
             return
 
-        self.dashboard_window.set_report_loading(True)
+        self.dashboard_window.set_audit_form_loading(True)
         try:
-            report = self.api_client.get_report(self.session.access_token, module_key)
+            self.api_client.delete_audit_log(self.session.access_token, log_id)
         except ApiError as exc:
-            self.dashboard_window.set_report_loading(False)
-            self.dashboard_window.set_report_status(exc.display_message, is_error=True)
+            self.dashboard_window.set_audit_form_loading(False)
+            self.dashboard_window.set_audit_form_status(exc.display_message, is_error=True)
             return
 
-        self.dashboard_window.set_report_loading(False)
-        self.dashboard_window.render_report(report)
-        self.dashboard_window.set_report_status("Relatorio carregado.")
-
-    def handle_report_export(self, module_key: str, report_format: str, file_path: str) -> None:
-        if not self.session.access_token:
-            self.show_login()
-            return
-
-        self.dashboard_window.set_report_export_loading(True)
-        try:
-            content = self.api_client.export_report(
-                self.session.access_token,
-                module_key,
-                report_format,
-            )
-        except ApiError as exc:
-            self.dashboard_window.set_report_export_loading(False)
-            self.dashboard_window.set_report_status(exc.display_message, is_error=True)
-            return
-
-        try:
-            with open(file_path, "wb") as output_file:
-                output_file.write(content)
-        except OSError as exc:
-            self.dashboard_window.set_report_export_loading(False)
-            self.dashboard_window.set_report_status(
-                f"Nao foi possivel salvar o relatorio: {exc}",
-                is_error=True,
-            )
-            return
-
-        self.dashboard_window.set_report_export_loading(False)
-        self.dashboard_window.set_report_status(f"Relatorio salvo em {file_path}.")
-
-    def handle_financial_create(self, payload: dict) -> None:
-        if not self.session.access_token:
-            self.show_login()
-            return
-
-        self.dashboard_window.set_financial_form_loading(True)
-        try:
-            self.api_client.create_financial_record(self.session.access_token, payload)
-        except ApiError as exc:
-            self.dashboard_window.set_financial_form_loading(False)
-            self.dashboard_window.set_financial_form_status(exc.display_message, is_error=True)
-            return
-
-        self.dashboard_window.set_financial_form_loading(False)
-        self.dashboard_window.set_financial_form_status("Lancamento criado.")
-        self.load_module("financial")
-
-    def handle_financial_mark_paid(self, record_id: str) -> None:
-        self._run_financial_action(
-            lambda access_token: self.api_client.mark_financial_record_paid(
-                access_token,
-                record_id,
-            ),
-            "Lancamento marcado como pago.",
-        )
-
-    def handle_financial_cancel(self, record_id: str) -> None:
-        self._run_financial_action(
-            lambda access_token: self.api_client.cancel_financial_record(access_token, record_id),
-            "Lancamento cancelado.",
-        )
-
-    def handle_financial_delete(self, record_id: str) -> None:
-        self._run_financial_action(
-            lambda access_token: self.api_client.delete_financial_record(access_token, record_id),
-            "Lancamento excluido.",
-        )
-
-    def _run_financial_action(self, action, success_message: str) -> None:
-        if not self.session.access_token:
-            self.show_login()
-            return
-
-        self.dashboard_window.set_financial_form_loading(True)
-        try:
-            action(self.session.access_token)
-        except ApiError as exc:
-            self.dashboard_window.set_financial_form_loading(False)
-            self.dashboard_window.set_financial_form_status(exc.display_message, is_error=True)
-            return
-
-        self.dashboard_window.set_financial_form_loading(False)
-        self.dashboard_window.set_financial_form_status(success_message)
-        self.load_module("financial")
+        self.dashboard_window.set_audit_form_loading(False)
+        self.dashboard_window.set_audit_form_status("Log excluido.")
+        self.load_module("audit_logs")

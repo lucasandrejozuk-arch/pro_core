@@ -92,19 +92,6 @@ class DashboardMixin7:
         ]
         return "\n".join(lines)
 
-    def _format_financial_summary(self, record: dict[str, Any]) -> str:
-        lines = [
-            f"Descricao: {self._format_value(record.get('description')) or '-'}",
-            f"Tipo: {self._format_value(record.get('record_type')) or '-'}",
-            f"Status: {self._format_value(record.get('status')) or '-'}",
-            f"Valor: {self._format_value(record.get('amount')) or '0'}",
-            f"Vencimento: {self._format_value(record.get('due_date')) or '-'}",
-            f"Pago em: {self._format_value(record.get('paid_at')) or '-'}",
-            f"OS vinculada: {self._format_value(record.get('service_order_id')) or '-'}",
-            f"Observacoes: {self._format_value(record.get('notes')) or '-'}",
-        ]
-        return "\n".join(lines)
-
     def _format_audit_summary(self, record: dict[str, Any]) -> str:
         actor = self._format_value(record.get("actor_user_id")) or record.get("actor_type") or "-"
         lines = [
@@ -113,18 +100,6 @@ class DashboardMixin7:
             f"ID: {self._format_value(record.get('entity_id')) or '-'}",
             f"Resumo: {self._format_value(record.get('summary')) or '-'}",
             f"Ator: {actor}",
-            f"Criado em: {self._format_value(record.get('created_at')) or '-'}",
-        ]
-        return "\n".join(lines)
-
-    def _format_notification_summary(self, record: dict[str, Any]) -> str:
-        lines = [
-            f"Canal: {self._format_value(record.get('channel')) or '-'}",
-            f"Status: {self._format_value(record.get('status')) or '-'}",
-            f"Destinatario: {self._format_value(record.get('recipient')) or '-'}",
-            f"Assunto: {self._format_value(record.get('subject')) or '-'}",
-            f"Mensagem: {self._format_value(record.get('message')) or '-'}",
-            f"OS vinculada: {self._format_value(record.get('service_order_id')) or '-'}",
             f"Criado em: {self._format_value(record.get('created_at')) or '-'}",
         ]
         return "\n".join(lines)
@@ -163,21 +138,6 @@ class DashboardMixin7:
             f"Perfil: {self._format_value(request.get('requester_role')) or '-'}",
             f"Status: {self._format_value(request.get('status')) or '-'}",
             f"Criada em: {self._format_value(request.get('created_at')) or '-'}",
-        ]
-        return "\n".join(lines)
-
-    def _format_report_summary(self, report: dict[str, Any]) -> str:
-        columns = report.get("columns") or []
-        rows = report.get("rows") or []
-        column_labels = [
-            str(column.get("label") or column.get("key") or "") for column in columns if column
-        ]
-        lines = [
-            f"Titulo: {self._format_value(report.get('title')) or 'Relatorio'}",
-            f"Modulo: {self._format_value(report.get('module')) or '-'}",
-            f"Registros: {report.get('total_records', len(rows))}",
-            f"Colunas: {', '.join(column_labels) if column_labels else '-'}",
-            "Formatos disponiveis: CSV, XLSX e PDF",
         ]
         return "\n".join(lines)
 

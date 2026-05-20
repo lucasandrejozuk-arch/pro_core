@@ -72,11 +72,7 @@ def list_users_by_role(
     if sector_id is not None:
         filters.append(User.sector_id == sector_id)
 
-    statement = (
-        select(User)
-        .where(*filters)
-        .order_by(User.full_name)
-    )
+    statement = select(User).where(*filters).order_by(User.full_name)
     return list(db.scalars(statement))
 
 
@@ -181,3 +177,17 @@ def change_user_password(db: Session, user: User, current_password: str, new_pas
     db.refresh(user)
 
     return user
+
+
+def delete_user_account(db: Session, company_id: uuid.UUID, user: User, actor: User) -> None:
+    if user.company_id != company_id:
+        raise ValueError("User not found for this company.")
+    if user.id == actor.id:
+        raise ValueError("Current user cannot delete own account.")
+    if user.role == UserRole.ADMIN:
+        admins = list_company_users(db, company_id=company_id, role=UserRole.ADMIN)
+        if len(admins) <= 1:
+            raise ValueError("At least one admin account must remain active.")
+
+    db.delete(user)
+    db.commit()

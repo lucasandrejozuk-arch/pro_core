@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Enum, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,6 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.db.base import Base
 from backend.app.models.common import ModelBase
 from backend.app.models.enums import UserRole, enum_values
+
+if TYPE_CHECKING:
+    from backend.app.models.company import Company
+    from backend.app.models.document import DocumentAttachment
+    from backend.app.models.sector import Sector
+    from backend.app.models.service_order import ServiceOrder
 
 
 class User(ModelBase, Base):
@@ -37,13 +44,13 @@ class User(ModelBase, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    company: Mapped["Company"] = relationship(back_populates="users")
-    sector: Mapped["Sector | None"] = relationship(back_populates="users")
-    assigned_service_orders: Mapped[list["ServiceOrder"]] = relationship(
+    company: Mapped[Company] = relationship(back_populates="users")
+    sector: Mapped[Sector | None] = relationship(back_populates="users")
+    assigned_service_orders: Mapped[list[ServiceOrder]] = relationship(
         back_populates="assigned_technician",
         foreign_keys="ServiceOrder.assigned_technician_id",
     )
-    uploaded_documents: Mapped[list["DocumentAttachment"]] = relationship(
+    uploaded_documents: Mapped[list[DocumentAttachment]] = relationship(
         back_populates="uploaded_by",
         foreign_keys="DocumentAttachment.uploaded_by_user_id",
     )

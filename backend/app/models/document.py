@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,6 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.db.base import Base
 from backend.app.models.common import ModelBase
 from backend.app.models.enums import DocumentType, enum_values
+
+if TYPE_CHECKING:
+    from backend.app.models.customer import Customer
+    from backend.app.models.equipment import Equipment
+    from backend.app.models.service_order import ServiceOrder
+    from backend.app.models.user import User
 
 
 class DocumentAttachment(ModelBase, Base):
@@ -54,10 +61,10 @@ class DocumentAttachment(ModelBase, Base):
     content_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    service_order: Mapped["ServiceOrder | None"] = relationship(back_populates="documents")
-    customer: Mapped["Customer | None"] = relationship(back_populates="documents")
-    equipment: Mapped["Equipment | None"] = relationship(back_populates="documents")
-    uploaded_by: Mapped["User | None"] = relationship(
+    service_order: Mapped[ServiceOrder | None] = relationship(back_populates="documents")
+    customer: Mapped[Customer | None] = relationship(back_populates="documents")
+    equipment: Mapped[Equipment | None] = relationship(back_populates="documents")
+    uploaded_by: Mapped[User | None] = relationship(
         back_populates="uploaded_documents",
         foreign_keys=[uploaded_by_user_id],
     )

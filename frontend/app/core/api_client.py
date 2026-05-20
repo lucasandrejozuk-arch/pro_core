@@ -501,6 +501,9 @@ class ApiClient:
             json=payload,
         )
 
+    def delete_user(self, access_token: str, user_id: str) -> None:
+        self._request("DELETE", f"users/{user_id}", access_token=access_token)
+
     def reset_user_password(
         self,
         access_token: str,
@@ -558,6 +561,9 @@ class ApiClient:
             json=payload,
         )
 
+    def delete_sector(self, access_token: str, sector_id: str) -> None:
+        self._request("DELETE", f"sectors/{sector_id}", access_token=access_token)
+
     def get_settings(self, access_token: str) -> dict[str, Any]:
         return self._request("GET", "settings", access_token=access_token)
 
@@ -582,58 +588,14 @@ class ApiClient:
             access_token=access_token,
         )
 
-    def list_financial_records(self, access_token: str) -> list[dict[str, Any]]:
-        return self._request_list("GET", "financial-records", access_token=access_token)
-
-    def create_financial_record(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            "financial-records",
-            access_token=access_token,
-            json=payload,
-        )
-
-    def mark_financial_record_paid(self, access_token: str, record_id: str) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            f"financial-records/{record_id}/mark-paid",
-            access_token=access_token,
-        )
-
-    def cancel_financial_record(self, access_token: str, record_id: str) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            f"financial-records/{record_id}/cancel",
-            access_token=access_token,
-        )
-
-    def delete_financial_record(self, access_token: str, record_id: str) -> None:
-        self._request("DELETE", f"financial-records/{record_id}", access_token=access_token)
-
     def list_audit_logs(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "audit-logs", access_token=access_token)
 
-    def list_notifications(self, access_token: str) -> list[dict[str, Any]]:
-        return self._request_list("GET", "notifications", access_token=access_token)
+    def delete_audit_log(self, access_token: str, log_id: str) -> None:
+        self._request("DELETE", f"audit-logs/{log_id}", access_token=access_token)
 
     def list_tools(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "tools", access_token=access_token)
-
-    def get_report(self, access_token: str, module_key: str) -> dict[str, Any]:
-        return self._request("GET", f"reports/{module_key}", access_token=access_token)
-
-    def export_report(
-        self,
-        access_token: str,
-        module_key: str,
-        report_format: str,
-    ) -> bytes:
-        return self._download(
-            "GET",
-            f"reports/{module_key}/export",
-            access_token=access_token,
-            params={"format": report_format},
-        )
 
     def _request_list(
         self,

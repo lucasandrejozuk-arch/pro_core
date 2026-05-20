@@ -19,6 +19,7 @@ from backend.app.schemas.user import (
 )
 from backend.app.services.users import (
     create_user_account,
+    delete_user_account,
     get_company_user,
     list_company_users,
     list_users_by_role,
@@ -152,6 +153,22 @@ def reset_user_record_password(
 
     try:
         return reset_user_password(db, user, payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user_record(
+    user_id: uuid.UUID,
+    current_user: AdminUser,
+    db: DatabaseSession,
+) -> None:
+    user = get_company_user(db, current_user.company_id, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    try:
+        delete_user_account(db, company_id=current_user.company_id, user=user, actor=current_user)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

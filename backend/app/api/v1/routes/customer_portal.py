@@ -3,14 +3,15 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from backend.app.core.security import create_access_token, decode_access_token
 from backend.app.db.session import get_db
 from backend.app.models.enums import ServiceOrderEventSource, ServiceOrderStatus
 from backend.app.models.service_order import ServiceOrder
+from backend.app.schemas.configuration import AppearanceSettingsResponse
 from backend.app.schemas.customer_portal import (
     CustomerPortalApproveRequest,
     CustomerPortalLoginRequest,
@@ -18,9 +19,8 @@ from backend.app.schemas.customer_portal import (
     CustomerPortalRejectRequest,
     CustomerPortalServiceOrderResponse,
 )
-from backend.app.schemas.configuration import AppearanceSettingsResponse
-from backend.app.services.configuration import get_appearance_settings
 from backend.app.schemas.service_order import RejectServiceOrderRequest
+from backend.app.services.configuration import get_appearance_settings
 from backend.app.services.service_orders import (
     approve_service_order,
     build_quote_pdf,
@@ -38,7 +38,9 @@ def _get_portal_service_order(
     db: Session = Depends(get_db),
 ) -> ServiceOrder:
     if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing portal token.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing portal token."
+        )
 
     try:
         payload = decode_access_token(credentials.credentials)
@@ -46,12 +48,16 @@ def _get_portal_service_order(
             raise ValueError("Invalid scope.")
         company_id = uuid.UUID(str(payload["company_id"]))
         service_order_id = uuid.UUID(str(payload["service_order_id"]))
-    except (KeyError, TypeError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal token.")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal token."
+        ) from exc
 
     service_order = get_service_order(db, company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
     return service_order
 
 
@@ -66,7 +72,9 @@ def login_customer_portal(
         customer_email=payload.email,
     )
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal access.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal access."
+        )
 
     token = create_access_token(
         str(service_order.id),
@@ -139,6 +147,7 @@ def reject_customer_portal_quote(
         customer_decision_name=payload.decision_name,
     )
     return _serialize_service_order(updated)
+
 
 def _ensure_customer_decision_allowed(service_order: ServiceOrder) -> None:
     if service_order.status != ServiceOrderStatus.PENDING_APPROVAL:

@@ -94,7 +94,9 @@ def test_equipment_supports_special_number_boards_and_components(
     assert loaded_equipment["boards"][0]["components"][0]["name"] == "C100"
 
 
-def test_equipment_hierarchy_crud_without_customer(client: TestClient, auth_headers: dict[str, str]) -> None:
+def test_equipment_hierarchy_crud_without_customer(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
     equipment_response = client.post(
         "/api/v1/equipment",
         headers=auth_headers,

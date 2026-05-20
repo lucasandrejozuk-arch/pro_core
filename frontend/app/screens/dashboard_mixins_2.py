@@ -110,8 +110,6 @@ class DashboardMixin2:
         self.data_description.setText(self.module_descriptions.get(module_key, ""))
         self.module_search_input.setPlaceholderText(self._module_search_placeholder(module_key))
         self._populate_current_table(self._filtered_rows())
-        if module_key == "financial":
-            self._render_financial_chart(rows)
 
     def _populate_current_table(self, rows: list[dict[str, Any]]) -> None:
         columns = self.current_columns
@@ -173,39 +171,6 @@ class DashboardMixin2:
         self.empty_label.hide()
         self.table.hide()
         self._populate_settings_form(settings)
-
-    def render_report(self, report: dict[str, Any]) -> None:
-        self._set_active_module("reports")
-        self.current_rows = report.get("rows") or []
-        self.all_rows = list(self.current_rows)
-        self.current_report_module_key = str(report.get("module") or self.current_report_module_key)
-        self._select_combo_value(self.report_module_combo, self.current_report_module_key)
-        self.data_title.setText(str(report.get("title") or "Relatorios"))
-        self.data_description.setText(self.module_descriptions["reports"])
-        self.report_summary_label.setText(f"Total de registros: {report.get('total_records', 0)}")
-        self.report_full_summary.setPlainText(self._format_report_summary(report))
-        self._render_report_chart(report)
-        self.empty_label.hide()
-        self.table.show()
-
-        columns = [
-            (str(column.get("label")), str(column.get("key")))
-            for column in report.get("columns", [])
-        ]
-        self.current_columns = columns
-        self.table.clear()
-        self.table.setColumnCount(len(columns))
-        self.table.setHorizontalHeaderLabels([label for label, _key in columns])
-        self.table.setRowCount(len(self.current_rows))
-        for row_index, row in enumerate(self.current_rows):
-            for column_index, (_label, key) in enumerate(columns):
-                item = QTableWidgetItem(self._format_value(row.get(key)))
-                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.table.setItem(row_index, column_index, item)
-
-        if not self.current_rows:
-            self.empty_label.setText("Nenhum registro encontrado.")
-            self.empty_label.show()
 
     @staticmethod
     def _build_module_card(title: str, description: str) -> QFrame:
@@ -289,42 +254,6 @@ class DashboardMixin2:
             row.addWidget(name)
             row.addWidget(bar, 1)
             layout.addLayout(row)
-
-    def _render_financial_chart(self, rows: list[dict[str, Any]]) -> None:
-        totals = {"A receber": 0.0, "A pagar": 0.0, "Pago": 0.0, "Cancelado": 0.0}
-        for row in rows:
-            amount = self._optional_float(str(row.get("amount") or "0")) or 0.0
-            status = str(row.get("status") or "")
-            record_type = str(row.get("record_type") or "")
-            if status == "paid":
-                totals["Pago"] += amount
-            elif status == "canceled":
-                totals["Cancelado"] += amount
-            elif record_type == "payable":
-                totals["A pagar"] += amount
-            else:
-                totals["A receber"] += amount
-        self._render_bar_chart(self.financial_chart_layout, totals)
-
-    def _render_report_chart(self, report: dict[str, Any]) -> None:
-        rows = report.get("rows") or []
-        module_key = str(report.get("module") or "")
-        values: dict[str, float] = {}
-        if module_key == "financial":
-            for row in rows:
-                label = self._format_value(row.get("status")) or "Sem status"
-                values[label] = values.get(label, 0) + (
-                    self._optional_float(str(row.get("amount") or "0")) or 0.0
-                )
-        else:
-            status_key = "status" if rows and "status" in rows[0] else None
-            if status_key:
-                for row in rows:
-                    label = self._format_value(row.get(status_key)) or "Sem status"
-                    values[label] = values.get(label, 0) + 1
-            else:
-                values["Registros"] = float(len(rows))
-        self._render_bar_chart(self.report_chart_layout, values)
 
     def _install_input_guards(self) -> None:
         for widget in self.findChildren(QWidget):
@@ -785,20 +714,6 @@ class DashboardMixin2:
                 ),
                 ("awg", "AWG/mm2", self._calculate_awg_tool, [("AWG", "awg")]),
             ],
-            "financeiro": [
-                (
-                    "markup",
-                    "Markup",
-                    self._calculate_markup_tool,
-                    [("Custo", "cost"), ("Margem (%)", "margin")],
-                ),
-                (
-                    "installment",
-                    "Parcelamento",
-                    self._calculate_installment_tool,
-                    [("Valor", "amount"), ("Parcelas", "installments")],
-                ),
-            ],
             "operacional": [
                 (
                     "sla",
@@ -887,4 +802,3 @@ class DashboardMixin2:
         layout.addWidget(label)
         layout.addStretch()
         return widget
-

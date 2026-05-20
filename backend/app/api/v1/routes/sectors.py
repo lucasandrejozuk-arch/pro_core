@@ -13,6 +13,7 @@ from backend.app.models.user import User
 from backend.app.schemas.sector import SectorCreate, SectorResponse, SectorUpdate
 from backend.app.services.sectors import (
     create_sector,
+    delete_sector,
     get_sector,
     list_sectors,
     update_sector,
@@ -62,5 +63,21 @@ def update_sector_record(
 
     try:
         return update_sector(db, current_user.company_id, sector, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete("/{sector_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sector_record(
+    sector_id: uuid.UUID,
+    current_user: User = Depends(admin_user),
+    db: Session = Depends(get_db),
+) -> None:
+    sector = get_sector(db, current_user.company_id, sector_id)
+    if sector is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sector not found.")
+
+    try:
+        delete_sector(db, current_user.company_id, sector)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

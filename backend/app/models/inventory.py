@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
 from backend.app.models.common import ModelBase
+
+if TYPE_CHECKING:
+    from backend.app.models.company import Company
+    from backend.app.models.service_order import ServiceOrderBudgetItem
 
 
 class InventoryItem(ModelBase, Base):
@@ -27,8 +32,7 @@ class InventoryItem(ModelBase, Base):
     minimum_quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
 
-    company: Mapped["Company"] = relationship(back_populates="inventory_items")
-    budget_items: Mapped[list["ServiceOrderBudgetItem"]] = relationship(
+    company: Mapped[Company] = relationship(back_populates="inventory_items")
+    budget_items: Mapped[list[ServiceOrderBudgetItem]] = relationship(
         back_populates="inventory_item"
     )
-

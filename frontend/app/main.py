@@ -96,6 +96,7 @@ class ProCoreApplication(ProCoreHandlersMixin):
         self.dashboard_window.inventory_delete_requested.connect(self.handle_inventory_delete)
         self.dashboard_window.sector_create_requested.connect(self.handle_sector_create)
         self.dashboard_window.sector_update_requested.connect(self.handle_sector_update)
+        self.dashboard_window.sector_delete_requested.connect(self.handle_sector_delete)
         self.dashboard_window.service_order_create_requested.connect(
             self.handle_service_order_create
         )
@@ -129,6 +130,7 @@ class ProCoreApplication(ProCoreHandlersMixin):
         )
         self.dashboard_window.user_create_requested.connect(self.handle_user_create)
         self.dashboard_window.user_update_requested.connect(self.handle_user_update)
+        self.dashboard_window.user_delete_requested.connect(self.handle_user_delete)
         self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
         self.dashboard_window.password_reset_resolve_requested.connect(
             self.handle_password_reset_resolve
@@ -136,12 +138,7 @@ class ProCoreApplication(ProCoreHandlersMixin):
         self.dashboard_window.settings_update_requested.connect(self.handle_settings_update)
         self.dashboard_window.ui_scale_changed.connect(self.handle_ui_scale_changed)
         self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
-        self.dashboard_window.report_view_requested.connect(self.handle_report_view)
-        self.dashboard_window.report_export_requested.connect(self.handle_report_export)
-        self.dashboard_window.financial_create_requested.connect(self.handle_financial_create)
-        self.dashboard_window.financial_mark_paid_requested.connect(self.handle_financial_mark_paid)
-        self.dashboard_window.financial_cancel_requested.connect(self.handle_financial_cancel)
-        self.dashboard_window.financial_delete_requested.connect(self.handle_financial_delete)
+        self.dashboard_window.audit_delete_requested.connect(self.handle_audit_log_delete)
 
     def run(self) -> int:
         self.splash.start()
@@ -292,20 +289,12 @@ class ProCoreApplication(ProCoreHandlersMixin):
                 self.dashboard_window.set_backend_connection_status(True)
                 self.dashboard_window.render_settings(settings)
                 return
-            if module_key == "reports":
-                report = self.api_client.get_report(
-                    self.session.access_token,
-                    self.dashboard_window.current_report_module_key,
-                )
-                self.dashboard_window.set_backend_connection_status(True)
-                self.dashboard_window.render_report(report)
-                return
             if module_key == "tools":
                 tools = self.api_client.list_tools(self.session.access_token)
                 self.dashboard_window.set_backend_connection_status(True)
                 self.dashboard_window.render_tools(tools)
                 return
-            if module_key in {"financial", "audit_logs", "notifications"}:
+            if module_key == "audit_logs":
                 rows = self._load_module_rows(module_key, self.session.access_token)
                 self.dashboard_window.set_backend_connection_status(True)
                 self.dashboard_window.render_rows(title, rows, columns, module_key)
@@ -372,7 +361,8 @@ class ProCoreApplication(ProCoreHandlersMixin):
         )
         if hasattr(self, "dashboard_window"):
             palette = build_theme_palette(theme, color_palette)
-            self.dashboard_window.apply_sidebar_icon_color(palette["button_text"])
+            sidebar_icon_color = palette["text"] if theme == "light" else palette["button_text"]
+            self.dashboard_window.apply_sidebar_icon_color(sidebar_icon_color)
             self.dashboard_window.apply_record_editor_icon_colors(
                 palette["primary"],
                 palette["button_text"],
@@ -413,7 +403,8 @@ class ProCoreApplication(ProCoreHandlersMixin):
 
     def _local_ui_scale(self) -> float:
         try:
-            return float(self.local_settings.value("appearance/ui_scale", 1.0) or 1.0)
+            raw_value = self.local_settings.value("appearance/ui_scale", 1.0)
+            return float(str(raw_value or 1.0))
         except (TypeError, ValueError):
             return 1.0
 
@@ -468,12 +459,8 @@ class ProCoreApplication(ProCoreHandlersMixin):
             return self.api_client.list_password_reset_requests(access_token)
         if module_key == "sectors":
             return self.api_client.list_sectors(access_token)
-        if module_key == "financial":
-            return self.api_client.list_financial_records(access_token)
         if module_key == "audit_logs":
             return self.api_client.list_audit_logs(access_token)
-        if module_key == "notifications":
-            return self.api_client.list_notifications(access_token)
         return self.api_client.list_service_orders(access_token)
 
     def _build_dashboard_summary(self, access_token: str) -> dict:
@@ -674,18 +661,6 @@ class ProCoreApplication(ProCoreHandlersMixin):
                 ],
             )
 
-        if module_key == "financial":
-            return (
-                "Financeiro",
-                [
-                    ("Descricao", "description"),
-                    ("Tipo", "record_type"),
-                    ("Status", "status"),
-                    ("Valor", "amount"),
-                    ("Vencimento", "due_date"),
-                ],
-            )
-
         if module_key == "audit_logs":
             return (
                 "Logs/Auditoria",
@@ -697,24 +672,10 @@ class ProCoreApplication(ProCoreHandlersMixin):
                 ],
             )
 
-        if module_key == "notifications":
-            return (
-                "Notificacoes",
-                [
-                    ("Canal", "channel"),
-                    ("Status", "status"),
-                    ("Destinatario", "recipient"),
-                    ("Assunto", "subject"),
-                    ("Criada em", "created_at"),
-                ],
-            )
-
         if module_key == "settings":
             return ("Configuracoes", [])
         if module_key == "admin_area":
             return ("Area Administrativa", [])
-        if module_key == "reports":
-            return ("Relatorios", [])
         if module_key == "tools":
             return ("Ferramentas", [])
         if module_key == "dashboard":

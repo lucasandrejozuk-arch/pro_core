@@ -1,21 +1,18 @@
-from enum import Enum
-from typing import TypeVar
-
-EnumType = TypeVar("EnumType", bound=Enum)
+from enum import StrEnum
 
 
-def enum_values(enum_type: type[EnumType]) -> list[str]:
+def enum_values[T: StrEnum](enum_type: type[T]) -> list[str]:
     return [item.value for item in enum_type]
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     ADMIN = "admin"
     MANAGER = "manager"
     TECHNICIAN = "technician"
     CUSTOMER = "customer"
 
 
-class ServiceOrderStatus(str, Enum):
+class ServiceOrderStatus(StrEnum):
     OPEN = "open"
     ASSIGNED = "assigned"
     PENDING_QUOTE = "pending_quote"
@@ -28,50 +25,26 @@ class ServiceOrderStatus(str, Enum):
     CLOSED = "closed"
 
 
-class ServiceOrderPriority(str, Enum):
+class ServiceOrderPriority(StrEnum):
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
     URGENT = "urgent"
 
 
-class ServiceOrderEventSource(str, Enum):
+class ServiceOrderEventSource(StrEnum):
     STAFF = "staff"
     CUSTOMER = "customer"
     SYSTEM = "system"
 
 
-class BudgetItemType(str, Enum):
+class BudgetItemType(StrEnum):
     SERVICE = "service"
     PART = "part"
     OTHER = "other"
 
 
-class FinancialRecordType(str, Enum):
-    RECEIVABLE = "receivable"
-    PAYABLE = "payable"
-
-
-class FinancialRecordStatus(str, Enum):
-    OPEN = "open"
-    PAID = "paid"
-    CANCELED = "canceled"
-    OVERDUE = "overdue"
-
-
-class NotificationChannel(str, Enum):
-    EMAIL = "email"
-    WHATSAPP = "whatsapp"
-    SYSTEM = "system"
-
-
-class NotificationStatus(str, Enum):
-    PENDING = "pending"
-    SENT = "sent"
-    FAILED = "failed"
-
-
-class DocumentType(str, Enum):
+class DocumentType(StrEnum):
     IMAGE = "image"
     VIDEO = "video"
     PDF = "pdf"

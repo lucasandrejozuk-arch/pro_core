@@ -26,7 +26,6 @@ PRO CORE is a desktop management platform for small and medium technical assista
 - Settings
 - Administrative area
 - Documents attached to service orders
-- Basic reports and exports
 
 ## Local Development
 

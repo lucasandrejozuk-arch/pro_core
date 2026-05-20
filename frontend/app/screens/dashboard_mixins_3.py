@@ -709,12 +709,18 @@ class DashboardMixin3:
         self.sector_new_button.setObjectName("secondaryButton")
         self.sector_new_button.clicked.connect(self.clear_sector_form)
 
+        self.sector_delete_button = QPushButton("Excluir")
+        self.sector_delete_button.setObjectName("dangerButton")
+        self.sector_delete_button.setEnabled(False)
+        self.sector_delete_button.clicked.connect(self._request_sector_delete)
+
         self.sector_save_button = QPushButton("Salvar setor")
         self.sector_save_button.clicked.connect(self._request_sector_save)
 
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.sector_new_button)
+        actions.addWidget(self.sector_delete_button)
         actions.addWidget(self.sector_save_button)
 
         layout = QVBoxLayout(panel)
@@ -809,6 +815,11 @@ class DashboardMixin3:
         self.user_new_button.setObjectName("secondaryButton")
         self.user_new_button.clicked.connect(self.clear_user_form)
 
+        self.user_delete_button = QPushButton("Excluir")
+        self.user_delete_button.setObjectName("dangerButton")
+        self.user_delete_button.setEnabled(False)
+        self.user_delete_button.clicked.connect(self._request_user_delete)
+
         self.user_reset_password_button = QPushButton("Redefinir senha")
         self.user_reset_password_button.setObjectName("secondaryButton")
         self.user_reset_password_button.clicked.connect(self._request_user_password_reset)
@@ -819,6 +830,7 @@ class DashboardMixin3:
         actions = QHBoxLayout()
         actions.addStretch()
         actions.addWidget(self.user_new_button)
+        actions.addWidget(self.user_delete_button)
         actions.addWidget(self.user_reset_password_button)
         actions.addWidget(self.user_save_button)
 
@@ -889,4 +901,3 @@ class DashboardMixin3:
         layout.addLayout(actions)
 
         return panel
-

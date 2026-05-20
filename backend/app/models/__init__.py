@@ -8,10 +8,6 @@ from backend.app.models.document import DocumentAttachment
 from backend.app.models.enums import (
     BudgetItemType,
     DocumentType,
-    FinancialRecordStatus,
-    FinancialRecordType,
-    NotificationChannel,
-    NotificationStatus,
     ServiceOrderEventSource,
     ServiceOrderPriority,
     ServiceOrderStatus,
@@ -23,9 +19,7 @@ from backend.app.models.equipment import (
     EquipmentBoardComponent,
     EquipmentDefectCase,
 )
-from backend.app.models.financial import FinancialRecord
 from backend.app.models.inventory import InventoryItem
-from backend.app.models.notification import NotificationLog
 from backend.app.models.password_reset import PasswordResetRequest
 from backend.app.models.sector import Sector
 from backend.app.models.service_order import (
@@ -48,13 +42,7 @@ __all__ = [
     "EquipmentBoard",
     "EquipmentBoardComponent",
     "EquipmentDefectCase",
-    "FinancialRecord",
-    "FinancialRecordStatus",
-    "FinancialRecordType",
     "InventoryItem",
-    "NotificationChannel",
-    "NotificationLog",
-    "NotificationStatus",
     "PasswordResetRequest",
     "Sector",
     "ServiceOrder",

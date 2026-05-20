@@ -363,6 +363,7 @@ class DashboardMixin6:
         self.sector_description_input.setText(str(sector.get("description") or ""))
         is_admin = self.current_user_role == "admin"
         self.sector_new_button.setEnabled(is_admin)
+        self.sector_delete_button.setEnabled(is_admin)
         self.sector_save_button.setEnabled(is_admin)
         self.sector_name_input.setEnabled(is_admin)
         self.sector_description_input.setEnabled(is_admin)
@@ -390,6 +391,18 @@ class DashboardMixin6:
 
         self.sector_create_requested.emit(payload)
 
+    def _request_sector_delete(self) -> None:
+        if not self.selected_sector_id:
+            self.set_sector_form_status("Selecione um setor.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir setor",
+            "Excluir o setor selecionado?",
+        ):
+            return
+        self.sector_delete_requested.emit(self.selected_sector_id)
+
     def _populate_user_form(self, user: dict[str, Any]) -> None:
         self.selected_user_id = str(user["id"])
         self.user_full_name_input.setText(str(user.get("full_name") or ""))
@@ -402,6 +415,7 @@ class DashboardMixin6:
         self.user_reset_password_input.clear()
         self.user_reset_password_input.setEnabled(True)
         self.user_reset_password_button.setEnabled(True)
+        self.user_delete_button.setEnabled(True)
         self.user_full_summary.setPlainText(self._format_user_summary(user))
         self.set_user_form_status("Editando usuario selecionado.")
 
@@ -459,6 +473,18 @@ class DashboardMixin6:
         self.set_user_form_status("")
         self.user_password_reset_requested.emit(self.selected_user_id, new_password)
 
+    def _request_user_delete(self) -> None:
+        if not self.selected_user_id:
+            self.set_user_form_status("Selecione um usuario.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir usuario",
+            "Excluir o usuario selecionado?",
+        ):
+            return
+        self.user_delete_requested.emit(self.selected_user_id)
+
     def _populate_password_reset_form(self, request: dict[str, Any]) -> None:
         self.selected_password_reset_request_id = str(request["id"])
         full_name = self._format_value(request.get("requester_full_name"))
@@ -491,70 +517,6 @@ class DashboardMixin6:
             self.selected_password_reset_request_id,
             new_password,
         )
-
-    def _populate_financial_form(self, record: dict[str, Any]) -> None:
-        self.selected_financial_record_id = str(record["id"])
-        self._select_combo_value(
-            self.financial_type_combo,
-            str(record.get("record_type") or "receivable"),
-        )
-        self.financial_description_input.setText(str(record.get("description") or ""))
-        self.financial_amount_input.setText(str(record.get("amount") or ""))
-        self.financial_due_date_input.setText(str(record.get("due_date") or ""))
-        self.financial_notes_input.setText(str(record.get("notes") or ""))
-        self.financial_full_summary.setPlainText(self._format_financial_summary(record))
-        self.financial_paid_button.setEnabled(str(record.get("status") or "") == "open")
-        self.financial_cancel_button.setEnabled(str(record.get("status") or "") == "open")
-        self.financial_delete_button.setEnabled(True)
-        self.set_financial_form_status("Editando lancamento selecionado.")
-
-    def _request_financial_save(self) -> None:
-        description = self.financial_description_input.text().strip()
-        if not description:
-            self.set_financial_form_status("Informe a descricao.", is_error=True)
-            return
-
-        amount = self.financial_amount_input.text().strip().replace(",", ".")
-        try:
-            if float(amount) <= 0:
-                raise ValueError
-        except ValueError:
-            self.set_financial_form_status("Valor deve ser maior que zero.", is_error=True)
-            return
-
-        payload = {
-            "record_type": str(self.financial_type_combo.currentData() or "receivable"),
-            "description": description,
-            "amount": amount,
-            "due_date": self._optional_text(self.financial_due_date_input),
-            "notes": self._optional_text(self.financial_notes_input),
-        }
-        self.set_financial_form_status("")
-        self.financial_create_requested.emit(payload)
-
-    def _request_financial_mark_paid(self) -> None:
-        if not self.selected_financial_record_id:
-            self.set_financial_form_status("Selecione um lancamento.", is_error=True)
-            return
-        self.financial_mark_paid_requested.emit(self.selected_financial_record_id)
-
-    def _request_financial_cancel(self) -> None:
-        if not self.selected_financial_record_id:
-            self.set_financial_form_status("Selecione um lancamento.", is_error=True)
-            return
-        self.financial_cancel_requested.emit(self.selected_financial_record_id)
-
-    def _request_financial_delete(self) -> None:
-        if not self.selected_financial_record_id:
-            self.set_financial_form_status("Selecione um lancamento.", is_error=True)
-            return
-        if not confirm_destructive_action(
-            self,
-            "Excluir lancamento",
-            "Excluir o lancamento financeiro selecionado?",
-        ):
-            return
-        self.financial_delete_requested.emit(self.selected_financial_record_id)
 
     def _populate_settings_form(self, settings: dict[str, Any]) -> None:
         self.current_settings = dict(settings)
@@ -645,30 +607,21 @@ class DashboardMixin6:
         self.set_settings_form_status("")
         self.settings_update_requested.emit(payload)
 
-    def _request_report_view(self) -> None:
-        module_key = str(self.report_module_combo.currentData() or "service_orders")
-        self.current_report_module_key = module_key
-        self.set_report_status("")
-        self.report_view_requested.emit(module_key)
-
-    def _request_report_export(self, report_format: str) -> None:
-        module_key = str(self.report_module_combo.currentData() or self.current_report_module_key)
-        extension = report_format.lower()
-        file_path, _selected_filter = QFileDialog.getSaveFileName(
-            self,
-            "Salvar relatorio",
-            f"{module_key}.{extension}",
-            f"{extension.upper()} (*.{extension})",
-        )
-        if not file_path:
+    def _request_audit_delete(self) -> None:
+        if not self.current_selected_record:
+            self.set_audit_form_status("Selecione um log.", is_error=True)
             return
-
-        if not file_path.lower().endswith(f".{extension}"):
-            file_path = f"{file_path}.{extension}"
-
-        self.current_report_module_key = module_key
-        self.set_report_status("")
-        self.report_export_requested.emit(module_key, report_format, file_path)
+        log_id = str(self.current_selected_record.get("id") or "")
+        if not log_id:
+            self.set_audit_form_status("Selecione um log valido.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Excluir log",
+            "Excluir o log de auditoria selecionado?",
+        ):
+            return
+        self.audit_delete_requested.emit(log_id)
 
     def _refresh_service_order_equipment_combo(self) -> None:
         if not hasattr(self, "service_order_equipment_combo"):
@@ -745,7 +698,6 @@ class DashboardMixin6:
             "equipment": "Equipamentos",
             "inventory": "Estoque",
             "users": "Usuarios",
-            "financial": "Financeiro",
             "audit_logs": "Logs/Auditoria",
         }
         if isinstance(value, str) and value in labels:
@@ -795,9 +747,7 @@ class DashboardMixin6:
             "sectors": self._format_sector_summary,
             "users": self._format_user_summary,
             "password_resets": self._format_password_reset_summary,
-            "financial": self._format_financial_summary,
             "audit_logs": self._format_audit_summary,
-            "notifications": self._format_notification_summary,
         }
         formatter = formatters.get(self.active_module_key)
         if formatter is not None:
@@ -892,4 +842,3 @@ class DashboardMixin6:
             f"Observacoes: {self._format_value(component.get('notes')) or '-'}",
         ]
         return "\n".join(lines)
-

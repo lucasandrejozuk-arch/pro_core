@@ -59,24 +59,6 @@ ICON_PATHS = {
         <path d="M16 4l4 4"/>
         <path d="M7.5 14.5l2 2"/>
     """,
-    "financial": """
-        <path d="M5 7h14"/>
-        <path d="M5 12h14"/>
-        <path d="M7 17h10"/>
-        <path d="M8 4v16"/>
-        <path d="M16 4v16"/>
-    """,
-    "reports": """
-        <path d="M5 20V4"/>
-        <path d="M5 20h15"/>
-        <path d="M9 16v-5"/>
-        <path d="M13 16V8"/>
-        <path d="M17 16v-8"/>
-    """,
-    "notifications": """
-        <path d="M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3z"/>
-        <path d="M10 20h4"/>
-    """,
     "settings": """
         <circle cx="12" cy="12" r="3"/>
         <path d="M12 2v3"/>

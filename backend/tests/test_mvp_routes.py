@@ -42,7 +42,9 @@ def create_equipment(
     return response.json()
 
 
-def test_customer_inventory_and_equipment_crud(client: TestClient, auth_headers: dict[str, str]) -> None:
+def test_customer_inventory_and_equipment_crud(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
     customer = create_customer(client, auth_headers)
 
     inventory_response = client.post(

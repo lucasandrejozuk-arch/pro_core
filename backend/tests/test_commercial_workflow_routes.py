@@ -53,7 +53,7 @@ def _create_order_waiting_approval(
     return submit_response.json()
 
 
-def test_service_order_tracks_timeline_notification_and_financial_record(
+def test_service_order_tracks_timeline_and_audit_log(
     client: TestClient,
     auth_headers: dict[str, str],
     technician_user,
@@ -69,26 +69,12 @@ def test_service_order_tracks_timeline_notification_and_financial_record(
         "quote_sent",
     ]
 
-    notifications_response = client.get(
-        "/api/v1/notifications",
-        headers=auth_headers,
-        params={"service_order_id": service_order["id"]},
-    )
-    assert notifications_response.status_code == 200
-    assert notifications_response.json()[0]["status"] == "pending"
-
     approve_response = client.post(
         f"/api/v1/service-orders/{service_order['id']}/approve",
         headers=auth_headers,
     )
     assert approve_response.status_code == 200
     assert approve_response.json()["approval_source"] == "staff"
-
-    financial_response = client.get("/api/v1/financial-records", headers=auth_headers)
-    assert financial_response.status_code == 200
-    financial_records = financial_response.json()
-    assert financial_records[0]["service_order_id"] == service_order["id"]
-    assert financial_records[0]["amount"] == "300.00"
 
     audit_response = client.get("/api/v1/audit-logs", headers=auth_headers)
     assert audit_response.status_code == 200

@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from backend.app.models.customer import Customer
 from backend.app.models.enums import ServiceOrderEventSource, ServiceOrderStatus, UserRole
-from backend.app.models.financial import FinancialRecord
 from backend.app.models.inventory import InventoryItem
 from backend.app.models.service_order import (
     ServiceOrder,
@@ -206,10 +205,6 @@ def delete_service_order(
     company_id = service_order.company_id
     for document in list(service_order.documents):
         db.delete(document)
-    db.query(FinancialRecord).filter(
-        FinancialRecord.company_id == company_id,
-        FinancialRecord.service_order_id == service_order.id,
-    ).update({"service_order_id": None}, synchronize_session=False)
     create_audit_log(
         db,
         company_id=company_id,
@@ -288,7 +283,6 @@ def submit_quote(db: Session, service_order: ServiceOrder) -> ServiceOrder:
         "quote_sent",
         "Orcamento enviado para aprovacao do cliente.",
     )
-    _queue_quote_notification(db, service_order)
     db.commit()
     db.refresh(service_order)
     return service_order
@@ -314,9 +308,6 @@ def approve_service_order(
         source=source,
         metadata={"customer_decision_name": customer_decision_name},
     )
-    from backend.app.services.financial import create_receivable_for_service_order
-
-    create_receivable_for_service_order(db, service_order)
     db.commit()
     db.refresh(service_order)
     return service_order
@@ -478,23 +469,4 @@ def recalculate_quoted_total(service_order: ServiceOrder) -> None:
     service_order.quoted_total = sum(
         (item.quantity or Decimal("0")) * (item.unit_price or Decimal("0"))
         for item in service_order.budget_items
-    )
-
-
-def _queue_quote_notification(db: Session, service_order: ServiceOrder) -> None:
-    if service_order.customer is None or not service_order.customer.email:
-        return
-
-    from backend.app.services.notifications import queue_notification
-
-    queue_notification(
-        db,
-        company_id=service_order.company_id,
-        service_order_id=service_order.id,
-        recipient=service_order.customer.email,
-        subject=f"Orcamento disponivel - {service_order.code}",
-        message=(
-            f"O orcamento da ordem {service_order.code} esta disponivel para aprovacao "
-            "na area do cliente."
-        ),
     )

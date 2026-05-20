@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-
 from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
@@ -10,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.security import decode_access_token
 from backend.app.db.session import get_db
+from backend.app.models.enums import UserRole
 from backend.app.models.user import User
 from backend.app.services.users import get_user_by_id
-from backend.app.models.enums import UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 

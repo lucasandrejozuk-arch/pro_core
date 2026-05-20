@@ -17,7 +17,7 @@ class CustomerPortalLoginRequest(BaseModel):
 class CustomerPortalLoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    service_order: "CustomerPortalServiceOrderResponse"
+    service_order: CustomerPortalServiceOrderResponse
 
 
 class CustomerPortalBudgetItem(BaseModel):

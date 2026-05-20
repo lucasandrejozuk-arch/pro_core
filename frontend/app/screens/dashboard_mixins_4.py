@@ -141,7 +141,7 @@ class DashboardMixin4:
         branding_panel_layout = QVBoxLayout(branding_panel)
         branding_panel_layout.setContentsMargins(12, 12, 12, 12)
         branding_panel_layout.setSpacing(8)
-        branding_title = QLabel("IDENTIDADE VISUAL")
+        branding_title = QLabel("PERSONALIZACAO")
         branding_title.setObjectName("formGroupTitle")
         branding_panel_layout.addWidget(branding_title)
         branding_panel_layout.addLayout(branding_layout)
@@ -162,7 +162,7 @@ class DashboardMixin4:
         operation_panel_layout = QVBoxLayout(operation_panel)
         operation_panel_layout.setContentsMargins(12, 12, 12, 12)
         operation_panel_layout.setSpacing(8)
-        operation_title = QLabel("TEMA E BACKUP")
+        operation_title = QLabel("CONFIGURACOES GERAIS")
         operation_title.setObjectName("formGroupTitle")
         operation_panel_layout.addWidget(operation_title)
         operation_panel_layout.addLayout(operation_layout)
@@ -200,181 +200,6 @@ class DashboardMixin4:
         layout.addWidget(self.settings_full_summary)
         layout.addWidget(self.settings_backup_last_run_label)
         layout.addWidget(self.settings_form_status)
-        layout.addLayout(actions)
-
-        return panel
-
-    def _build_report_form(self) -> QFrame:
-        panel = QFrame()
-        panel.setObjectName("formPanel")
-
-        title = QLabel("RELATORIOS E EXPORTACOES")
-        title.setObjectName("sectionTitle")
-
-        self.report_module_combo = QComboBox()
-        self.report_module_combo.addItem("Ordens de Servico", "service_orders")
-        self.report_module_combo.addItem("Clientes", "customers")
-        self.report_module_combo.addItem("Equipamentos", "equipment")
-        self.report_module_combo.addItem("Estoque", "inventory")
-        self.report_module_combo.addItem("Usuarios", "users")
-        self.report_module_combo.addItem("Financeiro", "financial")
-        self.report_module_combo.addItem("Logs/Auditoria", "audit_logs")
-
-        form_layout = QFormLayout()
-        form_layout.setSpacing(10)
-        form_layout.addRow("Modulo", self.report_module_combo)
-
-        report_filter_panel = QFrame()
-        report_filter_panel.setObjectName("formSubPanel")
-        report_filter_panel_layout = QVBoxLayout(report_filter_panel)
-        report_filter_panel_layout.setContentsMargins(12, 12, 12, 12)
-        report_filter_panel_layout.setSpacing(8)
-        report_filter_title = QLabel("FILTRO DO RELATORIO")
-        report_filter_title.setObjectName("formGroupTitle")
-        report_filter_panel_layout.addWidget(report_filter_title)
-        report_filter_panel_layout.addLayout(form_layout)
-
-        self.report_summary_label = QLabel("Total de registros: 0")
-        self.report_summary_label.setObjectName("statusBanner")
-        self.report_summary_label.setProperty("level", "info")
-        report_chart_title = QLabel("GRAFICO")
-        report_chart_title.setObjectName("formGroupTitle")
-        self.report_chart_frame = QFrame()
-        self.report_chart_frame.setObjectName("formSubPanel")
-        self.report_chart_layout = QVBoxLayout(self.report_chart_frame)
-        self.report_chart_layout.setContentsMargins(8, 8, 8, 8)
-        self.report_chart_layout.setSpacing(5)
-
-        report_details_title = QLabel("VISAO GERAL")
-        report_details_title.setObjectName("formGroupTitle")
-        self.report_full_summary = create_summary_text()
-
-        self.report_status_label = QLabel("")
-        self.report_status_label.setObjectName("mutedText")
-
-        self.report_load_button = QPushButton("Carregar relatorio")
-        self.report_load_button.setObjectName("secondaryButton")
-        self.report_load_button.clicked.connect(self._request_report_view)
-
-        self.report_export_csv_button = QPushButton("CSV")
-        self.report_export_csv_button.setObjectName("secondaryButton")
-        self.report_export_csv_button.clicked.connect(lambda: self._request_report_export("csv"))
-
-        self.report_export_xlsx_button = QPushButton("XLSX")
-        self.report_export_xlsx_button.setObjectName("secondaryButton")
-        self.report_export_xlsx_button.clicked.connect(lambda: self._request_report_export("xlsx"))
-
-        self.report_export_pdf_button = QPushButton("PDF")
-        self.report_export_pdf_button.setObjectName("secondaryButton")
-        self.report_export_pdf_button.clicked.connect(lambda: self._request_report_export("pdf"))
-
-        actions = QHBoxLayout()
-        actions.addStretch()
-        actions.addWidget(self.report_load_button)
-        actions.addWidget(self.report_export_csv_button)
-        actions.addWidget(self.report_export_xlsx_button)
-        actions.addWidget(self.report_export_pdf_button)
-
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-        layout.addWidget(title)
-        layout.addWidget(report_filter_panel)
-        layout.addWidget(self.report_summary_label)
-        layout.addWidget(report_chart_title)
-        layout.addWidget(self.report_chart_frame)
-        layout.addWidget(report_details_title)
-        layout.addWidget(self.report_full_summary)
-        layout.addWidget(self.report_status_label)
-        layout.addLayout(actions)
-
-        return panel
-
-    def _build_financial_form(self) -> QFrame:
-        panel = QFrame()
-        panel.setObjectName("formPanel")
-
-        title = QLabel("GESTAO FINANCEIRA")
-        title.setObjectName("sectionTitle")
-
-        self.financial_type_combo = QComboBox()
-        self.financial_type_combo.addItem("Receber", "receivable")
-        self.financial_type_combo.addItem("Pagar", "payable")
-
-        self.financial_description_input = QLineEdit()
-        self.financial_description_input.setPlaceholderText("Descricao")
-        self.financial_amount_input = QLineEdit()
-        self.financial_amount_input.setPlaceholderText("0.00")
-        self.financial_due_date_input = QLineEdit()
-        self.financial_due_date_input.setPlaceholderText("AAAA-MM-DD")
-        self.financial_notes_input = QLineEdit()
-        self.financial_notes_input.setPlaceholderText("Observacoes")
-
-        form_layout = QFormLayout()
-        form_layout.setSpacing(10)
-        form_layout.addRow("Tipo", self.financial_type_combo)
-        form_layout.addRow("Descricao", self.financial_description_input)
-        form_layout.addRow("Valor", self.financial_amount_input)
-        form_layout.addRow("Vencimento", self.financial_due_date_input)
-        form_layout.addRow("Observacoes", self.financial_notes_input)
-
-        form_panel = QFrame()
-        form_panel.setObjectName("formSubPanel")
-        form_panel_layout = QVBoxLayout(form_panel)
-        form_panel_layout.setContentsMargins(12, 12, 12, 12)
-        form_panel_layout.setSpacing(8)
-        form_title = QLabel("LANCAMENTO")
-        form_title.setObjectName("formGroupTitle")
-        form_panel_layout.addWidget(form_title)
-        form_panel_layout.addLayout(form_layout)
-
-        details_title = QLabel("DADOS COMPLETOS")
-        details_title.setObjectName("formGroupTitle")
-        financial_chart_title = QLabel("GRAFICO")
-        financial_chart_title.setObjectName("formGroupTitle")
-        self.financial_chart_frame = QFrame()
-        self.financial_chart_frame.setObjectName("formSubPanel")
-        self.financial_chart_layout = QVBoxLayout(self.financial_chart_frame)
-        self.financial_chart_layout.setContentsMargins(8, 8, 8, 8)
-        self.financial_chart_layout.setSpacing(5)
-        self.financial_full_summary = create_summary_text()
-        self.financial_form_status = QLabel("")
-        self.financial_form_status.setObjectName("mutedText")
-
-        self.financial_new_button = QPushButton("Novo")
-        self.financial_new_button.setObjectName("secondaryButton")
-        self.financial_new_button.clicked.connect(self.clear_financial_form)
-        self.financial_paid_button = QPushButton("Marcar pago")
-        self.financial_paid_button.setObjectName("secondaryButton")
-        self.financial_paid_button.clicked.connect(self._request_financial_mark_paid)
-        self.financial_cancel_button = QPushButton("Cancelar")
-        self.financial_cancel_button.setObjectName("secondaryButton")
-        self.financial_cancel_button.clicked.connect(self._request_financial_cancel)
-        self.financial_delete_button = QPushButton("Excluir")
-        self.financial_delete_button.setObjectName("dangerButton")
-        self.financial_delete_button.setEnabled(False)
-        self.financial_delete_button.clicked.connect(self._request_financial_delete)
-        self.financial_save_button = QPushButton("Salvar lancamento")
-        self.financial_save_button.clicked.connect(self._request_financial_save)
-
-        actions = QHBoxLayout()
-        actions.addStretch()
-        actions.addWidget(self.financial_new_button)
-        actions.addWidget(self.financial_paid_button)
-        actions.addWidget(self.financial_cancel_button)
-        actions.addWidget(self.financial_delete_button)
-        actions.addWidget(self.financial_save_button)
-
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-        layout.addWidget(title)
-        layout.addWidget(form_panel)
-        layout.addWidget(financial_chart_title)
-        layout.addWidget(self.financial_chart_frame)
-        layout.addWidget(details_title)
-        layout.addWidget(self.financial_full_summary)
-        layout.addWidget(self.financial_form_status)
         layout.addLayout(actions)
 
         return panel
@@ -425,24 +250,22 @@ class DashboardMixin4:
         title = QLabel("LOGS E AUDITORIA")
         title.setObjectName("sectionTitle")
         self.audit_full_summary = create_summary_text()
+        self.audit_form_status = QLabel("")
+        self.audit_form_status.setObjectName("mutedText")
+        self.audit_delete_button = QPushButton("Excluir log")
+        self.audit_delete_button.setObjectName("dangerButton")
+        self.audit_delete_button.setEnabled(False)
+        self.audit_delete_button.clicked.connect(self._request_audit_delete)
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.audit_delete_button)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(self.audit_full_summary)
-        return panel
-
-    def _build_notifications_form(self) -> QFrame:
-        panel = QFrame()
-        panel.setObjectName("formPanel")
-        title = QLabel("NOTIFICACOES")
-        title.setObjectName("sectionTitle")
-        self.notifications_full_summary = create_summary_text()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-        layout.addWidget(title)
-        layout.addWidget(self.notifications_full_summary)
+        layout.addWidget(self.audit_form_status)
+        layout.addLayout(actions)
         return panel
 
     def clear_customer_form(self) -> None:
@@ -707,6 +530,7 @@ class DashboardMixin4:
         self.sector_form_status.setText("Novo setor.")
         is_admin = self.current_user_role == "admin"
         self.sector_new_button.setEnabled(is_admin)
+        self.sector_delete_button.setEnabled(False)
         self.sector_save_button.setEnabled(is_admin)
         self.sector_name_input.setEnabled(is_admin)
         self.sector_description_input.setEnabled(is_admin)
@@ -721,6 +545,9 @@ class DashboardMixin4:
         is_admin = self.current_user_role == "admin"
         self.sector_save_button.setEnabled(is_admin and not is_loading)
         self.sector_new_button.setEnabled(is_admin and not is_loading)
+        self.sector_delete_button.setEnabled(
+            is_admin and not is_loading and bool(self.selected_sector_id)
+        )
         self.sector_save_button.setText("Salvando..." if is_loading else "Salvar setor")
 
     def clear_user_form(self) -> None:
@@ -739,6 +566,7 @@ class DashboardMixin4:
         self.user_reset_password_input.clear()
         self.user_reset_password_input.setEnabled(False)
         self.user_reset_password_button.setEnabled(False)
+        self.user_delete_button.setEnabled(False)
         self.user_full_summary.setPlainText("Novo registro de usuario.")
         self.user_form_status.setText("Novo usuario.")
         self.table.clearSelection()
@@ -750,12 +578,14 @@ class DashboardMixin4:
         self.user_save_button.setEnabled(not is_loading)
         self.user_new_button.setEnabled(not is_loading)
         self.user_reset_password_button.setEnabled(not is_loading and bool(self.selected_user_id))
+        self.user_delete_button.setEnabled(not is_loading and bool(self.selected_user_id))
         self.user_save_button.setText("Salvando..." if is_loading else "Salvar usuario")
 
     def set_user_password_reset_loading(self, is_loading: bool) -> None:
         self.user_reset_password_button.setEnabled(not is_loading and bool(self.selected_user_id))
         self.user_save_button.setEnabled(not is_loading)
         self.user_new_button.setEnabled(not is_loading)
+        self.user_delete_button.setEnabled(not is_loading and bool(self.selected_user_id))
         self.user_reset_password_button.setText(
             "Redefinindo..." if is_loading else "Redefinir senha"
         )
@@ -814,62 +644,15 @@ class DashboardMixin4:
             "Executando..." if is_loading else "Executar backup agora"
         )
 
-    def clear_report_form(self) -> None:
-        self._select_combo_value(self.report_module_combo, self.current_report_module_key)
-        self.report_summary_label.setText("Total de registros: 0")
-        self._render_bar_chart(self.report_chart_layout, {})
-        self.report_full_summary.setPlainText("Carregue um relatorio para ver a visao geral.")
-        self.report_status_label.setText("")
-
-    def set_report_status(self, message: str, is_error: bool = False) -> None:
-        self._set_inline_status(self.report_status_label, message, is_error)
-
-    def set_report_loading(self, is_loading: bool) -> None:
-        self.report_load_button.setEnabled(not is_loading)
-        self.report_export_csv_button.setEnabled(not is_loading)
-        self.report_export_xlsx_button.setEnabled(not is_loading)
-        self.report_export_pdf_button.setEnabled(not is_loading)
-        self.report_load_button.setText("Carregando..." if is_loading else "Carregar relatorio")
-
-    def set_report_export_loading(self, is_loading: bool) -> None:
-        self.report_load_button.setEnabled(not is_loading)
-        self.report_export_csv_button.setEnabled(not is_loading)
-        self.report_export_xlsx_button.setEnabled(not is_loading)
-        self.report_export_pdf_button.setEnabled(not is_loading)
-
-    def clear_financial_form(self) -> None:
-        self.selected_financial_record_id = None
-        if self.financial_type_combo.count() > 0:
-            self.financial_type_combo.setCurrentIndex(0)
-        self.financial_description_input.clear()
-        self.financial_amount_input.clear()
-        self.financial_due_date_input.clear()
-        self.financial_notes_input.clear()
-        self.financial_full_summary.setPlainText("Novo lancamento financeiro.")
-        self._render_bar_chart(self.financial_chart_layout, {})
-        self.financial_form_status.setText("Novo lancamento.")
-        self.financial_paid_button.setEnabled(False)
-        self.financial_cancel_button.setEnabled(False)
-        self.financial_delete_button.setEnabled(False)
-        self.table.clearSelection()
-
-    def set_financial_form_status(self, message: str, is_error: bool = False) -> None:
-        self._set_inline_status(self.financial_form_status, message, is_error)
-
-    def set_financial_form_loading(self, is_loading: bool) -> None:
-        has_selection = bool(self.selected_financial_record_id)
-        self.financial_save_button.setEnabled(not is_loading)
-        self.financial_new_button.setEnabled(not is_loading)
-        self.financial_paid_button.setEnabled(not is_loading and has_selection)
-        self.financial_cancel_button.setEnabled(not is_loading and has_selection)
-        self.financial_delete_button.setEnabled(not is_loading and has_selection)
-        self.financial_save_button.setText("Salvando..." if is_loading else "Salvar lancamento")
-
     def clear_audit_form(self) -> None:
         self.audit_full_summary.setPlainText("Selecione um log para ver os detalhes.")
+        self.audit_form_status.setText("")
+        self.audit_delete_button.setEnabled(False)
 
-    def clear_notifications_form(self) -> None:
-        self.notifications_full_summary.setPlainText(
-            "Selecione uma notificacao para ver os detalhes."
-        )
+    def set_audit_form_status(self, message: str, is_error: bool = False) -> None:
+        self._set_inline_status(self.audit_form_status, message, is_error)
 
+    def set_audit_form_loading(self, is_loading: bool) -> None:
+        has_record = bool(self.current_selected_record)
+        self.audit_delete_button.setEnabled(not is_loading and has_record)
+        self.audit_delete_button.setText("Excluindo..." if is_loading else "Excluir log")

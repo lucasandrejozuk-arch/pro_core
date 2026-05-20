@@ -53,3 +53,16 @@ def list_audit_logs(
     if entity_id:
         statement = statement.where(AuditLog.entity_id == entity_id)
     return list(db.scalars(statement))
+
+
+def delete_audit_log(db: Session, company_id: uuid.UUID, log_id: uuid.UUID) -> bool:
+    statement = select(AuditLog).where(
+        AuditLog.id == log_id,
+        AuditLog.company_id == company_id,
+    )
+    record = db.scalars(statement).first()
+    if record is None:
+        return False
+    db.delete(record)
+    db.commit()
+    return True

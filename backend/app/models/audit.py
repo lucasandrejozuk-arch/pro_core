@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
 from backend.app.models.common import ModelBase
+
+if TYPE_CHECKING:
+    from backend.app.models.user import User
 
 
 class AuditLog(ModelBase, Base):
@@ -32,4 +36,4 @@ class AuditLog(ModelBase, Base):
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
-    actor_user: Mapped["User | None"] = relationship(foreign_keys=[actor_user_id])
+    actor_user: Mapped[User | None] = relationship(foreign_keys=[actor_user_id])

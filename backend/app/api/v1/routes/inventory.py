@@ -51,7 +51,9 @@ def get_inventory_record(
 ) -> InventoryItemResponse:
     item = get_inventory_item(db, current_user.company_id, item_id)
     if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found."
+        )
 
     return item
 
@@ -65,7 +67,9 @@ def update_inventory_record(
 ) -> InventoryItemResponse:
     item = get_inventory_item(db, current_user.company_id, item_id)
     if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found."
+        )
 
     return update_inventory_item(db, item, payload)
 
@@ -78,7 +82,9 @@ def delete_inventory_record(
 ) -> None:
     item = get_inventory_item(db, current_user.company_id, item_id)
     if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found."
+        )
 
     try:
         delete_inventory_item(db, item)

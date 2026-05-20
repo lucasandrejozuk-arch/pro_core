@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from backend.app.models.enums import UserRole
-from backend.app.models.sector import Sector
 from backend.app.models.user import User
-from backend.tests.conftest import create_user
 
 
 def _auth_headers(client: TestClient, user: User) -> dict[str, str]:
@@ -132,35 +128,15 @@ def test_tools_catalog_is_filtered_by_role_and_sector(
     client: TestClient,
     auth_headers: dict[str, str],
     technician_user: User,
-    db_session: Session,
-    company,
 ) -> None:
     admin_response = client.get("/api/v1/tools", headers=auth_headers)
     assert admin_response.status_code == 200
     admin_tool_ids = {tool["id"] for tool in admin_response.json()}
-    assert {"ohm", "markup", "sla"}.issubset(admin_tool_ids)
+    assert {"ohm", "sla"}.issubset(admin_tool_ids)
 
     technician_headers = _auth_headers(client, technician_user)
     technician_response = client.get("/api/v1/tools", headers=technician_headers)
     assert technician_response.status_code == 200
     technician_tool_ids = {tool["id"] for tool in technician_response.json()}
     assert "ohm" in technician_tool_ids
-    assert "markup" not in technician_tool_ids
-
-    finance_sector = Sector(company_id=company.id, name="Financeiro")
-    db_session.add(finance_sector)
-    db_session.commit()
-    db_session.refresh(finance_sector)
-    finance_user = create_user(
-        db_session,
-        company,
-        UserRole.TECHNICIAN,
-        "financeiro@example.com",
-        "Financeiro",
-        finance_sector,
-    )
-    finance_response = client.get("/api/v1/tools", headers=_auth_headers(client, finance_user))
-    assert finance_response.status_code == 200
-    finance_tool_ids = {tool["id"] for tool in finance_response.json()}
-    assert "markup" in finance_tool_ids
-    assert "ohm" not in finance_tool_ids
+    assert "sla" not in technician_tool_ids

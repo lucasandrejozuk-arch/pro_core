@@ -17,7 +17,6 @@ Referência local: `C:\Users\Lucas\Documents\vscode_projects\pro_tech_tools_1.4`
 - Assistente IA local.
 - Chat/histórico operacional.
 - Compras.
-- Financeiro completo.
 - Orçamentos como módulo próprio sincronizado com OS.
 - Casos de defeito vinculados a equipamentos/placas.
 - Auditoria operacional avançada com trilha estruturada.
@@ -43,7 +42,6 @@ Referência local: `C:\Users\Lucas\Documents\vscode_projects\pro_tech_tools_1.4`
 
 3. Módulos complementares
    - Calculadora técnica.
-   - Financeiro.
    - Compras.
    - Orçamentos independentes.
    - Casos de defeito.

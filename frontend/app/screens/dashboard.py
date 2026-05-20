@@ -86,6 +86,7 @@ class DashboardWindow(
     inventory_delete_requested = Signal(str)
     sector_create_requested = Signal(dict)
     sector_update_requested = Signal(str, dict)
+    sector_delete_requested = Signal(str)
     service_order_create_requested = Signal(dict)
     service_order_update_requested = Signal(str, dict)
     service_order_delete_requested = Signal(str)
@@ -99,17 +100,13 @@ class DashboardWindow(
     service_order_document_upload_requested = Signal(str, str, str)
     user_create_requested = Signal(dict)
     user_update_requested = Signal(str, dict)
+    user_delete_requested = Signal(str)
     user_password_reset_requested = Signal(str, str)
     password_reset_resolve_requested = Signal(str, str)
     settings_update_requested = Signal(dict)
     ui_scale_changed = Signal(float)
     backup_run_requested = Signal()
-    report_view_requested = Signal(str)
-    report_export_requested = Signal(str, str, str)
-    financial_create_requested = Signal(dict)
-    financial_mark_paid_requested = Signal(str)
-    financial_cancel_requested = Signal(str)
-    financial_delete_requested = Signal(str)
+    audit_delete_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -130,9 +127,7 @@ class DashboardWindow(
         self.selected_sector_id: str | None = None
         self.selected_user_id: str | None = None
         self.selected_password_reset_request_id: str | None = None
-        self.selected_financial_record_id: str | None = None
         self.selected_service_order_document_path: str | None = None
-        self.current_report_module_key = "service_orders"
         self.current_tools: list[dict[str, Any]] = []
         self.current_settings: dict[str, Any] = {}
         self.current_selected_record: dict[str, Any] | None = None
@@ -160,7 +155,7 @@ class DashboardWindow(
             "password_resets",
             "audit_logs",
         )
-        self.management_module_keys = ("financial", "reports", "notifications")
+        self.management_module_keys = ()
         self.dashboard_grid_columns = 4
 
         self.setWindowTitle("PRO CORE - Dashboard")
@@ -210,13 +205,10 @@ class DashboardWindow(
             "equipment": "equipment",
             "inventory": "inventory",
             "tools": "tools",
-            "financial": "financial",
-            "notifications": "notifications",
             "sectors": "sectors",
             "users": "users",
             "password_resets": "password_resets",
             "settings": "settings",
-            "reports": "reports",
             "audit_logs": "audit_logs",
             "admin_area": "settings",
         }
@@ -231,10 +223,7 @@ class DashboardWindow(
             "users": "Usuarios",
             "password_resets": "Solicitacoes de senha",
             "settings": "Configuracoes",
-            "reports": "Relatorios",
-            "financial": "Financeiro",
             "audit_logs": "Logs/Auditoria",
-            "notifications": "Notificacoes",
             "admin_area": "Area administrativa",
         }
         self.module_descriptions = {
@@ -248,10 +237,7 @@ class DashboardWindow(
             "users": "Contas, perfis, setores e seguranca",
             "password_resets": "Atendimento de solicitacoes de acesso",
             "settings": "Identidade visual, empresa, tema e backup",
-            "reports": "Relatorios operacionais e exportacoes",
-            "financial": "Lancamentos, vencimentos e baixas",
             "audit_logs": "Rastreabilidade administrativa e operacional",
-            "notifications": "Fila de comunicacoes e eventos",
             "admin_area": "Central de administracao, usuarios e auditoria",
         }
         self.searchable_module_keys = {
@@ -261,15 +247,12 @@ class DashboardWindow(
             "sectors",
             "users",
             "password_resets",
-            "financial",
             "audit_logs",
-            "notifications",
         }
-        self.record_module_keys = self.searchable_module_keys | {"reports"}
+        self.record_module_keys = self.searchable_module_keys
         module_groups = [
             ("OPERACAO", ("dashboard", "service_orders", "tools")),
             ("CADASTROS", ("customers", "equipment", "inventory")),
-            ("GESTAO", ("financial", "reports", "notifications")),
         ]
 
         for caption, module_keys in module_groups:
@@ -334,7 +317,7 @@ class DashboardWindow(
             "settings",
             "Personalizacao e configuracoes",
         )
-        self.session_button.clicked.connect(self._open_settings_dialog)
+        self.session_button.clicked.connect(lambda: self.module_selected.emit("settings"))
         self.sidebar_layout.addWidget(self.session_button)
 
         self.logout_button = QPushButton("")
@@ -483,16 +466,10 @@ class DashboardWindow(
         self.password_reset_form_panel.hide()
         self.settings_form_panel = self._build_settings_form()
         self.settings_form_panel.hide()
-        self.report_form_panel = self._build_report_form()
-        self.report_form_panel.hide()
-        self.financial_form_panel = self._build_financial_form()
-        self.financial_form_panel.hide()
         self.admin_area_panel = self._build_admin_area_panel()
         self.admin_area_panel.hide()
         self.audit_form_panel = self._build_audit_form()
         self.audit_form_panel.hide()
-        self.notifications_form_panel = self._build_notifications_form()
-        self.notifications_form_panel.hide()
         for module_panel in (
             self.equipment_form_panel,
             self.tools_form_panel,
@@ -503,11 +480,8 @@ class DashboardWindow(
             self.sector_form_panel,
             self.user_form_panel,
             self.password_reset_form_panel,
-            self.report_form_panel,
-            self.financial_form_panel,
             self.admin_area_panel,
             self.audit_form_panel,
-            self.notifications_form_panel,
         ):
             module_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -541,10 +515,7 @@ class DashboardWindow(
         generic_form_layout.addWidget(self.sector_form_panel)
         generic_form_layout.addWidget(self.user_form_panel)
         generic_form_layout.addWidget(self.password_reset_form_panel)
-        generic_form_layout.addWidget(self.report_form_panel)
-        generic_form_layout.addWidget(self.financial_form_panel)
         generic_form_layout.addWidget(self.audit_form_panel)
-        generic_form_layout.addWidget(self.notifications_form_panel)
 
         self.record_details_button = QPushButton("D\na\nd\no\ns")
         self.record_details_button.setObjectName("recordEditorToggleButton")
@@ -705,4 +676,3 @@ class DashboardWindow(
         self.apply_display_profile()
         self._set_record_editor_open(False)
         self._mark_active_nav(self.active_module_key)
-

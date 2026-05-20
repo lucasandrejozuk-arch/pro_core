@@ -137,7 +137,9 @@ def get_service_order_record(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return service_order
@@ -152,7 +154,9 @@ def update_service_order_record(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     if "assigned_technician_id" in payload.model_dump(exclude_unset=True):
@@ -172,7 +176,9 @@ def delete_service_order_record(
 ) -> None:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     delete_service_order(db, service_order, current_user.id)
@@ -187,7 +193,9 @@ def register_service_order_diagnosis(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return register_diagnosis(db, service_order, payload)
@@ -206,7 +214,9 @@ def add_service_order_budget_item(
 ) -> BudgetItemResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     try:
@@ -223,7 +233,9 @@ def submit_service_order_quote(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return submit_quote(db, service_order)
@@ -237,7 +249,9 @@ def download_service_order_quote(
 ) -> Response:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return Response(
@@ -255,7 +269,9 @@ def approve_service_order_record(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return approve_service_order(db, service_order)
@@ -270,7 +286,9 @@ def reject_service_order_record(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return reject_service_order(db, service_order, payload)
@@ -284,7 +302,9 @@ def start_service_order_record(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return start_service_order(db, service_order)
@@ -298,7 +318,9 @@ def complete_service_order_record(
 ) -> ServiceOrderResponse:
     service_order = get_service_order(db, current_user.company_id, service_order_id)
     if service_order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service order not found."
+        )
 
     _ensure_service_order_access(db, current_user, service_order)
     return complete_service_order(db, service_order)

@@ -466,7 +466,6 @@ class DashboardMixin1:
         self.selected_sector_id = None
         self.selected_user_id = None
         self.selected_password_reset_request_id = None
-        self.selected_financial_record_id = None
 
     def _open_record_table_context_menu(self, position) -> None:
         if self.active_module_key not in self.record_module_keys:
@@ -485,14 +484,13 @@ class DashboardMixin1:
             "service_orders",
             "sectors",
             "users",
-            "financial",
         }:
             new_action = QAction("Novo", self)
             new_action.triggered.connect(self._new_current_record_from_context)
             menu.addAction(new_action)
 
         edit_label = "Resolver" if self.active_module_key == "password_resets" else "Editar"
-        if self.active_module_key in {"audit_logs", "notifications"}:
+        if self.active_module_key in {"audit_logs"}:
             edit_label = "Ver detalhes"
         edit_action = QAction(edit_label, self)
         edit_action.setEnabled(has_selection)
@@ -509,23 +507,6 @@ class DashboardMixin1:
             delete_action.setEnabled(has_selection)
             delete_action.triggered.connect(delete_callback)
             menu.addAction(delete_action)
-
-        if self.active_module_key == "financial":
-            menu.addSeparator()
-            paid_action = QAction("Marcar como pago", self)
-            paid_action.setEnabled(has_selection)
-            paid_action.triggered.connect(self._request_financial_mark_paid)
-            menu.addAction(paid_action)
-            cancel_action = QAction("Cancelar lancamento", self)
-            cancel_action.setEnabled(has_selection)
-            cancel_action.triggered.connect(self._request_financial_cancel)
-            menu.addAction(cancel_action)
-
-        if self.active_module_key == "reports":
-            menu.addSeparator()
-            view_action = QAction("Gerar relatorio", self)
-            view_action.triggered.connect(self._request_report_view)
-            menu.addAction(view_action)
 
         if has_selection:
             menu.addSeparator()
@@ -638,8 +619,6 @@ class DashboardMixin1:
             "sectors": self.clear_sector_form,
             "users": self.clear_user_form,
             "password_resets": self.clear_password_reset_form,
-            "reports": self.clear_report_form,
-            "financial": self.clear_financial_form,
         }
         callback = clear_callbacks.get(self.active_module_key)
         if callback is not None:
@@ -651,7 +630,9 @@ class DashboardMixin1:
             "customers": self._request_customer_delete,
             "inventory": self._request_inventory_delete,
             "service_orders": self._request_service_order_delete,
-            "financial": self._request_financial_delete,
+            "sectors": self._request_sector_delete,
+            "users": self._request_user_delete,
+            "audit_logs": self._request_audit_delete,
         }.get(self.active_module_key)
 
     def _open_admin_menu(self) -> None:
@@ -672,13 +653,10 @@ class DashboardMixin1:
         subtitle.setWordWrap(True)
 
         descriptions = {
-            "financial": "Lancamentos, baixas e controle financeiro.",
-            "notifications": "Fila de notificacoes por email, WhatsApp e sistema.",
             "sectors": "Setores e estrutura operacional.",
             "users": "Usuarios, perfis e redefinicao de senha.",
             "password_resets": "Solicitacoes de recuperacao de acesso.",
             "settings": "Identidade visual, empresa, tema e backup.",
-            "reports": "Relatorios operacionais e exportacoes.",
             "audit_logs": "Rastreabilidade administrativa e operacional.",
         }
 
@@ -713,168 +691,7 @@ class DashboardMixin1:
         dialog.accept()
         self.module_selected.emit(module_key)
 
-    def _open_settings_dialog(self) -> None:
-        dialog = QDialog(self)
-        dialog.setObjectName("assetDialog")
-        dialog.setWindowTitle("Personalizacao e Configuracoes")
-        dialog.setModal(True)
-        dialog.resize(680, 520)
-
-        settings = dict(self.current_settings)
-        tabs = QTabWidget()
-
-        company_name = self._dialog_line_edit(settings, "company_name", "Minha Assistencia")
-        trade_name = self._dialog_line_edit(settings, "trade_name", "Nome fantasia")
-        document_number = self._dialog_line_edit(settings, "document_number", "Documento")
-        company_email = self._dialog_line_edit(settings, "email", "Email")
-        company_phone = self._dialog_line_edit(settings, "phone", "Telefone")
-        company_tab = QWidget()
-        company_form = QFormLayout(company_tab)
-        company_form.setSpacing(8)
-        company_form.addRow("Empresa", company_name)
-        company_form.addRow("Nome fantasia", trade_name)
-        company_form.addRow("Documento", document_number)
-        company_form.addRow("Email", company_email)
-        company_form.addRow("Telefone", company_phone)
-
-        brand_name = self._dialog_line_edit(settings, "brand_name", "Nome exibido")
-        brand_subtitle = self._dialog_line_edit(settings, "brand_subtitle", "Subtitulo")
-        color_palette_combo = QComboBox()
-        self._populate_color_palette_combo(color_palette_combo)
-        self._select_combo_value(
-            color_palette_combo,
-            str(settings.get("color_palette") or DEFAULT_COLOR_PALETTE),
-        )
-        theme_combo = QComboBox()
-        theme_combo.addItem("Claro", "light")
-        theme_combo.addItem("Escuro", "dark")
-        self._select_combo_value(theme_combo, str(settings.get("theme") or "dark"))
-        scale_label = QLabel(f"{round(self.ui_scale_value * 100)}%")
-        scale_label.setObjectName("mutedText")
-        scale_slider = QSlider(Qt.Orientation.Horizontal)
-        scale_slider.setMinimum(round(self.ui_scale_min * 100))
-        scale_slider.setMaximum(round(self.ui_scale_max * 100))
-        scale_slider.setValue(round(self.ui_scale_value * 100))
-
-        def handle_scale_change(value: int) -> None:
-            scale_label.setText(f"{value}%")
-            self.ui_scale_changed.emit(value / 100)
-
-        scale_slider.valueChanged.connect(handle_scale_change)
-        appearance_tab = QWidget()
-        appearance_form = QFormLayout(appearance_tab)
-        appearance_form.setSpacing(8)
-        appearance_form.addRow("Nome exibido", brand_name)
-        appearance_form.addRow("Subtitulo", brand_subtitle)
-        appearance_form.addRow("Paleta", color_palette_combo)
-        appearance_form.addRow("Tema", theme_combo)
-        appearance_form.addRow("Escala", scale_slider)
-        appearance_form.addRow("", scale_label)
-
-        backup_enabled = QCheckBox("Backup automatico ativo")
-        backup_enabled.setChecked(bool(settings.get("backup_enabled", True)))
-        backup_interval = self._dialog_line_edit(settings, "backup_interval_hours", "24")
-        backup_path = self._dialog_line_edit(settings, "backup_storage_path", "backups")
-        backup_last_run = QLabel(str(settings.get("backup_last_run_at") or "Ultimo backup: nunca"))
-        backup_last_run.setObjectName("mutedText")
-        backup_run_button = QPushButton("Executar backup agora")
-        backup_run_button.setObjectName("secondaryButton")
-        backup_run_button.clicked.connect(self.backup_run_requested.emit)
-        backup_tab = QWidget()
-        backup_form = QFormLayout(backup_tab)
-        backup_form.setSpacing(8)
-        backup_form.addRow("", backup_enabled)
-        backup_form.addRow("Intervalo (horas)", backup_interval)
-        backup_form.addRow("Destino", backup_path)
-        backup_form.addRow("Status", backup_last_run)
-        backup_form.addRow("", backup_run_button)
-
-        session_tab = QWidget()
-        session_layout = QVBoxLayout(session_tab)
-        session_layout.setContentsMargins(8, 8, 8, 8)
-        session_summary = create_summary_text(160, 220)
-        session_summary.setPlainText(self.session_footer_label.text())
-        session_layout.addWidget(session_summary)
-
-        tabs.addTab(company_tab, "Empresa")
-        tabs.addTab(appearance_tab, "Aparencia")
-        tabs.addTab(backup_tab, "Backup")
-        tabs.addTab(session_tab, "Sessao")
-
-        status_label = QLabel("")
-        status_label.setObjectName("mutedText")
-        save_button = QPushButton("Salvar")
-        cancel_button = QPushButton("Fechar")
-        cancel_button.setObjectName("secondaryButton")
-        cancel_button.clicked.connect(dialog.reject)
-
-        def save_settings() -> None:
-            values = {
-                "company_name": company_name.text().strip(),
-                "trade_name": trade_name.text().strip() or None,
-                "document_number": document_number.text().strip() or None,
-                "email": company_email.text().strip() or None,
-                "phone": company_phone.text().strip() or None,
-                "brand_name": brand_name.text().strip() or None,
-                "brand_subtitle": brand_subtitle.text().strip() or None,
-                "color_palette": str(color_palette_combo.currentData() or DEFAULT_COLOR_PALETTE),
-                "theme": str(theme_combo.currentData() or "light"),
-                "backup_enabled": backup_enabled.isChecked(),
-                "backup_storage_path": backup_path.text().strip(),
-            }
-            if not values["company_name"]:
-                status_label.setObjectName("errorText")
-                status_label.setText("Informe o nome da empresa.")
-                status_label.style().unpolish(status_label)
-                status_label.style().polish(status_label)
-                return
-            try:
-                values["backup_interval_hours"] = int(backup_interval.text().strip())
-            except ValueError:
-                status_label.setObjectName("errorText")
-                status_label.setText("Intervalo de backup deve ser inteiro.")
-                status_label.style().unpolish(status_label)
-                status_label.style().polish(status_label)
-                return
-            if not values["backup_storage_path"]:
-                status_label.setObjectName("errorText")
-                status_label.setText("Informe a pasta de backup.")
-                status_label.style().unpolish(status_label)
-                status_label.style().polish(status_label)
-                return
-            self.settings_update_requested.emit(values)
-            dialog.accept()
-
-        save_button.clicked.connect(save_settings)
-
-        actions = QHBoxLayout()
-        actions.addStretch()
-        actions.addWidget(cancel_button)
-        actions.addWidget(save_button)
-
-        layout = QVBoxLayout(dialog)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(10)
-        layout.addWidget(tabs)
-        layout.addWidget(status_label)
-        layout.addLayout(actions)
-        dialog.exec()
-
-    @staticmethod
-    def _dialog_line_edit(
-        settings: dict[str, Any],
-        key: str,
-        placeholder: str,
-    ) -> QLineEdit:
-        line_edit = QLineEdit()
-        line_edit.setPlaceholderText(placeholder)
-        value = settings.get(key)
-        if value is not None:
-            line_edit.setText(str(value))
-        return line_edit
-
     def _sync_module_visibility(self) -> None:
-        allowed_admin_modules = set(self._allowed_admin_modules())
         for module_key, button in self.module_buttons.items():
             if module_key in {"customers", "admin_area"}:
                 visible = self.current_user_role in {"admin", "manager"}
@@ -882,19 +699,13 @@ class DashboardMixin1:
                 visible = self.current_user_role == "admin"
             elif module_key in self.admin_module_keys:
                 visible = False
-            elif module_key in self.management_module_keys:
-                visible = (
-                    module_key in allowed_admin_modules
-                    or module_key in {"financial", "reports"}
-                )
             else:
                 visible = True
             button.setVisible(visible)
 
     def _allowed_admin_modules(self) -> tuple[str, ...]:
         if self.current_user_role == "admin":
-            return self.admin_module_keys + self.management_module_keys + ("settings",)
+            return self.admin_module_keys + ("settings",)
         if self.current_user_role == "manager":
-            return ("financial", "reports", "notifications", "sectors", "users", "password_resets")
+            return ("sectors", "users", "password_resets")
         return ()
-

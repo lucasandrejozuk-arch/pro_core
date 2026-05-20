@@ -71,25 +71,6 @@ TECHNICAL_TOOLS = (
     ),
 )
 
-FINANCIAL_TOOLS = (
-    ToolDefinition(
-        id="markup",
-        name="Markup",
-        category="financial",
-        module="finance",
-        description="Calcula preco de venda por custo e margem.",
-        order=110,
-    ),
-    ToolDefinition(
-        id="installment",
-        name="Parcelamento",
-        category="financial",
-        module="finance",
-        description="Calcula parcela simples.",
-        order=120,
-    ),
-)
-
 MANAGEMENT_TOOLS = (
     ToolDefinition(
         id="sla",
@@ -115,18 +96,14 @@ def list_available_tools(user: User) -> list[ToolDefinition]:
     role = user.role
 
     if role == UserRole.ADMIN:
-        return _sorted_tools((*TECHNICAL_TOOLS, *FINANCIAL_TOOLS, *MANAGEMENT_TOOLS))
+        return _sorted_tools((*TECHNICAL_TOOLS, *MANAGEMENT_TOOLS))
 
     if role == UserRole.MANAGER:
-        if "finance" in sector_name:
-            return _sorted_tools((*FINANCIAL_TOOLS, *MANAGEMENT_TOOLS))
         if "administr" in sector_name or "gest" in sector_name:
-            return _sorted_tools((*TECHNICAL_TOOLS, *FINANCIAL_TOOLS, *MANAGEMENT_TOOLS))
+            return _sorted_tools((*TECHNICAL_TOOLS, *MANAGEMENT_TOOLS))
         return _sorted_tools((*TECHNICAL_TOOLS, *MANAGEMENT_TOOLS))
 
     if role == UserRole.TECHNICIAN:
-        if "finance" in sector_name:
-            return _sorted_tools(FINANCIAL_TOOLS)
         return _sorted_tools(TECHNICAL_TOOLS)
 
     return []

@@ -81,7 +81,7 @@ def test_delete_customer_with_orders_returns_conflict(
     assert "ordens de servico" in response.json()["detail"].lower()
 
 
-def test_delete_inventory_financial_and_service_order_routes(
+def test_delete_inventory_and_service_order_routes(
     client: TestClient,
     auth_headers: dict[str, str],
 ) -> None:
@@ -97,29 +97,11 @@ def test_delete_inventory_financial_and_service_order_routes(
     assert inventory_response.status_code == 201
     inventory = inventory_response.json()
 
-    financial_response = client.post(
-        "/api/v1/financial-records",
-        headers=auth_headers,
-        json={
-            "service_order_id": service_order["id"],
-            "record_type": "receivable",
-            "description": "Recebimento teste",
-            "amount": "120.00",
-        },
-    )
-    assert financial_response.status_code == 201
-    financial = financial_response.json()
-
     inventory_delete = client.delete(f"/api/v1/inventory/{inventory['id']}", headers=auth_headers)
     service_order_delete = client.delete(
         f"/api/v1/service-orders/{service_order['id']}",
         headers=auth_headers,
     )
-    financial_delete = client.delete(
-        f"/api/v1/financial-records/{financial['id']}",
-        headers=auth_headers,
-    )
 
     assert inventory_delete.status_code == 204
     assert service_order_delete.status_code == 204
-    assert financial_delete.status_code == 204

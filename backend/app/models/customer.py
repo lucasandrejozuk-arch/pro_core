@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
 from backend.app.models.common import ModelBase
+
+if TYPE_CHECKING:
+    from backend.app.models.company import Company
+    from backend.app.models.document import DocumentAttachment
+    from backend.app.models.equipment import Equipment
+    from backend.app.models.service_order import ServiceOrder
 
 
 class Customer(ModelBase, Base):
@@ -29,8 +36,7 @@ class Customer(ModelBase, Base):
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    company: Mapped["Company"] = relationship(back_populates="customers")
-    equipment: Mapped[list["Equipment"]] = relationship(back_populates="customer")
-    service_orders: Mapped[list["ServiceOrder"]] = relationship(back_populates="customer")
-    documents: Mapped[list["DocumentAttachment"]] = relationship(back_populates="customer")
-
+    company: Mapped[Company] = relationship(back_populates="customers")
+    equipment: Mapped[list[Equipment]] = relationship(back_populates="customer")
+    service_orders: Mapped[list[ServiceOrder]] = relationship(back_populates="customer")
+    documents: Mapped[list[DocumentAttachment]] = relationship(back_populates="customer")

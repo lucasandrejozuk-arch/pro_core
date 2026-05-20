@@ -84,5 +84,16 @@ def update_sector(
     return sector
 
 
+def delete_sector(db: Session, company_id: uuid.UUID, sector: Sector) -> None:
+    if (
+        _normalize_name(sector.name) == _normalize_name(DEFAULT_ADMIN_SECTOR_NAME)
+        and sector.company_id == company_id
+    ):
+        raise ValueError("Default administrative sector cannot be removed.")
+
+    db.delete(sector)
+    db.commit()
+
+
 def _normalize_name(name: str) -> str:
     return name.strip().casefold()

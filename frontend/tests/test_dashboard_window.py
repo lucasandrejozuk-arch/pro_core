@@ -229,7 +229,9 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
     window.service_order_delete_requested.connect(
         lambda value: emitted.append(("service_order", value))
     )
-    window.financial_delete_requested.connect(lambda value: emitted.append(("financial", value)))
+    window.sector_delete_requested.connect(lambda value: emitted.append(("sector", value)))
+    window.user_delete_requested.connect(lambda value: emitted.append(("user", value)))
+    window.audit_delete_requested.connect(lambda value: emitted.append(("audit", value)))
 
     window.render_rows(
         "Clientes",
@@ -270,25 +272,44 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
     window._request_service_order_delete()
 
     window.render_rows(
-        "Financeiro",
+        "Setores",
+        [{"id": "sector-id", "name": "Laboratorio", "description": "Bancada"}],
+        [("Nome", "name")],
+        "sectors",
+    )
+    window._request_sector_delete()
+
+    window.render_rows(
+        "Usuarios",
         [
             {
-                "id": "record-id",
-                "record_type": "receivable",
-                "description": "Receber",
-                "amount": "10",
+                "id": "user-id",
+                "full_name": "Tecnico",
+                "email": "tecnico@example.com",
+                "role": "technician",
+                "is_active": True,
             }
         ],
-        [("Descricao", "description")],
-        "financial",
+        [("Nome", "full_name")],
+        "users",
     )
-    window._request_financial_delete()
+    window._request_user_delete()
+
+    window.render_rows(
+        "Logs",
+        [{"id": "log-id", "action": "delete", "entity_type": "customers", "summary": "Teste"}],
+        [("Acao", "action")],
+        "audit_logs",
+    )
+    window._request_audit_delete()
 
     assert emitted == [
         ("customer", "customer-id"),
         ("inventory", "item-id"),
         ("service_order", "os-id"),
-        ("financial", "record-id"),
+        ("sector", "sector-id"),
+        ("user", "user-id"),
+        ("audit", "log-id"),
     ]
 
 
@@ -368,9 +389,6 @@ def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
         "users",
         "password_resets",
         "audit_logs",
-        "financial",
-        "reports",
-        "notifications",
         "settings",
     )
 
@@ -704,27 +722,33 @@ def test_admin_forms_populate_complete_summaries(qtbot) -> None:
     assert "Status: Pendente" in window.password_reset_full_summary.toPlainText()
 
 
-def test_report_renders_overview_summary(qtbot) -> None:
+def test_audit_log_selection_renders_summary(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
-    window.render_report(
-        {
-            "module": "customers",
-            "title": "Relatorio de Clientes",
-            "total_records": 1,
-            "columns": [{"key": "name", "label": "Nome"}],
-            "rows": [{"name": "Cliente Teste"}],
-        }
+    window.render_rows(
+        "Logs/Auditoria",
+        [
+            {
+                "id": "log-id",
+                "action": "customers.delete",
+                "entity_type": "customers",
+                "entity_id": "customer-id",
+                "summary": "Cliente removido",
+                "actor_type": "staff",
+            }
+        ],
+        [("Acao", "action")],
+        "audit_logs",
     )
 
-    summary = window.report_full_summary.toPlainText()
-    assert "Titulo: Relatorio de Clientes" in summary
-    assert "Modulo: Clientes" in summary
-    assert "Formatos disponiveis: CSV, XLSX e PDF" in summary
+    summary = window.audit_full_summary.toPlainText()
+    assert "Acao: customers.delete" in summary
+    assert "Entidade: Clientes" in summary
+    assert "Resumo: Cliente removido" in summary
     assert not window.generic_record_container.isHidden()
-    assert not window.report_form_panel.isHidden()
-    assert window.module_search_input.isHidden()
+    assert not window.audit_form_panel.isHidden()
+    assert window.audit_delete_button.isEnabled()
 
 
 def test_customer_save_emits_create_payload(qtbot) -> None:
@@ -818,52 +842,6 @@ def test_service_order_save_emits_priority_and_sla(qtbot) -> None:
     assert emitted[0]["sla_due_at"] == "2026-05-20T10:00:00"
 
 
-def test_financial_save_emits_payload(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-    emitted: list[dict] = []
-    window.financial_create_requested.connect(lambda payload: emitted.append(payload))
-
-    window.financial_description_input.setText("Recebimento OS-000001")
-    window.financial_amount_input.setText("300,00")
-    window.financial_due_date_input.setText("2026-05-20")
-    window.financial_notes_input.setText("Aprovado pelo cliente")
-
-    window._request_financial_save()
-
-    assert emitted == [
-        {
-            "record_type": "receivable",
-            "description": "Recebimento OS-000001",
-            "amount": "300.00",
-            "due_date": "2026-05-20",
-            "notes": "Aprovado pelo cliente",
-        }
-    ]
-
-
-def test_financial_populates_summary_and_actions(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    window._populate_financial_form(
-        {
-            "id": "record-id",
-            "record_type": "receivable",
-            "status": "open",
-            "description": "Recebimento OS-000001",
-            "amount": "300.00",
-            "due_date": "2026-05-20",
-            "paid_at": None,
-            "service_order_id": "service-order-id",
-            "notes": "Aprovado",
-        }
-    )
-
-    assert "Recebimento OS-000001" in window.financial_full_summary.toPlainText()
-    assert window.financial_paid_button.isEnabled()
-
-
 def test_settings_save_rejects_invalid_backup_interval(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
@@ -914,15 +892,3 @@ def test_settings_save_uses_default_palette(qtbot) -> None:
     window._request_settings_save()
 
     assert emitted[0]["color_palette"] == "blue"
-
-
-def test_report_view_emits_selected_module(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-    emitted: list[str] = []
-    window.report_view_requested.connect(lambda module_key: emitted.append(module_key))
-    window._select_combo_value(window.report_module_combo, "inventory")
-
-    window._request_report_view()
-
-    assert emitted == ["inventory"]

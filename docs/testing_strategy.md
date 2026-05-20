@@ -17,7 +17,6 @@ Garantir que o MVP evolua com segurança para produto comercial, cobrindo regras
    - Migrações Alembic.
    - Upload/download de documentos.
    - Backup e restauração em ambiente controlado.
-   - Relatórios e exportações.
 
 3. Contrato frontend/backend
    - `ApiClient` cobrindo todos os endpoints usados pela UI.
