@@ -32,9 +32,9 @@ class SplashScreen(QWidget):
         self.progress.setTextVisible(False)
 
         layout = QVBoxLayout(self)
-        margin = round(44 * profile.ui_scale)
-        layout.setContentsMargins(margin, margin, margin, round(38 * profile.ui_scale))
-        layout.setSpacing(round(18 * profile.ui_scale))
+        margin = round(24 * profile.ui_scale)
+        layout.setContentsMargins(margin, margin, margin, round(18 * profile.ui_scale))
+        layout.setSpacing(round(8 * profile.ui_scale))
         layout.addStretch()
         layout.addWidget(title)
         layout.addWidget(subtitle)

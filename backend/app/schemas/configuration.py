@@ -7,11 +7,13 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 ThemeMode = Literal["light", "dark"]
+ColorPalette = Literal["blue", "green"]
 
 
 class AppearanceSettingsResponse(BaseModel):
     brand_name: str | None
     brand_subtitle: str | None
+    color_palette: ColorPalette
     primary_color: str
     theme: ThemeMode
 
@@ -25,6 +27,7 @@ class SystemSettingsResponse(BaseModel):
     phone: str | None
     brand_name: str | None
     brand_subtitle: str | None
+    color_palette: ColorPalette
     primary_color: str
     theme: ThemeMode
     backup_enabled: bool
@@ -41,6 +44,7 @@ class SystemSettingsUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=32)
     brand_name: str | None = Field(default=None, max_length=80)
     brand_subtitle: str | None = Field(default=None, max_length=160)
+    color_palette: ColorPalette | None = None
     primary_color: str | None = Field(default=None, min_length=7, max_length=7)
     theme: ThemeMode | None = None
     backup_enabled: bool | None = None

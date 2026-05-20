@@ -27,6 +27,7 @@ def test_admin_can_read_and_update_system_settings(
     assert settings["company_name"] == "PRO CORE Test"
     assert settings["theme"] == "light"
     assert settings["brand_name"] is None
+    assert settings["color_palette"] == "blue"
     assert settings["primary_color"] == "#0969da"
     assert settings["backup_interval_hours"] == 24
     assert settings["backup_storage_path"] == "backups"
@@ -42,7 +43,7 @@ def test_admin_can_read_and_update_system_settings(
             "phone": "1133334444",
             "brand_name": "Pro Assist",
             "brand_subtitle": "Laboratorio tecnico",
-            "primary_color": "#0f766e",
+            "color_palette": "green",
             "theme": "dark",
             "backup_enabled": False,
             "backup_interval_hours": 12,
@@ -54,6 +55,7 @@ def test_admin_can_read_and_update_system_settings(
     assert updated_settings["company_name"] == "Assistencia Atualizada"
     assert updated_settings["brand_name"] == "Pro Assist"
     assert updated_settings["brand_subtitle"] == "Laboratorio tecnico"
+    assert updated_settings["color_palette"] == "green"
     assert updated_settings["primary_color"] == "#0f766e"
     assert updated_settings["theme"] == "dark"
     assert updated_settings["backup_enabled"] is False
@@ -63,6 +65,7 @@ def test_admin_can_read_and_update_system_settings(
     second_get_response = client.get("/api/v1/settings", headers=auth_headers)
     assert second_get_response.status_code == 200
     assert second_get_response.json()["theme"] == "dark"
+    assert second_get_response.json()["color_palette"] == "green"
     assert second_get_response.json()["primary_color"] == "#0f766e"
 
 
@@ -88,6 +91,7 @@ def test_authenticated_users_can_read_appearance_settings(
     assert response.status_code == 200
     body = response.json()
     assert body["theme"] == "light"
+    assert body["color_palette"] == "blue"
     assert body["primary_color"] == "#0969da"
 
 
@@ -106,17 +110,18 @@ def test_login_appearance_is_public_and_uses_admin_branding(
     body = response.json()
     assert body["brand_name"] == "Pro Assist"
     assert body["brand_subtitle"] == "Laboratorio tecnico"
+    assert body["color_palette"] == "blue"
     assert body["theme"] == "light"
 
 
-def test_settings_reject_invalid_primary_color(
+def test_settings_reject_invalid_color_palette(
     client: TestClient,
     auth_headers: dict[str, str],
 ) -> None:
     response = client.patch(
         "/api/v1/settings",
         headers=auth_headers,
-        json={"primary_color": "azul"},
+        json={"color_palette": "purple"},
     )
 
     assert response.status_code == 422

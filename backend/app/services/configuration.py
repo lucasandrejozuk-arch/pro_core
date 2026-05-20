@@ -12,11 +12,23 @@ from backend.app.schemas.configuration import SystemSettingsUpdate
 THEME_SETTING_KEY = "ui.theme"
 BRAND_NAME_SETTING_KEY = "ui.brand_name"
 BRAND_SUBTITLE_SETTING_KEY = "ui.brand_subtitle"
+COLOR_PALETTE_SETTING_KEY = "ui.color_palette"
 PRIMARY_COLOR_SETTING_KEY = "ui.primary_color"
 DEFAULT_THEME = "light"
+DEFAULT_COLOR_PALETTE = "blue"
 DEFAULT_PRIMARY_COLOR = "#0969da"
 DEFAULT_LOGIN_BRAND_NAME = "PRO CORE"
 DEFAULT_LOGIN_BRAND_SUBTITLE = "Gestao completa para assistencias tecnicas"
+THEME_PRIMARY_COLORS = {
+    "light": {
+        "blue": "#0969da",
+        "green": "#0f766e",
+    },
+    "dark": {
+        "blue": "#1f6feb",
+        "green": "#0f766e",
+    },
+}
 
 
 def get_system_settings(db: Session, company_id: uuid.UUID) -> dict:
@@ -90,13 +102,28 @@ def update_system_settings(
             update_data["brand_subtitle"] or "",
             "Subtitulo exibido na interface do sistema.",
         )
-    if "primary_color" in update_data:
+    if "color_palette" in update_data:
         set_setting_value(
             db,
             company_id,
-            PRIMARY_COLOR_SETTING_KEY,
-            update_data["primary_color"] or DEFAULT_PRIMARY_COLOR,
-            "Cor principal da identidade visual.",
+            COLOR_PALETTE_SETTING_KEY,
+            update_data["color_palette"] or DEFAULT_COLOR_PALETTE,
+            "Paleta de cores da identidade visual.",
+        )
+    elif "primary_color" in update_data:
+        theme_for_palette = update_data.get("theme") or get_setting_value(
+            db,
+            company_id,
+            THEME_SETTING_KEY,
+        )
+        if theme_for_palette not in THEME_PRIMARY_COLORS:
+            theme_for_palette = DEFAULT_THEME
+        set_setting_value(
+            db,
+            company_id,
+            COLOR_PALETTE_SETTING_KEY,
+            _palette_from_primary_color(theme_for_palette, update_data["primary_color"]),
+            "Paleta de cores da identidade visual.",
         )
 
     db.add(company)
@@ -111,13 +138,15 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
     if theme not in {"light", "dark"}:
         theme = DEFAULT_THEME
 
-    primary_color = get_setting_value(db, company_id, PRIMARY_COLOR_SETTING_KEY)
-    if not primary_color or not _is_hex_color(primary_color):
-        primary_color = DEFAULT_PRIMARY_COLOR
+    color_palette = get_setting_value(db, company_id, COLOR_PALETTE_SETTING_KEY)
+    if not _is_valid_palette(theme, color_palette):
+        color_palette = _legacy_palette(db, company_id, theme)
+    primary_color = THEME_PRIMARY_COLORS[theme][color_palette]
 
     return {
         "brand_name": get_setting_value(db, company_id, BRAND_NAME_SETTING_KEY) or None,
         "brand_subtitle": get_setting_value(db, company_id, BRAND_SUBTITLE_SETTING_KEY) or None,
+        "color_palette": color_palette,
         "primary_color": primary_color,
         "theme": theme,
     }
@@ -134,6 +163,7 @@ def get_login_appearance_settings(db: Session) -> dict:
         return {
             "brand_name": DEFAULT_LOGIN_BRAND_NAME,
             "brand_subtitle": DEFAULT_LOGIN_BRAND_SUBTITLE,
+            "color_palette": DEFAULT_COLOR_PALETTE,
             "primary_color": DEFAULT_PRIMARY_COLOR,
             "theme": DEFAULT_THEME,
         }
@@ -211,3 +241,37 @@ def _is_hex_color(value: str) -> bool:
     if len(value) != 7 or not value.startswith("#"):
         return False
     return all(character in "0123456789abcdefABCDEF" for character in value[1:])
+
+
+def _is_valid_palette(theme: str, color_palette: str | None) -> bool:
+    return bool(color_palette and color_palette in THEME_PRIMARY_COLORS[theme])
+
+
+def _legacy_palette(db: Session, company_id: uuid.UUID, theme: str) -> str:
+    primary_color = get_setting_value(db, company_id, PRIMARY_COLOR_SETTING_KEY)
+    if not primary_color or not _is_hex_color(primary_color):
+        return DEFAULT_COLOR_PALETTE
+    return _palette_from_primary_color(theme, primary_color)
+
+
+def _palette_from_primary_color(theme: str, primary_color: str | None) -> str:
+    if not primary_color or not _is_hex_color(primary_color):
+        return DEFAULT_COLOR_PALETTE
+
+    target = _hex_to_rgb(primary_color)
+    distances = {
+        palette_id: sum(
+            (target_channel - palette_channel) ** 2
+            for target_channel, palette_channel in zip(
+                target,
+                _hex_to_rgb(color),
+                strict=True,
+            )
+        )
+        for palette_id, color in THEME_PRIMARY_COLORS[theme].items()
+    }
+    return min(distances, key=distances.get)
+
+
+def _hex_to_rgb(value: str) -> tuple[int, int, int]:
+    return int(value[1:3], 16), int(value[3:5], 16), int(value[5:7], 16)

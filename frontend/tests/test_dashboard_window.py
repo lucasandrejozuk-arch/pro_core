@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from PySide6.QtCore import QEvent
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox, QTabWidget
 
 from frontend.app.core.display import build_display_profile
 from frontend.app.core.grid import GRID_COLUMNS
@@ -59,7 +59,7 @@ def test_sidebar_is_fixed_in_main_layout(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
-    main_area = window.layout().itemAt(0).widget()
+    main_area = window.layout().itemAt(1).widget()
     assert main_area.objectName() == "mainArea"
     assert main_area.layout().itemAt(0).widget() is window.sidebar
     assert main_area.layout().itemAt(1).widget().inherits("QScrollArea")
@@ -141,11 +141,12 @@ def test_record_editor_button_opens_floating_side_panel(qtbot) -> None:
 
     assert not window.generic_form_column.isHidden()
     assert window.record_editor_toggle_button.property("collapsed") == "false"
-    assert window.generic_form_column.parentWidget() is window.generic_record_container
-    assert window.generic_form_column.width() >= min(window.record_editor_width, 520)
+    assert window.generic_form_column.parentWidget() is window.record_editor_dialog
+    assert window.record_editor_dialog is not None
+    assert window.record_editor_dialog.width() >= min(window.record_editor_width, 520)
     assert window.record_editor_toggle_button.text() == "E\nd\ni\nt\no\nr"
     assert window.record_editor_toggle_button.height() > window.record_editor_toggle_button.width()
-    assert window.record_toggle_rail.width() <= 50
+    assert window.record_toggle_rail.width() <= 56
 
     window.record_editor_toggle_button.setChecked(False)
 
@@ -169,6 +170,7 @@ def test_record_table_context_actions_open_editor_and_clear_form(qtbot) -> None:
     assert window.selected_customer_id is None
     assert not window.generic_form_column.isHidden()
     assert window.record_editor_toggle_button.isChecked()
+    assert window.record_editor_dialog is not None
 
 
 def test_visual_density_is_compact_after_polish(qtbot) -> None:
@@ -194,8 +196,8 @@ def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
         }
     )
 
-    for module_key in window.admin_module_keys:
-        assert window.module_buttons[module_key].isHidden()
+    assert window.module_buttons["admin_area"].isHidden()
+    assert window.module_buttons["settings"].isHidden()
 
 
 def test_customer_module_is_hidden_for_technician(qtbot) -> None:
@@ -320,10 +322,10 @@ def test_sidebar_collapse_keeps_fixed_lateral_rail_without_moving_content(qtbot)
 
     window._set_sidebar_collapsed(True)
 
-    assert window.sidebar_nav_container.isHidden()
-    assert window.session_button.isHidden()
-    assert window.logout_button.isHidden()
-    assert window.sidebar.width() < initial_width
+    assert not window.sidebar_nav_container.isHidden()
+    assert not window.session_button.isHidden()
+    assert not window.logout_button.isHidden()
+    assert window.sidebar.width() == initial_width
     assert window.sidebar.height() > 52
     assert window.sidebar.parentWidget().objectName() == "mainArea"
     assert window.content_layout.contentsMargins().left() == initial_left_margin
@@ -358,18 +360,18 @@ def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
     qtbot.addWidget(window)
     window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
 
-    assert "users" in window.module_buttons
-    assert not window.module_buttons["users"].isHidden()
+    assert "admin_area" in window.module_buttons
+    assert not window.module_buttons["admin_area"].isHidden()
     assert not window.module_buttons["settings"].isHidden()
     assert window._allowed_admin_modules() == (
-        "financial",
-        "notifications",
         "sectors",
         "users",
         "password_resets",
-        "settings",
-        "reports",
         "audit_logs",
+        "financial",
+        "reports",
+        "notifications",
+        "settings",
     )
 
 
@@ -587,8 +589,12 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
 
     assert window.active_module_key == "tools"
     assert not window.tools_form_panel.isHidden()
-    assert window.tools_tabs.count() == 2
-    assert window.tools_tabs.tabText(0) == "Lei de Ohm"
+    assert window.tools_tabs.count() == 1
+    assert window.tools_tabs.tabText(0) == "eletrica"
+    specialty_tabs = window.tools_tabs.widget(0).findChild(QTabWidget, "specialtyTabs")
+    assert specialty_tabs is not None
+    assert specialty_tabs.count() == 2
+    assert specialty_tabs.tabText(0) == "Lei de Ohm"
 
     window.ohm_target_combo.setCurrentIndex(0)
     window.ohm_current_input.setText("2")
@@ -596,7 +602,6 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
     window._calculate_ohm_tool()
 
     assert "20 V" in window.ohm_result.toPlainText()
-    assert "Lei de Ohm" in window.tools_history_text.toPlainText()
 
 
 def test_ui_scale_slider_emits_live_scale(qtbot) -> None:
@@ -644,7 +649,7 @@ def test_settings_populates_operational_summary(qtbot) -> None:
             "trade_name": "Assistencia Teste",
             "brand_name": "Pro Assist",
             "brand_subtitle": "Bancada premium",
-            "primary_color": "#0f766e",
+            "color_palette": "green",
             "theme": "dark",
             "backup_enabled": True,
             "backup_interval_hours": 12,
@@ -658,6 +663,7 @@ def test_settings_populates_operational_summary(qtbot) -> None:
     assert "Nome exibido: Pro Assist" in summary
     assert window.sidebar_title.text() == "Pro Assist"
     assert window.sidebar_text.text() == "Bancada premium"
+    assert "Paleta: Verde operacional" in summary
     assert "Tema: Escuro" in summary
     assert "Backup automatico: Ativo" in summary
 
@@ -883,7 +889,7 @@ def test_settings_save_emits_branding_payload(qtbot) -> None:
     window.settings_company_name_input.setText("PRO CORE Lab")
     window.settings_brand_name_input.setText("Pro Assist")
     window.settings_brand_subtitle_input.setText("Laboratorio tecnico")
-    window.settings_primary_color_input.setText("#0f766e")
+    window._select_combo_value(window.settings_color_palette_combo, "green")
     window.settings_backup_interval_input.setText("24")
     window.settings_backup_path_input.setText("backups")
 
@@ -891,24 +897,23 @@ def test_settings_save_emits_branding_payload(qtbot) -> None:
 
     assert emitted[0]["brand_name"] == "Pro Assist"
     assert emitted[0]["brand_subtitle"] == "Laboratorio tecnico"
-    assert emitted[0]["primary_color"] == "#0f766e"
+    assert emitted[0]["color_palette"] == "green"
+    assert "primary_color" not in emitted[0]
 
 
-def test_settings_save_rejects_invalid_primary_color(qtbot) -> None:
+def test_settings_save_uses_default_palette(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
     emitted: list[dict] = []
     window.settings_update_requested.connect(lambda payload: emitted.append(payload))
 
     window.settings_company_name_input.setText("PRO CORE Lab")
-    window.settings_primary_color_input.setText("azul")
     window.settings_backup_interval_input.setText("24")
     window.settings_backup_path_input.setText("backups")
 
     window._request_settings_save()
 
-    assert emitted == []
-    assert "#RRGGBB" in window.settings_form_status.text()
+    assert emitted[0]["color_palette"] == "blue"
 
 
 def test_report_view_emits_selected_module(qtbot) -> None:

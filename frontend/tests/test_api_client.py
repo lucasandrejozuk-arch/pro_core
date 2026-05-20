@@ -103,6 +103,7 @@ def test_error_response_raises_api_error_with_backend_detail() -> None:
 
     assert exc_info.value.status_code == 401
     assert exc_info.value.message == "Invalid email or password."
+    assert exc_info.value.display_message == "[HTTP-401] Invalid email or password."
 
 
 def test_list_customers_returns_list_payload() -> None:
@@ -722,6 +723,7 @@ def test_get_appearance_settings_returns_payload() -> None:
             json={
                 "brand_name": "Pro Assist",
                 "brand_subtitle": "Laboratorio tecnico",
+                "color_palette": "green",
                 "primary_color": "#0f766e",
                 "theme": "dark",
             },
@@ -747,6 +749,7 @@ def test_get_login_appearance_settings_is_public() -> None:
             json={
                 "brand_name": "Pro Assist",
                 "brand_subtitle": "Laboratorio tecnico",
+                "color_palette": "green",
                 "primary_color": "#0f766e",
                 "theme": "dark",
             },
@@ -771,7 +774,7 @@ def test_update_settings_patches_payload() -> None:
         "phone": "1133334444",
         "brand_name": "Pro Assist",
         "brand_subtitle": "Laboratorio tecnico",
-        "primary_color": "#0f766e",
+        "color_palette": "green",
         "theme": "dark",
         "backup_enabled": True,
         "backup_interval_hours": 12,

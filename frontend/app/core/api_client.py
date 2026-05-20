@@ -12,6 +12,12 @@ class ApiError(Exception):
         self.message = message
         self.status_code = status_code
 
+    @property
+    def display_message(self) -> str:
+        if self.status_code is None:
+            return self.message
+        return f"[HTTP-{self.status_code}] {self.message}"
+
 
 class ApiClient:
     def __init__(

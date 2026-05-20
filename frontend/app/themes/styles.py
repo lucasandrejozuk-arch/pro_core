@@ -3,90 +3,161 @@ from __future__ import annotations
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
+from frontend.app.themes.base_styles import _dark_stylesheet, _light_stylesheet
+
 type Rgb = tuple[int, int, int]
+
+DEFAULT_COLOR_PALETTE = "blue"
+COLOR_PALETTE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("blue", "Azul tecnico"),
+    ("green", "Verde operacional"),
+)
+
+THEME_COLOR_PALETTES: dict[str, dict[str, dict[str, str]]] = {
+    "light": {
+        "blue": {
+            "primary": "#0969da",
+            "primary_hover": "#0550ae",
+            "primary_subtle": "#ddf4ff",
+            "app_bg": "#eef6ff",
+            "surface": "#ffffff",
+            "surface_alt": "#f4f8fc",
+            "sidebar": "#dfefff",
+            "panel": "#edf5ff",
+            "line": "#c8d7e6",
+            "text": "#111827",
+            "muted": "#506173",
+            "input_bg": "#ffffff",
+            "header_bg": "#ffffff",
+            "status_bg": "#e5f2ff",
+            "disabled_bg": "#8c959f",
+            "selection_bg": "#ddf4ff",
+            "selection_text": "#111827",
+        },
+        "green": {
+            "primary": "#0f766e",
+            "primary_hover": "#0b5f59",
+            "primary_subtle": "#d8f3ee",
+            "app_bg": "#edf8f5",
+            "surface": "#ffffff",
+            "surface_alt": "#f2faf7",
+            "sidebar": "#d9eee9",
+            "panel": "#e8f7f2",
+            "line": "#bddbd4",
+            "text": "#10201d",
+            "muted": "#506963",
+            "input_bg": "#ffffff",
+            "header_bg": "#ffffff",
+            "status_bg": "#def7ef",
+            "disabled_bg": "#8a9d98",
+            "selection_bg": "#d8f3ee",
+            "selection_text": "#10201d",
+        },
+    },
+    "dark": {
+        "blue": {
+            "primary": "#1f6feb",
+            "primary_hover": "#388bfd",
+            "primary_subtle": "#102a43",
+            "app_bg": "#0d1117",
+            "surface": "#161b22",
+            "surface_alt": "#21262d",
+            "sidebar": "#0d1117",
+            "panel": "#111827",
+            "line": "#30363d",
+            "text": "#e6edf7",
+            "muted": "#8b949e",
+            "input_bg": "#0f1117",
+            "header_bg": "#161b22",
+            "status_bg": "#102a43",
+            "disabled_bg": "#30363d",
+            "selection_bg": "#1f6feb",
+            "selection_text": "#ffffff",
+        },
+        "green": {
+            "primary": "#0f766e",
+            "primary_hover": "#14b8a6",
+            "primary_subtle": "#123d38",
+            "app_bg": "#071312",
+            "surface": "#101d1b",
+            "surface_alt": "#172925",
+            "sidebar": "#081715",
+            "panel": "#0d211f",
+            "line": "#28423d",
+            "text": "#e6f5f2",
+            "muted": "#91aaa4",
+            "input_bg": "#0a1715",
+            "header_bg": "#101d1b",
+            "status_bg": "#123d38",
+            "disabled_bg": "#2d4641",
+            "selection_bg": "#0f766e",
+            "selection_text": "#ffffff",
+        },
+    },
+}
 
 
 def apply_theme(
     app: QApplication,
     theme: str = "light",
-    primary_color: str | None = None,
+    color_palette: str | None = None,
     ui_scale: float = 1.0,
 ) -> None:
     app.setFont(QFont("Segoe UI", max(8, min(round(9 * ui_scale), 12))))
     is_dark = theme == "dark"
     default_color = "#1f6feb" if is_dark else "#0969da"
-    accent_color = _safe_hex_color(primary_color, default_color)
-    palette = build_theme_palette(theme, accent_color)
+    palette = build_theme_palette(theme, color_palette)
+    accent_color = palette["primary"]
     stylesheet = _dark_stylesheet() if is_dark else _light_stylesheet()
     app.setStyleSheet(stylesheet.replace(default_color, accent_color) + _palette_overrides(palette))
 
 
-def build_theme_palette(theme: str = "light", primary_color: str | None = None) -> dict[str, str]:
-    is_dark = theme == "dark"
-    fallback = "#1f6feb" if is_dark else "#0969da"
-    primary = _safe_hex_color(primary_color, fallback)
-
-    if is_dark:
-        app_bg = _mix(primary, "#05070d", 0.82)
-        surface = _mix(primary, "#111827", 0.82)
-        surface_alt = _mix(primary, "#1f2937", 0.80)
-        sidebar = _mix(primary, "#030712", 0.76)
-        panel = _mix(primary, "#0b1220", 0.72)
-        line = _mix(primary, "#374151", 0.70)
-        text = "#f8fafc"
-        muted = _mix(primary, "#cbd5e1", 0.72)
-        primary_hover = _mix(primary, "#ffffff", 0.14)
-        primary_subtle = _mix(primary, "#0b1220", 0.52)
-        status_bg = _mix(primary, "#0b1220", 0.48)
-        input_bg = _mix(primary, "#030712", 0.80)
-        header_bg = surface
-        disabled_bg = _mix(primary, "#475569", 0.76)
-        selection_bg = primary
-        selection_text = _contrast_text(primary)
-    else:
-        app_bg = _mix(primary, "#ffffff", 0.88)
-        surface = _mix(primary, "#ffffff", 0.96)
-        surface_alt = _mix(primary, "#ffffff", 0.91)
-        sidebar = _mix(primary, "#ffffff", 0.84)
-        panel = _mix(primary, "#ffffff", 0.82)
-        line = _mix(primary, "#d0d7de", 0.78)
-        text = "#111827"
-        muted = _mix("#57606a", primary, 0.22)
-        primary_hover = _mix(primary, "#000000", 0.16)
-        primary_subtle = _mix(primary, "#ffffff", 0.84)
-        status_bg = _mix(primary, "#ffffff", 0.82)
-        input_bg = _mix(primary, "#ffffff", 0.98)
-        header_bg = surface
-        disabled_bg = _mix(primary, "#8c959f", 0.65)
-        selection_bg = primary_subtle
-        selection_text = text
+def build_theme_palette(theme: str = "light", color_palette: str | None = None) -> dict[str, str]:
+    theme_key = "dark" if theme == "dark" else "light"
+    palette_id = resolve_color_palette(theme_key, color_palette)
+    palette = dict(THEME_COLOR_PALETTES[theme_key][palette_id])
+    primary = palette["primary"]
 
     return {
-        "primary": primary,
-        "primary_hover": primary_hover,
-        "primary_subtle": primary_subtle,
-        "app_bg": app_bg,
-        "surface": surface,
-        "surface_alt": surface_alt,
-        "sidebar": sidebar,
-        "panel": panel,
-        "line": line,
-        "text": text,
-        "muted": muted,
-        "input_bg": input_bg,
-        "header_bg": header_bg,
-        "status_bg": status_bg,
-        "disabled_bg": disabled_bg,
+        **palette,
+        "color_palette": palette_id,
         "button_text": _contrast_text(primary),
-        "selection_bg": selection_bg,
-        "selection_text": selection_text,
-        "success": "#56d364" if is_dark else "#1a7f37",
-        "success_bg": "#10261a" if is_dark else "#dafbe1",
-        "warning": "#e3b341" if is_dark else "#9a6700",
-        "warning_bg": "#2d2305" if is_dark else "#fff8c5",
-        "danger": "#ff7b72" if is_dark else "#cf222e",
-        "danger_bg": "#2d1115" if is_dark else "#ffebe9",
+        "success": "#56d364" if theme_key == "dark" else "#1a7f37",
+        "success_bg": "#10261a" if theme_key == "dark" else "#dafbe1",
+        "warning": "#e3b341" if theme_key == "dark" else "#9a6700",
+        "warning_bg": "#2d2305" if theme_key == "dark" else "#fff8c5",
+        "danger": "#ff7b72" if theme_key == "dark" else "#cf222e",
+        "danger_bg": "#2d1115" if theme_key == "dark" else "#ffebe9",
     }
+
+
+def resolve_color_palette(theme: str = "light", color_palette: str | None = None) -> str:
+    theme_key = "dark" if theme == "dark" else "light"
+    value = (color_palette or "").strip().lower()
+    if value in THEME_COLOR_PALETTES[theme_key]:
+        return value
+
+    legacy_color = _safe_hex_color(color_palette, "")
+    if legacy_color:
+        return _nearest_palette(theme_key, legacy_color)
+
+    return DEFAULT_COLOR_PALETTE
+
+
+def _nearest_palette(theme: str, color: str) -> str:
+    target = _hex_to_rgb(color)
+    distances = {
+        palette_id: sum(
+            (target_channel - palette_channel) ** 2
+            for target_channel, palette_channel in zip(
+                target,
+                _hex_to_rgb(palette["primary"]),
+                strict=True,
+            )
+        )
+        for palette_id, palette in THEME_COLOR_PALETTES[theme].items()
+    }
+    return min(distances, key=distances.get)
 
 
 def _safe_hex_color(value: str | None, fallback: str) -> str:
@@ -213,6 +284,26 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLabel#sessionFooterModule {{
             color: {palette["muted"]};
         }}
+        QLabel#footerMessage[level="success"],
+        QLabel#footerStatusDot[level="success"] {{
+            color: {palette["success"]};
+        }}
+        QLabel#footerMessage[level="warning"],
+        QLabel#footerStatusDot[level="warning"] {{
+            color: {palette["warning"]};
+        }}
+        QLabel#footerMessage[level="error"],
+        QLabel#footerStatusDot[level="error"] {{
+            color: {palette["danger"]};
+        }}
+        QLabel#footerMessage[level="info"] {{
+            color: {palette["muted"]};
+        }}
+        QLabel#emptyAlertText {{
+            color: {palette["muted"]};
+            font-size: 22px;
+            font-weight: 700;
+        }}
         QLabel#errorText {{
             color: {palette["danger"]};
         }}
@@ -254,6 +345,9 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QProgressBar {{
             background-color: {palette["surface_alt"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 4px;
+            color: {palette["text"]};
         }}
         QProgressBar::chunk {{
             background-color: {palette["primary"]};
@@ -326,7 +420,11 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-radius: 6px;
         }}
         QFrame#sidebar {{
-            background-color: {palette["sidebar"]};
+            background: linear-gradient(
+                180deg,
+                {palette["sidebar"]} 0%,
+                {palette["surface_alt"]} 100%
+            );
             border: 0;
             border-right: 1px solid {palette["line"]};
             border-radius: 0;
@@ -498,684 +596,4 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QScrollBar::handle:vertical {{
             background-color: {palette["line"]};
         }}
-        """
-
-
-def _light_stylesheet() -> str:
-    return """
-        QWidget {
-            color: #24292f;
-            selection-background-color: #0969da;
-            selection-color: #ffffff;
-        }
-        QWidget#splash,
-        QWidget#loginWindow,
-        QWidget#passwordWindow,
-        QWidget#dashboardWindow {
-            background: #f6f8fa;
-        }
-        QLabel#splashTitle,
-        QLabel#brandTitle {
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: 0;
-        }
-        QLabel#splashSubtitle,
-        QLabel#brandSubtitle,
-        QLabel#mutedText,
-        QLabel#cardMeta {
-            color: #57606a;
-            font-size: 14px;
-        }
-        QLabel#errorText {
-            color: #b42318;
-            font-weight: 600;
-        }
-        QLabel#formTitle,
-        QLabel#pageTitle {
-            font-size: 22px;
-            font-weight: 800;
-        }
-        QLabel#sectionTitle {
-            font-size: 16px;
-            font-weight: 800;
-        }
-        QLabel#dashboardGreeting {
-            color: #24292f;
-            font-size: 14px;
-            font-weight: 700;
-        }
-        QLabel#cardTitle {
-            font-size: 15px;
-            font-weight: 800;
-        }
-        QLabel#dashboardCardMarker {
-            font-size: 10px;
-            font-weight: 800;
-        }
-        QLabel#dashboardCardValue {
-            font-size: 30px;
-            font-weight: 800;
-        }
-        QLabel#dashboardCardLabel {
-            color: #24292f;
-            font-size: 12px;
-            font-weight: 800;
-        }
-        QLabel#sidebarCaption {
-            color: #8b949e;
-            font-size: 11px;
-            font-weight: 800;
-        }
-        QLabel#formGroupTitle {
-            color: #57606a;
-            font-size: 11px;
-            font-weight: 800;
-        }
-        QLabel#workflowStep {
-            background: #eaeef2;
-            border: 1px solid #d0d7de;
-            border-radius: 6px;
-            color: #57606a;
-            font-size: 11px;
-            font-weight: 800;
-            min-height: 28px;
-            padding: 0 8px;
-        }
-        QLabel#workflowStep[stage="active"] {
-            background: #ddf4ff;
-            border-color: #0969da;
-            color: #0969da;
-        }
-        QLabel#workflowStep[stage="done"] {
-            background: #dafbe1;
-            border-color: #238636;
-            color: #1a7f37;
-        }
-        QLabel#statusBanner {
-            background: #ddf4ff;
-            border: 1px solid #0969da;
-            border-radius: 6px;
-            color: #0969da;
-            font-weight: 800;
-            padding: 8px 10px;
-        }
-        QLabel#statusBanner[level="warning"] {
-            background: #fff8c5;
-            border-color: #d29922;
-            color: #9a6700;
-        }
-        QLabel#statusBanner[level="error"] {
-            background: #ffebe9;
-            border-color: #da3633;
-            color: #cf222e;
-        }
-        QProgressBar {
-            height: 8px;
-            border: 0;
-            border-radius: 4px;
-            background: #d0d7de;
-        }
-        QProgressBar::chunk {
-            border-radius: 4px;
-            background: #0969da;
-        }
-        QFrame#brandPanel {
-            background: #0f1117;
-        }
-        QFrame#brandPanel QLabel#brandTitle {
-            color: #ffffff;
-        }
-        QFrame#brandPanel QLabel#brandSubtitle {
-            color: #8b949e;
-        }
-        QFrame#formPanel,
-        QFrame#moduleCard {
-            background: #ffffff;
-            border: 1px solid #d0d7de;
-            border-radius: 8px;
-        }
-        QFrame#formSubPanel,
-        QFrame#workflowPanel {
-            background: #f6f8fa;
-            border: 1px solid #d0d7de;
-            border-radius: 8px;
-        }
-        QFrame#equipmentSection {
-            background: #ffffff;
-            border: 0;
-            border-radius: 6px;
-        }
-        QFrame#sessionFooter {
-            background: #ffffff;
-            border-top: 1px solid #d0d7de;
-        }
-        QLabel#sessionFooterText,
-        QLabel#sessionFooterModule {
-            color: #57606a;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        QFrame#dashboardKpiCard,
-        QFrame#dashboardAlertsFrame {
-            background: #ffffff;
-            border: 1px solid #d0d7de;
-            border-radius: 8px;
-        }
-        QFrame#dashboardKpiCard:hover {
-            border-color: #0969da;
-            background: #f6f8fa;
-        }
-        QFrame#dashboardAlertRow {
-            background: #f6f8fa;
-            border: 1px solid #d0d7de;
-            border-left: 5px solid #0969da;
-            border-radius: 6px;
-        }
-        QFrame#dashboardAlertRow[level="warning"] {
-            border-left-color: #d29922;
-        }
-        QFrame#dashboardAlertRow[level="error"] {
-            border-left-color: #da3633;
-        }
-        QFrame#dashboardAlertRow[level="success"] {
-            border-left-color: #238636;
-        }
-        QFrame#contentPanel {
-            background: #f6f8fa;
-            border: 0;
-        }
-        QFrame#headerBar {
-            background: #ffffff;
-            border: 1px solid #d0d7de;
-            border-radius: 8px;
-        }
-        QFrame#sidebar {
-            background: #ffffff;
-            border-right: 1px solid #d0d7de;
-        }
-        QLabel#sidebarTitle {
-            color: #24292f;
-            font-size: 21px;
-            font-weight: 800;
-        }
-        QLabel#sidebarText {
-            color: #57606a;
-        }
-        QLabel#sidebarSessionInfo {
-            background: #f6f8fa;
-            border: 1px solid #d0d7de;
-            border-radius: 8px;
-            color: #57606a;
-            font-size: 12px;
-            padding: 10px;
-        }
-        QLineEdit,
-        QComboBox,
-        QTreeWidget,
-        QTextEdit {
-            border: 1px solid #d0d7de;
-            border-radius: 6px;
-            padding: 0 12px;
-            background: #ffffff;
-            min-height: 38px;
-        }
-        QTextEdit#summaryText {
-            padding: 10px 12px;
-        }
-        QLineEdit:focus,
-        QComboBox:focus {
-            border-color: #0969da;
-        }
-        QComboBox::drop-down {
-            border: 0;
-            width: 28px;
-        }
-        QComboBox QAbstractItemView {
-            background: #ffffff;
-            border: 1px solid #d0d7de;
-            selection-background-color: #ddf4ff;
-            selection-color: #24292f;
-        }
-        QCheckBox {
-            spacing: 8px;
-        }
-        QPushButton {
-            border: 0;
-            border-radius: 6px;
-            background: #0969da;
-            color: #ffffff;
-            font-weight: 800;
-            min-height: 38px;
-            padding: 0 14px;
-        }
-        QPushButton:hover {
-            background: #0550ae;
-        }
-        QPushButton:disabled {
-            background: #8c959f;
-        }
-        QPushButton#secondaryButton {
-            background: #eaeef2;
-            color: #24292f;
-        }
-        QPushButton#secondaryButton:hover {
-            background: #d0d7de;
-        }
-        QPushButton#dangerButton {
-            background: #f6f8fa;
-            color: #cf222e;
-        }
-        QPushButton#dangerButton:hover {
-            background: #ffebe9;
-        }
-        QPushButton#sidebarToggleButton {
-            background: #eaeef2;
-            color: #24292f;
-            text-align: left;
-            min-height: 32px;
-            padding-left: 12px;
-        }
-        QPushButton#sidebarToggleButton:hover {
-            background: #d0d7de;
-        }
-        QPushButton#navButton {
-            background: transparent;
-            color: #24292f;
-            text-align: left;
-            padding-left: 16px;
-            min-height: 40px;
-            border-radius: 8px;
-        }
-        QPushButton#navButton:hover {
-            background: #eaeef2;
-        }
-        QPushButton#navButton[active="true"] {
-            background: #0969da;
-            color: #ffffff;
-        }
-        QPushButton#adminMenuButton {
-            background: #ffffff;
-            border: 1px solid #d0d7de;
-            color: #24292f;
-            text-align: left;
-            min-height: 44px;
-            padding-left: 14px;
-        }
-        QPushButton#adminMenuButton:hover {
-            border-color: #0969da;
-            background: #f6f8fa;
-        }
-        QTableWidget#dataTable {
-            background: #ffffff;
-            alternate-background-color: #f6f8fa;
-            border: 1px solid #d0d7de;
-            border-radius: 8px;
-            gridline-color: #d8dee4;
-        }
-        QHeaderView::section {
-            background: #eaeef2;
-            border: 0;
-            border-bottom: 1px solid #d0d7de;
-            padding: 8px;
-            font-weight: 800;
-        }
-        QScrollArea {
-            border: 0;
-            background: transparent;
-        }
-        QScrollBar:vertical {
-            width: 10px;
-            background: transparent;
-        }
-        QScrollBar::handle:vertical {
-            background: #afb8c1;
-            border-radius: 5px;
-            min-height: 36px;
-        }
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical {
-            height: 0;
-        }
-        """
-
-
-def _dark_stylesheet() -> str:
-    return """
-        QWidget {
-            color: #e6edf7;
-            selection-background-color: #1f6feb;
-            selection-color: #ffffff;
-        }
-        QWidget#splash,
-        QWidget#loginWindow,
-        QWidget#passwordWindow,
-        QWidget#dashboardWindow {
-            background: #0f1117;
-        }
-        QLabel#splashTitle,
-        QLabel#brandTitle {
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: 0;
-        }
-        QLabel#splashSubtitle,
-        QLabel#brandSubtitle,
-        QLabel#mutedText,
-        QLabel#cardMeta {
-            color: #8b949e;
-            font-size: 14px;
-        }
-        QLabel#errorText {
-            color: #ffb4ab;
-            font-weight: 600;
-        }
-        QLabel#formTitle,
-        QLabel#pageTitle {
-            font-size: 22px;
-            font-weight: 800;
-        }
-        QLabel#sectionTitle {
-            font-size: 16px;
-            font-weight: 800;
-        }
-        QLabel#dashboardGreeting {
-            color: #e6edf7;
-            font-size: 14px;
-            font-weight: 700;
-        }
-        QLabel#cardTitle {
-            font-size: 15px;
-            font-weight: 800;
-        }
-        QLabel#dashboardCardMarker {
-            font-size: 10px;
-            font-weight: 800;
-        }
-        QLabel#dashboardCardValue {
-            font-size: 30px;
-            font-weight: 800;
-        }
-        QLabel#dashboardCardLabel {
-            color: #e6edf7;
-            font-size: 12px;
-            font-weight: 800;
-        }
-        QLabel#sidebarCaption {
-            color: #8b949e;
-            font-size: 11px;
-            font-weight: 800;
-        }
-        QLabel#formGroupTitle {
-            color: #8b949e;
-            font-size: 11px;
-            font-weight: 800;
-        }
-        QLabel#workflowStep {
-            background: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            color: #8b949e;
-            font-size: 11px;
-            font-weight: 800;
-            min-height: 28px;
-            padding: 0 8px;
-        }
-        QLabel#workflowStep[stage="active"] {
-            background: #102a43;
-            border-color: #1f6feb;
-            color: #79c0ff;
-        }
-        QLabel#workflowStep[stage="done"] {
-            background: #10261a;
-            border-color: #238636;
-            color: #56d364;
-        }
-        QLabel#statusBanner {
-            background: #102a43;
-            border: 1px solid #1f6feb;
-            border-radius: 6px;
-            color: #79c0ff;
-            font-weight: 800;
-            padding: 8px 10px;
-        }
-        QLabel#statusBanner[level="warning"] {
-            background: #2d2305;
-            border-color: #d29922;
-            color: #e3b341;
-        }
-        QLabel#statusBanner[level="error"] {
-            background: #2d1115;
-            border-color: #da3633;
-            color: #ff7b72;
-        }
-        QProgressBar {
-            height: 8px;
-            border: 0;
-            border-radius: 4px;
-            background: #21262d;
-        }
-        QProgressBar::chunk {
-            border-radius: 4px;
-            background: #1f6feb;
-        }
-        QFrame#brandPanel {
-            background: #161b22;
-        }
-        QFrame#brandPanel QLabel#brandTitle {
-            color: #ffffff;
-        }
-        QFrame#brandPanel QLabel#brandSubtitle {
-            color: #8b949e;
-        }
-        QFrame#formPanel,
-        QFrame#moduleCard {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-        }
-        QFrame#formSubPanel,
-        QFrame#workflowPanel {
-            background: #0f1117;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-        }
-        QFrame#equipmentSection {
-            background: #161b22;
-            border: 0;
-            border-radius: 6px;
-        }
-        QFrame#sessionFooter {
-            background: #161b22;
-            border-top: 1px solid #30363d;
-        }
-        QLabel#sessionFooterText,
-        QLabel#sessionFooterModule {
-            color: #8b949e;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        QFrame#dashboardKpiCard,
-        QFrame#dashboardAlertsFrame {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-        }
-        QFrame#dashboardKpiCard:hover {
-            border-color: #1f6feb;
-            background: #21262d;
-        }
-        QFrame#dashboardAlertRow {
-            background: #0f1117;
-            border: 1px solid #30363d;
-            border-left: 5px solid #1f6feb;
-            border-radius: 6px;
-        }
-        QFrame#dashboardAlertRow[level="warning"] {
-            border-left-color: #d29922;
-        }
-        QFrame#dashboardAlertRow[level="error"] {
-            border-left-color: #da3633;
-        }
-        QFrame#dashboardAlertRow[level="success"] {
-            border-left-color: #238636;
-        }
-        QFrame#contentPanel {
-            background: #0f1117;
-            border: 0;
-        }
-        QFrame#headerBar {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-        }
-        QFrame#sidebar {
-            background: #0b0f16;
-            border-right: 1px solid #30363d;
-        }
-        QLabel#sidebarTitle {
-            color: #ffffff;
-            font-size: 21px;
-            font-weight: 800;
-        }
-        QLabel#sidebarText {
-            color: #8b949e;
-        }
-        QLabel#sidebarSessionInfo {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            color: #8b949e;
-            font-size: 12px;
-            padding: 10px;
-        }
-        QLineEdit,
-        QComboBox,
-        QTreeWidget,
-        QTextEdit {
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 0 12px;
-            background: #0f1117;
-            color: #e6edf7;
-            min-height: 38px;
-        }
-        QTextEdit#summaryText {
-            padding: 10px 12px;
-        }
-        QLineEdit:focus,
-        QComboBox:focus {
-            border-color: #1f6feb;
-        }
-        QComboBox::drop-down {
-            border: 0;
-            width: 28px;
-        }
-        QComboBox QAbstractItemView {
-            background: #161b22;
-            border: 1px solid #30363d;
-            selection-background-color: #1f6feb;
-            selection-color: #ffffff;
-        }
-        QCheckBox {
-            spacing: 8px;
-        }
-        QPushButton {
-            border: 0;
-            border-radius: 6px;
-            background: #1f6feb;
-            color: #ffffff;
-            font-weight: 800;
-            min-height: 38px;
-            padding: 0 14px;
-        }
-        QPushButton:hover {
-            background: #388bfd;
-        }
-        QPushButton:disabled {
-            background: #30363d;
-            color: #8b949e;
-        }
-        QPushButton#secondaryButton {
-            background: #21262d;
-            color: #e6edf7;
-        }
-        QPushButton#secondaryButton:hover {
-            background: #30363d;
-        }
-        QPushButton#dangerButton {
-            background: #21262d;
-            color: #ff7b72;
-        }
-        QPushButton#dangerButton:hover {
-            background: #2d1115;
-        }
-        QPushButton#sidebarToggleButton {
-            background: #21262d;
-            color: #e6edf7;
-            text-align: left;
-            min-height: 32px;
-            padding-left: 12px;
-        }
-        QPushButton#sidebarToggleButton:hover {
-            background: #30363d;
-        }
-        QPushButton#navButton {
-            background: transparent;
-            color: #c9d1d9;
-            text-align: left;
-            padding-left: 16px;
-            min-height: 40px;
-            border-radius: 8px;
-        }
-        QPushButton#navButton:hover {
-            background: #21262d;
-        }
-        QPushButton#navButton[active="true"] {
-            background: #1f6feb;
-            color: #ffffff;
-        }
-        QPushButton#adminMenuButton {
-            background: #161b22;
-            border: 1px solid #30363d;
-            color: #e6edf7;
-            text-align: left;
-            min-height: 44px;
-            padding-left: 14px;
-        }
-        QPushButton#adminMenuButton:hover {
-            border-color: #1f6feb;
-            background: #21262d;
-        }
-        QTableWidget#dataTable {
-            background: #161b22;
-            alternate-background-color: #0f1117;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            gridline-color: #30363d;
-        }
-        QHeaderView::section {
-            background: #21262d;
-            border: 0;
-            border-bottom: 1px solid #30363d;
-            padding: 8px;
-            font-weight: 800;
-        }
-        QScrollArea {
-            border: 0;
-            background: transparent;
-        }
-        QScrollBar:vertical {
-            width: 10px;
-            background: transparent;
-        }
-        QScrollBar::handle:vertical {
-            background: #30363d;
-            border-radius: 5px;
-            min-height: 36px;
-        }
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical {
-            height: 0;
-        }
         """
