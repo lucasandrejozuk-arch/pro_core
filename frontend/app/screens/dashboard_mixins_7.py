@@ -1,53 +1,13 @@
-# ruff: noqa: F401, F821, E501
 from __future__ import annotations
 
-import math
-from collections.abc import Callable
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
-from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QIcon, QResizeEvent
 from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QAbstractSpinBox,
-    QCheckBox,
     QComboBox,
-    QDialog,
-    QFileDialog,
-    QFormLayout,
-    QFrame,
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
     QLineEdit,
-    QMenu,
-    QMenuBar,
-    QMessageBox,
-    QProgressBar,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
-    QSlider,
-    QTableWidget,
-    QTableWidgetItem,
-    QTabWidget,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
 )
 
-from frontend.app.core.display import DisplayProfile, detect_display_profile
-from frontend.app.core.grid import GRID_COLUMNS, add_layout, add_widget, create_grid, span_for_items
-from frontend.app.core.icons import build_icon
-from frontend.app.screens.dashboard_dialogs import (
-    EquipmentAssetDialog,
-    EquipmentDefectCasesDialog,
-)
 from frontend.app.themes.styles import COLOR_PALETTE_OPTIONS, DEFAULT_COLOR_PALETTE
-from frontend.app.widgets import DashboardKpiCard, create_summary_text
 
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
