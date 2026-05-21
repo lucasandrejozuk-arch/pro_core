@@ -144,6 +144,7 @@ class DashboardFormStateMixin:
         technicians: list[dict[str, Any]],
     ) -> None:
         current_customer_id = self.service_order_customer_combo.currentData()
+        current_equipment_type = self.service_order_equipment_type_combo.currentData()
         current_technician_id = self.service_order_technician_combo.currentData()
 
         self.service_order_customers = customers
@@ -159,6 +160,20 @@ class DashboardFormStateMixin:
             )
         self.service_order_customer_combo.blockSignals(False)
 
+        self.service_order_equipment_type_combo.blockSignals(True)
+        self.service_order_equipment_type_combo.clear()
+        self.service_order_equipment_type_combo.addItem("Todos os tipos", "")
+        equipment_types = sorted(
+            {
+                str(item.get("category") or "").strip()
+                for item in equipment
+                if str(item.get("category") or "").strip()
+            }
+        )
+        for equipment_type in equipment_types:
+            self.service_order_equipment_type_combo.addItem(equipment_type, equipment_type)
+        self.service_order_equipment_type_combo.blockSignals(False)
+
         self.service_order_technician_combo.clear()
         self.service_order_technician_combo.addItem("Sem tecnico", "")
         for technician in technicians:
@@ -169,6 +184,11 @@ class DashboardFormStateMixin:
 
         if current_customer_id:
             self._select_combo_value(self.service_order_customer_combo, str(current_customer_id))
+        if current_equipment_type:
+            self._select_combo_value(
+                self.service_order_equipment_type_combo,
+                str(current_equipment_type),
+            )
         if current_technician_id:
             self._select_combo_value(
                 self.service_order_technician_combo, str(current_technician_id)
@@ -187,6 +207,8 @@ class DashboardFormStateMixin:
         self.selected_service_order_id = None
         if self.service_order_customer_combo.count() > 0:
             self.service_order_customer_combo.setCurrentIndex(0)
+        if self.service_order_equipment_type_combo.count() > 0:
+            self.service_order_equipment_type_combo.setCurrentIndex(0)
         if self.service_order_technician_combo.count() > 0:
             self.service_order_technician_combo.setCurrentIndex(0)
         self._refresh_service_order_equipment_combo()

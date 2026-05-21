@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenuBar, QMessageBox, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 
 def build_dashboard_footer(self, scroll_area) -> None:
@@ -50,43 +49,39 @@ def build_dashboard_footer(self, scroll_area) -> None:
     main_area_layout.addWidget(self.sidebar)
     main_area_layout.addWidget(scroll_area, 1)
 
-    self.menu_bar = QMenuBar()
-    file_menu = self.menu_bar.addMenu("Arquivo")
-    settings_action = QAction("Configuracoes", self)
-    settings_action.triggered.connect(lambda: self.module_selected.emit("settings"))
-    file_menu.addAction(settings_action)
-    file_menu.addSeparator()
-    logout_action = QAction("Sair", self)
-    logout_action.triggered.connect(self.logout_requested.emit)
-    file_menu.addAction(logout_action)
-
-    edit_menu = self.menu_bar.addMenu("Editar")
-    details_action = QAction("Dados completos", self)
-    details_action.triggered.connect(self._open_record_details)
-    edit_menu.addAction(details_action)
-    editor_action = QAction("Editor de registro", self)
-    editor_action.triggered.connect(self._open_record_editor)
-    edit_menu.addAction(editor_action)
-
-    selection_menu = self.menu_bar.addMenu("Selecao")
-    clear_selection_action = QAction("Limpar selecao", self)
-    clear_selection_action.triggered.connect(self._clear_current_selection)
-    selection_menu.addAction(clear_selection_action)
-
-    about_menu = self.menu_bar.addMenu("Sobre")
-    about_action = QAction("Sobre o Pro Core", self)
-    about_action.triggered.connect(
-        lambda: QMessageBox.information(
-            self,
-            "Sobre",
-            "PRO CORE\nSistema de gestao operacional.",
-        )
-    )
-    about_menu.addAction(about_action)
+    self.command_bar = QFrame()
+    self.command_bar.setObjectName("topCommandBar")
+    command_layout = QHBoxLayout(self.command_bar)
+    command_layout.setContentsMargins(12, 6, 12, 6)
+    command_layout.setSpacing(8)
+    self.command_context_label = QLabel("Painel Principal")
+    self.command_context_label.setObjectName("sessionFooterModule")
+    self.command_refresh_button = QPushButton("Atualizar")
+    self.command_refresh_button.setObjectName("secondaryButton")
+    self.command_refresh_button.clicked.connect(self.refresh_requested.emit)
+    self.command_editor_button = QPushButton("Editor")
+    self.command_editor_button.setObjectName("secondaryButton")
+    self.command_editor_button.clicked.connect(self._open_record_editor)
+    self.command_clear_selection_button = QPushButton("Limpar selecao")
+    self.command_clear_selection_button.setObjectName("secondaryButton")
+    self.command_clear_selection_button.clicked.connect(self._clear_current_selection)
+    self.command_settings_button = QPushButton("Configuracoes")
+    self.command_settings_button.setObjectName("secondaryButton")
+    self.command_settings_button.clicked.connect(lambda: self.module_selected.emit("settings"))
+    self.command_logout_button = QPushButton("Sair")
+    self.command_logout_button.setObjectName("dangerButton")
+    self.command_logout_button.clicked.connect(self.logout_requested.emit)
+    command_layout.addWidget(self.command_context_label)
+    command_layout.addStretch()
+    command_layout.addWidget(self.command_refresh_button)
+    command_layout.addWidget(self.command_editor_button)
+    command_layout.addWidget(self.command_clear_selection_button)
+    command_layout.addWidget(self.command_settings_button)
+    command_layout.addWidget(self.command_logout_button)
 
     layout = QVBoxLayout(self)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-    layout.addWidget(self.menu_bar)
+    layout.addWidget(self.command_bar)
     layout.addWidget(main_area, 1)
     layout.addWidget(self.session_footer)

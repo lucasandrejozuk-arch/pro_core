@@ -82,6 +82,12 @@ class DashboardMixin6:
             self.service_order_customer_combo,
             str(service_order.get("customer_id") or ""),
         )
+        selected_equipment = self._service_order_equipment_by_id(service_order.get("equipment_id"))
+        if selected_equipment is not None:
+            self._select_combo_value(
+                self.service_order_equipment_type_combo,
+                str(selected_equipment.get("category") or ""),
+            )
         self._refresh_service_order_equipment_combo()
         self._select_combo_value(
             self.service_order_equipment_combo,
@@ -162,6 +168,12 @@ class DashboardMixin6:
             "problem_description": problem_description,
         }
         self.service_order_create_requested.emit(payload)
+
+    def _service_order_equipment_by_id(self, equipment_id: Any) -> dict[str, Any] | None:
+        for equipment in self.service_order_equipment:
+            if str(equipment.get("id")) == str(equipment_id):
+                return equipment
+        return None
 
     def _request_service_order_delete(self) -> None:
         if not self.selected_service_order_id:

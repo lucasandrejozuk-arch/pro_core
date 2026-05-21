@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from frontend.app.core.grid import add_widget, create_grid
-from frontend.app.widgets import DashboardKpiCard
+from frontend.app.widgets import DashboardKpiCard, create_summary_text
 
 
 def build_dashboard_content(self) -> QScrollArea:
@@ -193,6 +193,18 @@ def build_dashboard_content(self) -> QScrollArea:
     record_list_layout.addWidget(self.module_search_input)
     record_list_layout.addWidget(self.empty_label)
     record_list_layout.addWidget(self.table, 1)
+    self.record_summary_panel = QFrame()
+    self.record_summary_panel.setObjectName("recordSummaryPanel")
+    record_summary_layout = QVBoxLayout(self.record_summary_panel)
+    record_summary_layout.setContentsMargins(10, 10, 10, 10)
+    record_summary_layout.setSpacing(6)
+    self.record_summary_title = QLabel("Resumo do item selecionado")
+    self.record_summary_title.setObjectName("formGroupTitle")
+    self.record_summary_text = create_summary_text(92, 150)
+    self.record_summary_text.setPlainText("Nenhum item selecionado.")
+    record_summary_layout.addWidget(self.record_summary_title)
+    record_summary_layout.addWidget(self.record_summary_text)
+    record_list_layout.addWidget(self.record_summary_panel)
 
     self.generic_form_column = QFrame()
     self.generic_form_column.setObjectName("recordEditorPanel")
@@ -210,13 +222,6 @@ def build_dashboard_content(self) -> QScrollArea:
     generic_form_layout.addWidget(self.user_form_panel)
     generic_form_layout.addWidget(self.password_reset_form_panel)
     generic_form_layout.addWidget(self.audit_form_panel)
-
-    self.record_details_button = QPushButton("D\na\nd\no\ns")
-    self.record_details_button.setObjectName("recordEditorToggleButton")
-    self.record_details_button.setCursor(Qt.CursorShape.PointingHandCursor)
-    self.record_details_button.setToolTip("Abrir dados completos do item selecionado")
-    self.record_details_button.setFixedSize(42, 120)
-    self.record_details_button.clicked.connect(self._open_record_details)
 
     self.record_editor_toggle_button = QPushButton("E\nd\ni\nt\no\nr")
     self.record_editor_toggle_button.setObjectName("recordEditorToggleButton")
@@ -236,11 +241,6 @@ def build_dashboard_content(self) -> QScrollArea:
     record_toggle_layout = QVBoxLayout(self.record_toggle_rail)
     record_toggle_layout.setContentsMargins(4, 2, 4, 0)
     record_toggle_layout.setSpacing(6)
-    record_toggle_layout.addWidget(
-        self.record_details_button,
-        0,
-        Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter,
-    )
     record_toggle_layout.addWidget(
         self.record_editor_toggle_button,
         0,

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from frontend.app.core.grid import add_widget, create_grid
 from frontend.app.widgets import create_summary_text
+from frontend.app.widgets.sla_date_time_edit import SlaDateTimeEdit
 
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
@@ -144,6 +145,10 @@ class DashboardOperationalFormsMixin:
         )
 
         self.service_order_equipment_combo = QComboBox()
+        self.service_order_equipment_type_combo = QComboBox()
+        self.service_order_equipment_type_combo.currentIndexChanged.connect(
+            self._refresh_service_order_equipment_combo
+        )
         self.service_order_technician_combo = QComboBox()
 
         self.service_order_priority_combo = QComboBox()
@@ -152,8 +157,7 @@ class DashboardOperationalFormsMixin:
         self.service_order_priority_combo.addItem("Alta", "high")
         self.service_order_priority_combo.addItem("Urgente", "urgent")
 
-        self.service_order_sla_input = QLineEdit()
-        self.service_order_sla_input.setPlaceholderText("AAAA-MM-DDTHH:MM:SS")
+        self.service_order_sla_input = SlaDateTimeEdit()
 
         self.service_order_problem_input = QLineEdit()
         self.service_order_problem_input.setPlaceholderText("Problema informado")
@@ -196,6 +200,7 @@ class DashboardOperationalFormsMixin:
         record_form_layout = QFormLayout()
         record_form_layout.setSpacing(10)
         record_form_layout.addRow("Cliente", self.service_order_customer_combo)
+        record_form_layout.addRow("Tipo de Equipamento", self.service_order_equipment_type_combo)
         record_form_layout.addRow("Equipamento", self.service_order_equipment_combo)
         record_form_layout.addRow("Tecnico", self.service_order_technician_combo)
         record_form_layout.addRow("Prioridade", self.service_order_priority_combo)

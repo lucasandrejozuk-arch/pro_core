@@ -146,6 +146,10 @@ def _dark_stylesheet() -> str:
             border: 0;
             border-radius: 6px;
         }
+        QFrame#topCommandBar {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+        }
         QFrame#sessionFooter {
             background: #161b22;
             border-top: 1px solid #30363d;
@@ -185,7 +189,8 @@ def _dark_stylesheet() -> str:
             background: #0f1117;
             border: 0;
         }
-        QFrame#headerBar {
+        QFrame#headerBar,
+        QFrame#recordSummaryPanel {
             background: #161b22;
             border: 1px solid #30363d;
             border-radius: 8px;
@@ -212,6 +217,7 @@ def _dark_stylesheet() -> str:
         }
         QLineEdit,
         QComboBox,
+        QDateTimeEdit,
         QTreeWidget,
         QTextEdit {
             border: 1px solid #30363d;

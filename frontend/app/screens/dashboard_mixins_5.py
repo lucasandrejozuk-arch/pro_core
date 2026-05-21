@@ -32,6 +32,10 @@ class DashboardMixin5:
             self.session_module_label.setText(
                 self.module_labels.get(module_key, "Painel Principal")
             )
+        if hasattr(self, "command_context_label"):
+            self.command_context_label.setText(
+                self.module_labels.get(module_key, "Painel Principal")
+            )
         self.setWindowTitle(
             f"{self.sidebar_title.text() or 'PRO CORE'} - {self.title_label.text()}"
         )
@@ -50,6 +54,7 @@ class DashboardMixin5:
         )
         self.module_search_input.setVisible(module_key in self.searchable_module_keys)
         self.table.setVisible(module_key in self.searchable_module_keys)
+        self.record_summary_panel.setVisible(module_key in self.searchable_module_keys)
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
         self.tools_form_panel.setVisible(module_key == "tools")
@@ -105,6 +110,7 @@ class DashboardMixin5:
         if not selected_items:
             self.current_selected_record = None
             self.current_selected_summary = "Nenhum item selecionado."
+            self._update_record_summary_panel()
             return
 
         row_index = selected_items[0].row()
@@ -113,6 +119,7 @@ class DashboardMixin5:
         selected_row = self.current_rows[row_index]
         self.current_selected_record = dict(selected_row)
         self.current_selected_summary = self._format_selected_record_summary(selected_row)
+        self._update_record_summary_panel()
 
         if self.active_module_key == "customers":
             self._populate_customer_form(selected_row)
@@ -144,6 +151,12 @@ class DashboardMixin5:
             return
 
         self._populate_user_form(selected_row)
+
+    def _update_record_summary_panel(self) -> None:
+        if hasattr(self, "record_summary_text"):
+            self.record_summary_text.setPlainText(
+                self.current_selected_summary or "Nenhum item selecionado."
+            )
 
     def _populate_customer_form(self, customer: dict[str, Any]) -> None:
         self.selected_customer_id = str(customer["id"])

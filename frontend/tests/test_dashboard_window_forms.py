@@ -92,3 +92,42 @@ def test_service_order_save_emits_priority_and_sla(qtbot) -> None:
 
     assert emitted[0]["priority"] == "urgent"
     assert emitted[0]["sla_due_at"] == "2026-05-20T10:00:00"
+
+
+def test_service_order_filters_equipment_by_type(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_service_order_dependencies(
+        customers=[{"id": "customer-id", "name": "Cliente"}],
+        equipment=[
+            {
+                "id": "notebook-id",
+                "customer_id": "customer-id",
+                "category": "Notebook",
+                "brand": "Dell",
+            },
+            {
+                "id": "desktop-id",
+                "customer_id": "customer-id",
+                "category": "Desktop",
+                "brand": "HP",
+            },
+        ],
+        technicians=[],
+    )
+
+    window._select_combo_value(window.service_order_equipment_type_combo, "Desktop")
+
+    assert window.service_order_equipment_combo.count() == 1
+    assert window.service_order_equipment_combo.currentData() == "desktop-id"
+
+
+def test_service_order_sla_uses_calendar_popup_and_iso_text(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    assert window.service_order_sla_input.calendarPopup() is True
+
+    window.service_order_sla_input.setText("2026-05-20T10:00:00")
+
+    assert window.service_order_sla_input.text() == "2026-05-20T10:00:00"

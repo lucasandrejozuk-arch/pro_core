@@ -431,6 +431,7 @@ class DashboardMixin1:
         self.table.blockSignals(False)
         self.current_selected_record = None
         self.current_selected_summary = "Nenhum item selecionado."
+        self._update_record_summary_panel()
         self._reset_selected_record_ids()
         self._set_footer_message("Selecao limpa.", "info")
 

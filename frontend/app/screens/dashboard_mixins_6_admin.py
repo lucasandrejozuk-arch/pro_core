@@ -283,9 +283,29 @@ class DashboardAdminActionsMixin:
             return
 
         current_equipment_id = self.service_order_equipment_combo.currentData()
+        selected_customer_id = (
+            str(self.service_order_customer_combo.currentData() or "")
+            if hasattr(self, "service_order_customer_combo")
+            else ""
+        )
+        selected_type = (
+            str(self.service_order_equipment_type_combo.currentData() or "")
+            if hasattr(self, "service_order_equipment_type_combo")
+            else ""
+        )
         self.service_order_equipment_combo.clear()
 
         for equipment in self.service_order_equipment:
+            equipment_customer_id = str(equipment.get("customer_id") or "")
+            equipment_type = str(equipment.get("category") or "").strip()
+            if (
+                selected_customer_id
+                and equipment_customer_id
+                and equipment_customer_id != selected_customer_id
+            ):
+                continue
+            if selected_type and equipment_type != selected_type:
+                continue
             label = " - ".join(
                 part
                 for part in [

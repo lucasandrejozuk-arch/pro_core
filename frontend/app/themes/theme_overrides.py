@@ -145,7 +145,8 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             color: {palette["button_text"]};
         }}
         QFrame#formPanel,
-        QFrame#recordEditorPanel {{
+        QFrame#recordEditorPanel,
+        QFrame#recordSummaryPanel {{
             background-color: {palette["surface"]};
             border: 1px solid {palette["line"]};
             border-radius: 6px;
@@ -176,6 +177,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QFrame#equipmentSection {{
             background-color: {palette["surface_alt"]};
             border-color: {palette["line"]};
+        }}
+        QFrame#topCommandBar {{
+            background-color: {palette["surface"]};
+            border-bottom: 1px solid {palette["line"]};
         }}
         QFrame#sessionFooter {{
             background-color: {palette["surface"]};
@@ -224,6 +229,7 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QLineEdit,
         QComboBox,
+        QDateTimeEdit,
         QTreeWidget,
         QTextEdit,
         QTabWidget::pane {{

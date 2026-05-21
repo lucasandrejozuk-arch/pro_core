@@ -147,6 +147,10 @@ def _light_stylesheet() -> str:
             border: 0;
             border-radius: 6px;
         }
+        QFrame#topCommandBar {
+            background: #ffffff;
+            border-bottom: 1px solid #d0d7de;
+        }
         QFrame#sessionFooter {
             background: #ffffff;
             border-top: 1px solid #d0d7de;
@@ -188,7 +192,8 @@ def _light_stylesheet() -> str:
             background: #f6f8fa;
             border: 0;
         }
-        QFrame#headerBar {
+        QFrame#headerBar,
+        QFrame#recordSummaryPanel {
             background: #ffffff;
             border: 1px solid #d0d7de;
             border-radius: 8px;
@@ -215,6 +220,7 @@ def _light_stylesheet() -> str:
         }
         QLineEdit,
         QComboBox,
+        QDateTimeEdit,
         QTreeWidget,
         QTextEdit {
             border: 1px solid #d0d7de;
