@@ -24,7 +24,16 @@ class DashboardFormStateMixin:
         self.customer_active_checkbox.setChecked(True)
         self.customer_full_summary.setPlainText("Novo registro de cliente.")
         self.customer_form_status.setText("Novo cliente.")
+        self._set_customer_operational_status(
+            "Novo cliente: preencha nome, email e telefone para liberar o cadastro.",
+            "warning",
+        )
+        self._set_customer_document_status(
+            "Anexos: salve ou selecione um cliente antes de enviar evidencias.",
+            "warning",
+        )
         self.customer_delete_button.setEnabled(False)
+        self.customer_upload_document_button.setEnabled(False)
         self.table.clearSelection()
 
     def set_customer_form_status(self, message: str, is_error: bool = False) -> None:
@@ -45,6 +54,18 @@ class DashboardFormStateMixin:
         self.customer_upload_document_button.setText(
             "Enviando..." if is_loading else "Enviar anexo"
         )
+
+    def _set_customer_operational_status(self, message: str, level: str) -> None:
+        self.customer_operational_status.setText(message)
+        self.customer_operational_status.setProperty("level", level)
+        self.customer_operational_status.style().unpolish(self.customer_operational_status)
+        self.customer_operational_status.style().polish(self.customer_operational_status)
+
+    def _set_customer_document_status(self, message: str, level: str) -> None:
+        self.customer_document_status.setText(message)
+        self.customer_document_status.setProperty("level", level)
+        self.customer_document_status.style().unpolish(self.customer_document_status)
+        self.customer_document_status.style().polish(self.customer_document_status)
 
     def set_equipment_customers(self, customers: list[dict[str, Any]]) -> None:
         self.equipment_customers = customers
@@ -117,6 +138,10 @@ class DashboardFormStateMixin:
         self.inventory_unit_cost_input.setText("0")
         self.inventory_full_summary.setPlainText("Novo registro de estoque.")
         self._set_inventory_stock_status("Status: novo item.", "info")
+        self._set_inventory_reorder_status(
+            "Reposicao: informe quantidade, minimo e custo para calcular necessidade.",
+            "warning",
+        )
         self.inventory_form_status.setText("Novo item de estoque.")
         self.inventory_delete_button.setEnabled(False)
         self.table.clearSelection()
@@ -136,6 +161,12 @@ class DashboardFormStateMixin:
         self.inventory_stock_status.setProperty("level", level)
         self.inventory_stock_status.style().unpolish(self.inventory_stock_status)
         self.inventory_stock_status.style().polish(self.inventory_stock_status)
+
+    def _set_inventory_reorder_status(self, message: str, level: str) -> None:
+        self.inventory_reorder_status.setText(message)
+        self.inventory_reorder_status.setProperty("level", level)
+        self.inventory_reorder_status.style().unpolish(self.inventory_reorder_status)
+        self.inventory_reorder_status.style().polish(self.inventory_reorder_status)
 
     def set_service_order_dependencies(
         self,
@@ -278,14 +309,37 @@ class DashboardFormStateMixin:
             not is_loading and bool(self.selected_service_order_id)
         )
 
-    def _set_service_order_flow_buttons_enabled(self, enabled: bool) -> None:
-        self.service_order_diagnosis_button.setEnabled(enabled)
-        self.service_order_add_budget_button.setEnabled(enabled)
-        self.service_order_submit_quote_button.setEnabled(enabled)
-        self.service_order_approve_button.setEnabled(enabled)
-        self.service_order_reject_button.setEnabled(enabled)
-        self.service_order_start_button.setEnabled(enabled)
-        self.service_order_complete_button.setEnabled(enabled)
+    def _set_service_order_flow_buttons_enabled(
+        self,
+        enabled: bool,
+        status: str | None = None,
+    ) -> None:
+        status_key = status
+        if status_key is None and hasattr(self, "service_order_status_combo"):
+            status_key = str(self.service_order_status_combo.currentData() or "")
+        status_key = status_key or ""
+
+        diagnosis_statuses = {"open", "assigned", "pending_tech", "diagnosis", "pending_quote"}
+        budget_statuses = {
+            "open",
+            "assigned",
+            "pending_tech",
+            "diagnosis",
+            "pending_quote",
+            "quote_sent",
+            "pending_approval",
+        }
+        approval_statuses = {"quote_sent", "pending_approval"}
+        start_statuses = {"approved"}
+        complete_statuses = {"in_progress", "ready_dispatch"}
+
+        self.service_order_diagnosis_button.setEnabled(enabled and status_key in diagnosis_statuses)
+        self.service_order_add_budget_button.setEnabled(enabled and status_key in budget_statuses)
+        self.service_order_submit_quote_button.setEnabled(enabled and status_key in budget_statuses)
+        self.service_order_approve_button.setEnabled(enabled and status_key in approval_statuses)
+        self.service_order_reject_button.setEnabled(enabled and status_key in approval_statuses)
+        self.service_order_start_button.setEnabled(enabled and status_key in start_statuses)
+        self.service_order_complete_button.setEnabled(enabled and status_key in complete_statuses)
         self.service_order_select_document_button.setEnabled(enabled)
         self.service_order_upload_document_button.setEnabled(enabled)
 
@@ -321,6 +375,7 @@ class DashboardFormStateMixin:
         self.sector_description_input.setEnabled(is_admin)
         if not is_admin:
             self.sector_form_status.setText("Setor disponivel apenas para consulta.")
+        self._refresh_sector_operational_status()
         self.table.clearSelection()
 
     def set_sector_form_status(self, message: str, is_error: bool = False) -> None:
@@ -334,6 +389,46 @@ class DashboardFormStateMixin:
             is_admin and not is_loading and bool(self.selected_sector_id)
         )
         self.sector_save_button.setText("Salvando..." if is_loading else "Salvar setor")
+
+    def _set_sector_operational_status(self, message: str, level: str) -> None:
+        self.sector_operational_status.setText(message)
+        self.sector_operational_status.setProperty("level", level)
+        self.sector_operational_status.style().unpolish(self.sector_operational_status)
+        self.sector_operational_status.style().polish(self.sector_operational_status)
+
+    def _refresh_sector_operational_status(self, sector: dict[str, Any] | None = None) -> None:
+        is_admin = self.current_user_role == "admin"
+        action_scope = (
+            "Admin: pode criar, editar e excluir setores."
+            if is_admin
+            else "Consulta: alteracoes de setor ficam restritas ao administrador."
+        )
+        self.sector_scope_status.setText(action_scope)
+
+        if sector is not None:
+            sector_name = str(sector.get("name") or "Setor sem nome")
+            action = "edicao liberada" if is_admin else "consulta liberada"
+            level = "info" if is_admin else "warning"
+            self._set_sector_operational_status(
+                f"Setor selecionado: {sector_name}. {action}.", level
+            )
+            return
+
+        sector_count = len(self.all_rows) if self.active_module_key == "sectors" else 0
+        if sector_count:
+            action = "selecione um setor para editar" if is_admin else "selecione para consultar"
+            level = "info" if is_admin else "warning"
+            self._set_sector_operational_status(
+                f"{sector_count} setor(es) cadastrado(s); {action}.", level
+            )
+            return
+
+        message = (
+            "Nenhum setor cadastrado. Crie a estrutura inicial para orientar usuarios e rotinas."
+            if is_admin
+            else "Nenhum setor disponivel para consulta no momento."
+        )
+        self._set_sector_operational_status(message, "warning")
 
     def clear_user_form(self) -> None:
         self.selected_user_id = None
@@ -354,6 +449,7 @@ class DashboardFormStateMixin:
         self.user_delete_button.setEnabled(False)
         self.user_full_summary.setPlainText("Novo registro de usuario.")
         self.user_form_status.setText("Novo usuario.")
+        self._refresh_user_operational_status()
         self.table.clearSelection()
 
     def set_user_form_status(self, message: str, is_error: bool = False) -> None:
@@ -375,13 +471,69 @@ class DashboardFormStateMixin:
             "Redefinindo..." if is_loading else "Redefinir senha"
         )
 
+    def _set_user_operational_status(self, message: str, level: str) -> None:
+        self.user_operational_status.setText(message)
+        self.user_operational_status.setProperty("level", level)
+        self.user_operational_status.style().unpolish(self.user_operational_status)
+        self.user_operational_status.style().polish(self.user_operational_status)
+
+    def _refresh_user_operational_status(self, user: dict[str, Any] | None = None) -> None:
+        if user is not None:
+            full_name = str(user.get("full_name") or "Usuario sem nome")
+            role = self._user_role_label(user.get("role"))
+            sector = self._lookup_label(
+                self.user_sectors,
+                user.get("sector_id"),
+                "name",
+                "Sem setor",
+            )
+            is_active = bool(user.get("is_active", True))
+            level = "info" if is_active else "warning"
+            status = "ativo" if is_active else "inativo"
+            self._set_user_operational_status(
+                f"Usuario selecionado: {full_name} | {role} | {sector} | {status}.",
+                level,
+            )
+            security_message = (
+                "Seguranca: senha inicial bloqueada; use redefinicao manual se necessario."
+            )
+            if user.get("must_change_password", False):
+                security_message += " Troca de senha pendente no proximo acesso."
+            self.user_security_status.setText(security_message)
+            return
+
+        user_count = len(self.all_rows) if self.active_module_key == "users" else 0
+        if user_count:
+            self._set_user_operational_status(
+                f"{user_count} usuario(s) carregado(s); selecione uma conta para revisar acesso.",
+                "info",
+            )
+        else:
+            self._set_user_operational_status(
+                "Nenhum usuario carregado. Cadastre uma conta com perfil, setor e senha inicial.",
+                "warning",
+            )
+        self.user_security_status.setText(
+            "Seguranca: senha inicial obrigatoria para novas contas; "
+            "redefinicao exige usuario selecionado."
+        )
+
+    def _user_role_label(self, role: Any) -> str:
+        role_key = str(role or "")
+        for index in range(self.user_role_combo.count()):
+            if self.user_role_combo.itemData(index) == role_key:
+                return self.user_role_combo.itemText(index)
+        return role_key or "Perfil nao informado"
+
     def clear_password_reset_form(self) -> None:
         self.selected_password_reset_request_id = None
+        self.selected_password_reset_status = None
         self.password_reset_requester_label.setText("Selecione uma solicitacao.")
         self.password_reset_new_password_input.clear()
         self.password_reset_resolve_button.setEnabled(False)
         self.password_reset_full_summary.setPlainText("Nenhuma solicitacao selecionada.")
         self.password_reset_form_status.setText("")
+        self._refresh_password_reset_operational_status()
         self.table.clearSelection()
 
     def set_password_reset_form_status(self, message: str, is_error: bool = False) -> None:
@@ -389,11 +541,84 @@ class DashboardFormStateMixin:
 
     def set_password_reset_form_loading(self, is_loading: bool) -> None:
         self.password_reset_resolve_button.setEnabled(
-            not is_loading and bool(self.selected_password_reset_request_id)
+            not is_loading and self._password_reset_can_resolve()
         )
         self.password_reset_resolve_button.setText(
             "Redefinindo..." if is_loading else "Redefinir senha"
         )
+
+    def _set_password_reset_operational_status(self, message: str, level: str) -> None:
+        self.password_reset_operational_status.setText(message)
+        self.password_reset_operational_status.setProperty("level", level)
+        self.password_reset_operational_status.style().unpolish(
+            self.password_reset_operational_status
+        )
+        self.password_reset_operational_status.style().polish(
+            self.password_reset_operational_status
+        )
+
+    def _refresh_password_reset_operational_status(
+        self, request: dict[str, Any] | None = None
+    ) -> None:
+        if request is not None:
+            requester = str(
+                request.get("requester_full_name")
+                or request.get("requester_email")
+                or "-"
+            )
+            status_key = self._password_reset_status_key(request.get("status"))
+            status_label = self._password_reset_status_label(status_key)
+            level = "warning" if status_key == "pending" else "info"
+            self._set_password_reset_operational_status(
+                f"Solicitacao selecionada: {requester} | Status: {status_label}.",
+                level,
+            )
+            if status_key == "pending":
+                self.password_reset_security_status.setText(
+                    "Seguranca: informe uma senha temporaria com pelo menos 8 caracteres."
+                )
+            else:
+                self.password_reset_security_status.setText(
+                    "Seguranca: solicitacao ja resolvida; acao de redefinicao bloqueada."
+                )
+            return
+
+        request_count = len(self.all_rows) if self.active_module_key == "password_resets" else 0
+        pending_count = sum(
+            1
+            for row in self.all_rows
+            if self._password_reset_status_key(row.get("status")) == "pending"
+        )
+        if request_count:
+            self._set_password_reset_operational_status(
+                f"{request_count} solicitacao(oes) carregada(s); {pending_count} pendente(s).",
+                "warning" if pending_count else "info",
+            )
+        else:
+            self._set_password_reset_operational_status(
+                "Nenhuma solicitacao de senha carregada para atendimento.",
+                "warning",
+            )
+        self.password_reset_security_status.setText(
+            "Seguranca: selecione uma solicitacao pendente para definir senha temporaria."
+        )
+
+    def _password_reset_can_resolve(self) -> bool:
+        return bool(self.selected_password_reset_request_id) and (
+            self.selected_password_reset_status == "pending"
+        )
+
+    def _password_reset_status_key(self, status: Any) -> str:
+        return str(status or "pending").strip().lower()
+
+    def _password_reset_status_label(self, status: Any) -> str:
+        status_key = self._password_reset_status_key(status)
+        return {
+            "pending": "Pendente",
+            "resolved": "Resolvida",
+            "completed": "Resolvida",
+            "cancelled": "Cancelada",
+        }.get(status_key, self._format_value(status_key) or "Pendente")
 
     def clear_settings_form(self) -> None:
         self.current_settings = {}
@@ -415,6 +640,7 @@ class DashboardFormStateMixin:
         self.settings_backup_last_run_label.setText("Ultimo backup: nunca")
         self.settings_full_summary.setPlainText("Configuracoes ainda nao carregadas.")
         self.settings_form_status.setText("")
+        self._refresh_settings_operational_status()
 
     def set_settings_form_status(self, message: str, is_error: bool = False) -> None:
         self._set_inline_status(self.settings_form_status, message, is_error)
@@ -431,10 +657,51 @@ class DashboardFormStateMixin:
             "Executando..." if is_loading else "Executar backup agora"
         )
 
+    def _set_settings_operational_status(self, message: str, level: str) -> None:
+        self.settings_operational_status.setText(message)
+        self.settings_operational_status.setProperty("level", level)
+        self.settings_operational_status.style().unpolish(self.settings_operational_status)
+        self.settings_operational_status.style().polish(self.settings_operational_status)
+
+    def _refresh_settings_operational_status(
+        self, settings: dict[str, Any] | None = None
+    ) -> None:
+        active_settings = settings if settings is not None else self.current_settings
+        if not active_settings:
+            self._set_settings_operational_status(
+                "Configuracoes ainda nao carregadas. Revise empresa, aparencia e backup.",
+                "warning",
+            )
+            self.settings_backup_status.setText(
+                "Backup: informe intervalo e destino antes de salvar."
+            )
+            return
+
+        company_name = self._format_value(active_settings.get("company_name")) or "-"
+        brand_name = self._format_value(active_settings.get("brand_name")) or company_name
+        theme = self._format_value(active_settings.get("theme")) or "light"
+        scale = round(self.ui_scale_value * 100)
+        self._set_settings_operational_status(
+            f"Identidade: {brand_name} | Empresa: {company_name} | "
+            f"Tema: {theme} | Escala: {scale}%.",
+            "info",
+        )
+
+        backup_enabled = bool(active_settings.get("backup_enabled", True))
+        interval = active_settings.get("backup_interval_hours") or 24
+        destination = self._format_value(active_settings.get("backup_storage_path")) or "backups"
+        last_run = self._format_value(active_settings.get("backup_last_run_at")) or "nunca"
+        backup_state = "ativo" if backup_enabled else "inativo"
+        self.settings_backup_status.setText(
+            f"Backup: {backup_state} | intervalo {interval}h | "
+            f"destino {destination} | ultimo {last_run}."
+        )
+
     def clear_audit_form(self) -> None:
         self.audit_full_summary.setPlainText("Selecione um log para ver os detalhes.")
         self.audit_form_status.setText("")
         self.audit_delete_button.setEnabled(False)
+        self._refresh_audit_operational_status()
 
     def set_audit_form_status(self, message: str, is_error: bool = False) -> None:
         self._set_inline_status(self.audit_form_status, message, is_error)
@@ -443,3 +710,53 @@ class DashboardFormStateMixin:
         has_record = bool(self.current_selected_record)
         self.audit_delete_button.setEnabled(not is_loading and has_record)
         self.audit_delete_button.setText("Excluindo..." if is_loading else "Excluir log")
+
+    def _set_audit_operational_status(self, message: str, level: str) -> None:
+        self.audit_operational_status.setText(message)
+        self.audit_operational_status.setProperty("level", level)
+        self.audit_operational_status.style().unpolish(self.audit_operational_status)
+        self.audit_operational_status.style().polish(self.audit_operational_status)
+
+    def _refresh_audit_operational_status(self, record: dict[str, Any] | None = None) -> None:
+        if record is not None:
+            action = self._format_value(record.get("action")) or "-"
+            entity = self._format_value(record.get("entity_type")) or "-"
+            actor = (
+                self._format_value(record.get("actor_user_id"))
+                or self._format_value(record.get("actor_type"))
+                or "-"
+            )
+            level = "warning" if self._audit_action_is_sensitive(action) else "info"
+            self._set_audit_operational_status(
+                f"Evento selecionado: {action} | {entity} | Ator: {actor}.",
+                level,
+            )
+            self.audit_retention_status.setText(
+                "Retencao: exclusao de log deve ser usada apenas para correcao administrativa."
+            )
+            return
+
+        log_count = len(self.all_rows) if self.active_module_key == "audit_logs" else 0
+        sensitive_count = sum(
+            1
+            for row in self.all_rows
+            if self._audit_action_is_sensitive(str(row.get("action") or ""))
+        )
+        if log_count:
+            self._set_audit_operational_status(
+                f"{log_count} log(s) carregado(s); {sensitive_count} evento(s) sensivel(is).",
+                "warning" if sensitive_count else "info",
+            )
+        else:
+            self._set_audit_operational_status(
+                "Nenhum log carregado para revisao de rastreabilidade.",
+                "warning",
+            )
+        self.audit_retention_status.setText(
+            "Retencao: selecione um evento antes de avaliar exclusao."
+        )
+
+    def _audit_action_is_sensitive(self, action: str) -> bool:
+        action_key = action.lower()
+        sensitive_terms = ("delete", "remove", "password", "reset", "settings", "audit")
+        return any(term in action_key for term in sensitive_terms)

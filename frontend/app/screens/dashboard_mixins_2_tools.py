@@ -4,6 +4,7 @@ from typing import Any
 
 from PySide6.QtWidgets import (
     QFrame,
+    QHBoxLayout,
     QLabel,
     QTabWidget,
     QVBoxLayout,
@@ -30,6 +31,25 @@ class DashboardToolTabsMixin:
         subtitle.setObjectName("mutedText")
         subtitle.setWordWrap(True)
 
+        self.tools_status_label = QLabel("Carregando ferramentas disponiveis para o perfil.")
+        self.tools_status_label.setObjectName("statusBanner")
+        self.tools_status_label.setProperty("level", "warning")
+        self.tools_status_label.setWordWrap(True)
+
+        self.tools_availability_label = QLabel("0 ferramentas liberadas")
+        self.tools_availability_label.setObjectName("moduleStageBadge")
+        self.tools_specialties_label = QLabel("Especialidades: -")
+        self.tools_specialties_label.setObjectName("moduleActionHint")
+        self.tools_specialties_label.setWordWrap(True)
+
+        tools_meta_row = QFrame()
+        tools_meta_row.setObjectName("formSubPanel")
+        tools_meta_layout = QHBoxLayout(tools_meta_row)
+        tools_meta_layout.setContentsMargins(8, 6, 8, 6)
+        tools_meta_layout.setSpacing(8)
+        tools_meta_layout.addWidget(self.tools_availability_label)
+        tools_meta_layout.addWidget(self.tools_specialties_label, 1)
+
         self.tools_tabs = QTabWidget()
         self.tools_tabs.setObjectName("toolsTabs")
 
@@ -38,6 +58,8 @@ class DashboardToolTabsMixin:
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        layout.addWidget(self.tools_status_label)
+        layout.addWidget(tools_meta_row)
         layout.addWidget(self.tools_tabs, 1)
         return panel
 
@@ -47,15 +69,49 @@ class DashboardToolTabsMixin:
         self.tools_tabs.clear()
         tool_ids = {str(tool.get("id") or "") for tool in tools}
         if not tool_ids:
+            self._set_tools_operational_status([], {})
             self.tools_tabs.addTab(
                 self._build_tool_message("Nenhuma ferramenta disponivel."),
                 "Aviso",
             )
             return
         tools_by_specialty = self._group_tools_by_specialty(tool_ids)
+        self._set_tools_operational_status(tools, tools_by_specialty)
         for specialty_name, specialty_tools in tools_by_specialty.items():
             tab_widget = self._build_specialty_tab(specialty_name, specialty_tools)
             self.tools_tabs.addTab(tab_widget, self._specialty_label(specialty_name))
+
+    def _set_tools_operational_status(
+        self,
+        tools: list[dict[str, Any]],
+        tools_by_specialty: dict[str, list[tuple[str, str, Any, list[tuple[str, str]]]]],
+    ) -> None:
+        available_count = len(tools)
+        active_specialties = [
+            self._specialty_label(name)
+            for name, specialty_tools in tools_by_specialty.items()
+            if specialty_tools
+        ]
+        if not available_count:
+            message = "Nenhuma ferramenta foi liberada para o perfil atual."
+            level = "warning"
+            specialties_text = "Especialidades: nenhuma"
+        else:
+            specialty_count = len(active_specialties)
+            message = (
+                f"{available_count} ferramenta(s) disponivel(is) em "
+                f"{specialty_count} especialidade(s). Use os calculos como apoio rapido "
+                "ao diagnostico, orçamento e reposicao."
+            )
+            level = "info"
+            specialties_text = f"Especialidades: {', '.join(active_specialties)}"
+
+        self.tools_status_label.setText(message)
+        self.tools_status_label.setProperty("level", level)
+        self.tools_status_label.style().unpolish(self.tools_status_label)
+        self.tools_status_label.style().polish(self.tools_status_label)
+        self.tools_availability_label.setText(f"{available_count} ferramentas liberadas")
+        self.tools_specialties_label.setText(specialties_text)
 
     def _group_tools_by_specialty(
         self, tool_ids: set[str]
@@ -172,6 +228,14 @@ class DashboardToolTabsMixin:
             layout.addStretch()
             return panel
 
+        context = QLabel(
+            f"{len(specialty_tools)} ferramenta(s) de {self._specialty_label(specialty_name)} "
+            "liberada(s) para calculos rapidos."
+        )
+        context.setObjectName("statusBanner")
+        context.setProperty("level", "info")
+        context.setWordWrap(True)
+
         specialty_tabs = QTabWidget()
         specialty_tabs.setObjectName("specialtyTabs")
 
@@ -188,6 +252,7 @@ class DashboardToolTabsMixin:
             tool_widget.parent_specialty_text = history_text
             specialty_tabs.addTab(tool_widget, tool_title)
 
+        layout.addWidget(context)
         layout.addWidget(specialty_tabs, 1)
 
         history_section = QFrame()

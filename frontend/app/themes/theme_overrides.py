@@ -78,6 +78,20 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLabel#sessionFooterModule {{
             color: {palette["muted"]};
         }}
+        QLabel#moduleStageBadge {{
+            background-color: {palette["primary_subtle"]};
+            border: 1px solid {palette["primary"]};
+            border-radius: 6px;
+            color: {palette["primary"]};
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 8px;
+        }}
+        QLabel#moduleActionHint {{
+            color: {palette["muted"]};
+            font-size: 11px;
+            font-weight: 600;
+        }}
         QLabel#footerMessage[level="success"],
         QLabel#footerStatusDot[level="success"] {{
             color: {palette["success"]};

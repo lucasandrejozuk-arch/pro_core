@@ -86,6 +86,13 @@ class DashboardOperationalFormsMixin:
         self.inventory_stock_status.setProperty("level", "info")
         self.inventory_stock_status.setWordWrap(True)
 
+        self.inventory_reorder_status = QLabel(
+            "Reposicao: informe quantidade, minimo e custo para calcular necessidade."
+        )
+        self.inventory_reorder_status.setObjectName("statusBanner")
+        self.inventory_reorder_status.setProperty("level", "warning")
+        self.inventory_reorder_status.setWordWrap(True)
+
         inventory_details_title = QLabel("DADOS COMPLETOS")
         inventory_details_title.setObjectName("formGroupTitle")
         self.inventory_full_summary = create_summary_text()
@@ -117,6 +124,7 @@ class DashboardOperationalFormsMixin:
         layout.addWidget(title)
         layout.addWidget(inventory_fields_panel)
         layout.addWidget(self.inventory_stock_status)
+        layout.addWidget(self.inventory_reorder_status)
         layout.addWidget(inventory_details_title)
         layout.addWidget(self.inventory_full_summary)
         layout.addWidget(self.inventory_form_status)
@@ -161,6 +169,11 @@ class DashboardOperationalFormsMixin:
             self.service_order_workflow_steps.append(step_label)
             workflow_layout.addWidget(step_label)
 
+        self.service_order_next_step_label = QLabel("Selecione uma OS para ver o proximo passo.")
+        self.service_order_next_step_label.setObjectName("statusBanner")
+        self.service_order_next_step_label.setProperty("level", "warning")
+        self.service_order_next_step_label.setWordWrap(True)
+
         self.service_order_customer_combo = QComboBox()
         self.service_order_customer_combo.currentIndexChanged.connect(
             self._refresh_service_order_equipment_combo
@@ -201,6 +214,9 @@ class DashboardOperationalFormsMixin:
         self.service_order_status_combo.addItem("Em execução", "in_progress")
         self.service_order_status_combo.addItem("Pronto para expedição", "ready_dispatch")
         self.service_order_status_combo.addItem("Finalizado", "completed")
+        self.service_order_status_combo.currentIndexChanged.connect(
+            self._handle_service_order_status_changed
+        )
 
         self.service_order_customer_approval_combo = QComboBox()
         self.service_order_customer_approval_combo.addItem("Pendente", "pending")
@@ -519,6 +535,7 @@ class DashboardOperationalFormsMixin:
         layout.addWidget(subtitle)
         layout.addWidget(self.service_order_workflow_hint)
         layout.addWidget(workflow_panel)
+        layout.addWidget(self.service_order_next_step_label)
 
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)

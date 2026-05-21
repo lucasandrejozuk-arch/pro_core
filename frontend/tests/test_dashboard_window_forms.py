@@ -62,6 +62,59 @@ def test_customer_save_rejects_invalid_email(qtbot) -> None:
     assert "email valido" in window.footer_message_label.text().lower()
 
 
+def test_customer_operational_status_and_document_flow(qtbot, tmp_path, monkeypatch) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[tuple[str, str, str]] = []
+    window.customer_document_upload_requested.connect(
+        lambda customer_id, document_type, file_path: emitted.append(
+            (customer_id, document_type, file_path)
+        )
+    )
+
+    window.clear_customer_form()
+
+    assert "novo cliente" in window.customer_operational_status.text().lower()
+    assert window.customer_operational_status.property("level") == "warning"
+    assert not window.customer_upload_document_button.isEnabled()
+
+    window._populate_customer_form(
+        {
+            "id": "customer-id",
+            "name": "Cliente Ativo",
+            "email": "cliente@example.com",
+            "phone": "(11) 99999-9999",
+            "is_active": True,
+        }
+    )
+
+    assert "cliente ativo" in window.customer_operational_status.text().lower()
+    assert window.customer_operational_status.property("level") == "info"
+    assert "selecione um arquivo" in window.customer_document_status.text().lower()
+    assert not window.customer_upload_document_button.isEnabled()
+
+    document_path = tmp_path / "contrato.pdf"
+    document_path.write_text("arquivo", encoding="utf-8")
+    monkeypatch.setattr(
+        "frontend.app.screens.dashboard_mixins_5.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: (str(document_path), "PDF"),
+    )
+
+    window._select_customer_document()
+
+    assert window.customer_upload_document_button.isEnabled()
+    assert "pronto para envio" in window.customer_document_status.text().lower()
+
+    window._request_customer_document_upload()
+
+    assert emitted == [("customer-id", "other", str(document_path))]
+
+    window.customer_active_checkbox.setChecked(False)
+
+    assert "cliente inativo" in window.customer_operational_status.text().lower()
+    assert window.customer_operational_status.property("level") == "error"
+
+
 def test_service_order_budget_item_emits_payload(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)

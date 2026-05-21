@@ -21,6 +21,11 @@ class DashboardMixin7:
         quantity = self._format_value(item.get("quantity")) or "0"
         minimum = self._format_value(item.get("minimum_quantity")) or "0"
         unit_cost = self._format_value(item.get("unit_cost")) or "0"
+        quantity_value = self._safe_float(item.get("quantity"))
+        minimum_value = self._safe_float(item.get("minimum_quantity"))
+        unit_cost_value = self._safe_float(item.get("unit_cost"))
+        reorder_quantity = max(0.0, minimum_value - quantity_value)
+        stock_value = max(0.0, quantity_value * unit_cost_value)
         status = "Critico" if self._inventory_is_low(item) else "Operacional"
         lines = [
             f"SKU: {self._format_value(item.get('sku')) or '-'}",
@@ -29,6 +34,8 @@ class DashboardMixin7:
             f"Quantidade: {quantity}",
             f"Minimo para reposicao: {minimum}",
             f"Custo unitario: {unit_cost}",
+            f"Reposicao necessaria: {self._format_number(reorder_quantity)}",
+            f"Valor em estoque: R$ {self._format_number(stock_value)}",
             f"Status: {status}",
         ]
         return "\n".join(lines)
@@ -51,17 +58,26 @@ class DashboardMixin7:
             f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
             f"Destino: {self._format_value(settings.get('backup_storage_path')) or 'backups'}",
             f"Ultimo backup: {self._format_value(settings.get('backup_last_run_at')) or 'nunca'}",
+            "Status operacional: identidade, interface e backup revisados.",
         ]
         return "\n".join(lines)
 
     def _format_audit_summary(self, record: dict[str, Any]) -> str:
-        actor = self._format_value(record.get("actor_user_id")) or record.get("actor_type") or "-"
+        actor = (
+            self._format_value(record.get("actor_user_id"))
+            or self._format_value(record.get("actor_type"))
+            or "-"
+        )
+        sensitivity = (
+            "Sim" if self._audit_action_is_sensitive(str(record.get("action") or "")) else "Nao"
+        )
         lines = [
             f"Acao: {self._format_value(record.get('action')) or '-'}",
             f"Entidade: {self._format_value(record.get('entity_type')) or '-'}",
             f"ID: {self._format_value(record.get('entity_id')) or '-'}",
             f"Resumo: {self._format_value(record.get('summary')) or '-'}",
             f"Ator: {actor}",
+            f"Evento sensivel: {sensitivity}",
             f"Criado em: {self._format_value(record.get('created_at')) or '-'}",
         ]
         return "\n".join(lines)
@@ -94,11 +110,12 @@ class DashboardMixin7:
         return "\n".join(lines)
 
     def _format_password_reset_summary(self, request: dict[str, Any]) -> str:
+        status = self._password_reset_status_label(request.get("status"))
         lines = [
             f"Solicitante: {self._format_value(request.get('requester_full_name')) or '-'}",
             f"Email: {self._format_value(request.get('requester_email')) or '-'}",
             f"Perfil: {self._format_value(request.get('requester_role')) or '-'}",
-            f"Status: {self._format_value(request.get('status')) or '-'}",
+            f"Status: {status}",
             f"Criada em: {self._format_value(request.get('created_at')) or '-'}",
         ]
         return "\n".join(lines)

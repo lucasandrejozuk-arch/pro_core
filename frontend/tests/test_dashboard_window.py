@@ -334,7 +334,7 @@ def test_session_footer_shows_session_context(qtbot) -> None:
     assert "Sessao: Administrador" in footer_text
     assert "Setor: Diretoria" in footer_text
     assert "Login: 2026-05-14 22:25:19" in footer_text
-    assert window.session_module_label.text() == "Equipamentos"
+    assert window.session_module_label.text() == "Etapa 5 de 12 - Equipamentos"
 
 
 def test_sidebar_collapse_keeps_fixed_lateral_rail_without_moving_content(qtbot) -> None:
@@ -378,6 +378,29 @@ def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
     assert dashboard_button.toolTip()
 
 
+def test_modules_show_operational_stage_context_and_actions(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_dashboard({})
+
+    assert window.command_stage_label.text() == "Etapa 1 de 12"
+    assert window.command_context_label.text() == "Dashboard"
+    assert "indicadores" in window.command_hint_label.text().lower()
+    assert not window.command_refresh_button.isHidden()
+    assert window.command_editor_button.isHidden()
+    assert window.session_module_label.text() == "Etapa 1 de 12 - Dashboard"
+
+    window.render_rows("Clientes", [], [("Nome", "name")], "customers")
+
+    assert window.command_stage_label.text() == "Etapa 4 de 12"
+    assert window.command_context_label.text() == "Clientes"
+    assert "contatos" in window.command_hint_label.text().lower()
+    assert not window.command_editor_button.isHidden()
+    assert not window.command_clear_selection_button.isHidden()
+    assert window.session_module_label.text() == "Etapa 4 de 12 - Clientes"
+
+
 def test_sidebar_settings_admin_logout_and_exit_icons_are_distinct(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
@@ -403,6 +426,42 @@ def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
         "audit_logs",
         "settings",
     )
+
+
+def test_admin_area_shows_role_scope_and_available_steps(qtbot) -> None:
+    admin_window = DashboardWindow()
+    qtbot.addWidget(admin_window)
+    admin_window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
+    admin_window.render_admin_area()
+
+    assert admin_window.admin_area_status_label.property("level") == "info"
+    assert "Administrador" in admin_window.admin_area_status_label.text()
+    assert "Etapa 8" in admin_window.admin_area_scope_label.text()
+    assert "Etapa 11" in admin_window.admin_area_scope_label.text()
+
+    manager_window = DashboardWindow()
+    qtbot.addWidget(manager_window)
+    manager_window.set_user(
+        {"full_name": "Gestor", "email": "gestor@example.com", "role": "manager"}
+    )
+    manager_window.render_admin_area()
+
+    assert manager_window.admin_area_status_label.property("level") == "info"
+    assert "Gestor" in manager_window.admin_area_status_label.text()
+    assert "Etapa 8" in manager_window.admin_area_scope_label.text()
+    assert "Etapa 10" in manager_window.admin_area_scope_label.text()
+    assert "Etapa 11" not in manager_window.admin_area_scope_label.text()
+
+    technician_window = DashboardWindow()
+    qtbot.addWidget(technician_window)
+    technician_window.set_user(
+        {"full_name": "Tecnico", "email": "tecnico@example.com", "role": "technician"}
+    )
+    technician_window.render_admin_area()
+
+    assert technician_window.admin_area_status_label.property("level") == "error"
+    assert "nao possui acesso" in technician_window.admin_area_status_label.text()
+    assert "nenhuma" in technician_window.admin_area_scope_label.text()
 
 
 def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> None:
@@ -453,10 +512,55 @@ def test_service_order_populates_workflow_and_full_summary(qtbot) -> None:
     )
 
     assert window.service_order_workflow_steps[3].property("stage") == "active"
+    assert "aprovar" in window.service_order_next_step_label.text().lower()
+    assert window.service_order_approve_button.isEnabled()
+    assert window.service_order_reject_button.isEnabled()
+    assert not window.service_order_start_button.isEnabled()
     assert "Cliente Teste" in window.service_order_full_summary.toPlainText()
     assert "Notebook - Dell - Latitude - NE-01 - SER-01" in (
         window.service_order_full_summary.toPlainText()
     )
+
+
+def test_service_order_workflow_actions_follow_status(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_service_order_dependencies(
+        customers=[{"id": "customer-id", "name": "Cliente Teste"}],
+        equipment=[{"id": "equipment-id", "customer_id": "customer-id", "category": "Notebook"}],
+        technicians=[],
+    )
+
+    window._populate_service_order_form(
+        {
+            "id": "service-order-id",
+            "code": "OS-000001",
+            "status": "open",
+            "customer_id": "customer-id",
+            "equipment_id": "equipment-id",
+            "problem_description": "Nao liga",
+        }
+    )
+
+    assert window.service_order_workflow_steps[0].property("stage") == "active"
+    assert window.service_order_diagnosis_button.isEnabled()
+    assert window.service_order_submit_quote_button.isEnabled()
+    assert not window.service_order_approve_button.isEnabled()
+    assert not window.service_order_start_button.isEnabled()
+
+    window._select_combo_value(window.service_order_status_combo, "approved")
+
+    assert window.service_order_workflow_steps[3].property("stage") == "active"
+    assert "iniciar" in window.service_order_next_step_label.text().lower()
+    assert window.service_order_start_button.isEnabled()
+    assert not window.service_order_approve_button.isEnabled()
+    assert not window.service_order_complete_button.isEnabled()
+
+    window._select_combo_value(window.service_order_status_combo, "in_progress")
+
+    assert window.service_order_workflow_steps[4].property("stage") == "active"
+    assert window.service_order_complete_button.isEnabled()
+    assert not window.service_order_start_button.isEnabled()
 
 
 def test_customer_populates_complete_summary(qtbot) -> None:

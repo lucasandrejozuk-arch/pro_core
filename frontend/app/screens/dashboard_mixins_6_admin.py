@@ -26,6 +26,7 @@ class DashboardAdminActionsMixin:
             "Editando setor selecionado." if is_admin else "Setor disponivel apenas para consulta."
         )
         self.sector_full_summary.setPlainText(self._format_sector_summary(sector))
+        self._refresh_sector_operational_status(sector)
         self.set_sector_form_status(status_message)
 
     def _request_sector_save(self) -> None:
@@ -72,6 +73,7 @@ class DashboardAdminActionsMixin:
         self.user_reset_password_button.setEnabled(True)
         self.user_delete_button.setEnabled(True)
         self.user_full_summary.setPlainText(self._format_user_summary(user))
+        self._refresh_user_operational_status(user)
         self.set_user_form_status("Editando usuario selecionado.")
 
     def _request_user_save(self) -> None:
@@ -152,6 +154,7 @@ class DashboardAdminActionsMixin:
 
     def _populate_password_reset_form(self, request: dict[str, Any]) -> None:
         self.selected_password_reset_request_id = str(request["id"])
+        self.selected_password_reset_status = self._password_reset_status_key(request.get("status"))
         full_name = self._format_value(request.get("requester_full_name"))
         email = self._format_value(request.get("requester_email"))
         role = self._format_value(request.get("requester_role"))
@@ -160,9 +163,14 @@ class DashboardAdminActionsMixin:
             f"Solicitante: {full_name} | {email} | Perfil: {role} | Criada em: {created_at}"
         )
         self.password_reset_new_password_input.clear()
-        self.password_reset_resolve_button.setEnabled(True)
+        self.password_reset_resolve_button.setEnabled(self._password_reset_can_resolve())
         self.password_reset_full_summary.setPlainText(self._format_password_reset_summary(request))
-        self.set_password_reset_form_status("Informe uma nova senha temporaria.")
+        self._refresh_password_reset_operational_status(request)
+        self.set_password_reset_form_status(
+            "Informe uma nova senha temporaria."
+            if self._password_reset_can_resolve()
+            else "Solicitacao ja resolvida."
+        )
 
     def _request_password_reset_resolve(self) -> None:
         if not self.selected_password_reset_request_id:
@@ -220,6 +228,7 @@ class DashboardAdminActionsMixin:
         )
         self.settings_full_summary.setPlainText(self._format_settings_summary(settings))
         self.apply_branding(settings)
+        self._refresh_settings_operational_status(settings)
         self.set_settings_form_status("Configuracoes carregadas.")
 
     def configure_ui_scale(self, minimum: float, maximum: float, current: float) -> None:
@@ -232,10 +241,13 @@ class DashboardAdminActionsMixin:
         self.settings_ui_scale_slider.setValue(round(current * 100))
         self.settings_ui_scale_slider.blockSignals(False)
         self.settings_ui_scale_label.setText(f"{round(current * 100)}%")
+        if hasattr(self, "settings_operational_status"):
+            self._refresh_settings_operational_status()
 
     def _handle_ui_scale_slider_changed(self, value: int) -> None:
         self.ui_scale_value = value / 100
         self.settings_ui_scale_label.setText(f"{value}%")
+        self._refresh_settings_operational_status()
         self.ui_scale_changed.emit(self.ui_scale_value)
 
     def _request_settings_save(self) -> None:
@@ -303,6 +315,12 @@ class DashboardAdminActionsMixin:
         ):
             return
         self.audit_delete_requested.emit(log_id)
+
+    def _populate_audit_form(self, record: dict[str, Any]) -> None:
+        self.audit_full_summary.setPlainText(self._format_audit_summary(record))
+        self._refresh_audit_operational_status(record)
+        self.audit_delete_button.setEnabled(True)
+        self.set_audit_form_status("Log selecionado para revisao.")
 
     def _refresh_service_order_equipment_combo(self) -> None:
         if not hasattr(self, "service_order_equipment_combo"):

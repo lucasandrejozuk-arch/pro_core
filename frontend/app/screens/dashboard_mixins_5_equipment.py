@@ -33,6 +33,7 @@ class DashboardEquipmentMixin:
             self.set_equipment_form_status("Nenhum equipamento cadastrado.")
         else:
             self.set_equipment_form_status("Equipamentos carregados.")
+        self._refresh_equipment_operational_status()
 
     def _populate_equipment_form(self, equipment: dict[str, Any]) -> None:
         self._select_equipment_by_id(str(equipment["id"]))

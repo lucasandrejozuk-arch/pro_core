@@ -51,6 +51,11 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
     assert window.equipment_table.rowCount() == 1
     assert window.equipment_boards_table.rowCount() == 1
     assert window.equipment_components_table.rowCount() == 1
+    assert "Equipamento selecionado" in window.equipment_operational_status.text()
+    assert "1 objeto(s) vinculado(s), 1 componente(s)" in (
+        window.equipment_operational_status.text()
+    )
+    assert "Componente selecionado" in window.equipment_hierarchy_status.text()
     assert "Placa Principal" in window.board_full_summary.toPlainText()
     assert "C100" in window.component_full_summary.toPlainText()
     copy_buttons = window.equipment_form_panel.findChildren(QPushButton, "summaryCopyButton")
@@ -78,6 +83,32 @@ def test_equipment_search_filters_hierarchy(qtbot) -> None:
 
     assert window.equipment_table.rowCount() == 1
     assert window.equipment_visible_rows[0]["id"] == "eq-2"
+
+
+def test_equipment_operational_status_handles_empty_and_filtered_states(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_rows("Equipamentos", [], [], "equipment")
+
+    assert "nenhum equipamento cadastrado" in window.equipment_operational_status.text().lower()
+    assert window.equipment_operational_status.property("level") == "warning"
+    assert not window.equipment_edit_button.isEnabled()
+    assert not window.board_add_button.isEnabled()
+
+    window.render_rows(
+        "Equipamentos",
+        [{"id": "eq-1", "category": "Inversor", "brand": "Siemens", "boards": []}],
+        [],
+        "equipment",
+    )
+    window.equipment_search_input.setText("sem resultado")
+
+    assert "nenhum equipamento encontrado" in window.equipment_operational_status.text().lower()
+    assert "sem resultado" in window.equipment_operational_status.text()
+    assert window.equipment_operational_status.property("level") == "warning"
+    assert not window.equipment_edit_button.isEnabled()
+    assert not window.board_add_button.isEnabled()
 
 
 def test_equipment_import_export_and_defect_case_buttons_emit(qtbot, monkeypatch) -> None:
@@ -149,6 +180,10 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
 
     assert window.active_module_key == "tools"
     assert not window.tools_form_panel.isHidden()
+    assert window.command_stage_label.text() == "Etapa 3 de 12"
+    assert "2 ferramenta" in window.tools_status_label.text()
+    assert window.tools_availability_label.text() == "2 ferramentas liberadas"
+    assert window.tools_specialties_label.text() == "Especialidades: Eletrica"
     assert window.tools_tabs.count() == 1
     assert window.tools_form_panel.findChildren(QTabWidget)[0] is window.tools_tabs
     assert window.tools_tabs.tabText(0) == "Eletrica"
@@ -163,6 +198,21 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
     window._calculate_ohm_tool()
 
     assert "20 V" in window.ohm_result.toPlainText()
+
+
+def test_tools_module_shows_empty_operational_state(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_tools([])
+
+    assert window.active_module_key == "tools"
+    assert window.tools_tabs.count() == 1
+    assert window.tools_tabs.tabText(0) == "Aviso"
+    assert "nenhuma ferramenta" in window.tools_status_label.text().lower()
+    assert window.tools_status_label.property("level") == "warning"
+    assert window.tools_availability_label.text() == "0 ferramentas liberadas"
+    assert window.tools_specialties_label.text() == "Especialidades: nenhuma"
 
 
 def test_equipment_hierarchy_uses_compact_full_width_sections(qtbot) -> None:
@@ -228,7 +278,47 @@ def test_inventory_populates_summary_and_low_stock_status(qtbot) -> None:
     summary = window.inventory_full_summary.toPlainText()
     assert "SKU: SSD-001" in summary
     assert "Status: Critico" in summary
+    assert "Reposicao necessaria: 1" in summary
+    assert "Valor em estoque: R$ 180.5" in summary
     assert window.inventory_stock_status.property("level") == "error"
+    assert window.inventory_reorder_status.property("level") == "error"
+    assert "1 unidade" in window.inventory_reorder_status.text()
+    assert "R$ 180.5" in window.inventory_reorder_status.text()
+
+
+def test_inventory_operational_status_handles_surplus_and_missing_minimum(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._populate_inventory_form(
+        {
+            "id": "inventory-ok",
+            "sku": "FONTE-001",
+            "name": "Fonte 24V",
+            "quantity": "8",
+            "minimum_quantity": "2",
+            "unit_cost": "50",
+        }
+    )
+
+    assert window.inventory_stock_status.property("level") == "info"
+    assert window.inventory_reorder_status.property("level") == "info"
+    assert "6 unidade" in window.inventory_reorder_status.text()
+    assert "R$ 400" in window.inventory_reorder_status.text()
+
+    window._populate_inventory_form(
+        {
+            "id": "inventory-no-minimum",
+            "name": "Cabo",
+            "quantity": "3",
+            "minimum_quantity": "0",
+            "unit_cost": "10",
+        }
+    )
+
+    assert window.inventory_stock_status.property("level") == "info"
+    assert window.inventory_reorder_status.property("level") == "warning"
+    assert "sem minimo configurado" in window.inventory_reorder_status.text().lower()
 
 
 def test_settings_populates_operational_summary(qtbot) -> None:
@@ -296,6 +386,169 @@ def test_admin_forms_populate_complete_summaries(qtbot) -> None:
     assert "Status: Pendente" in window.password_reset_full_summary.toPlainText()
 
 
+def test_sector_operational_status_tracks_role_and_selection(qtbot) -> None:
+    admin_window = DashboardWindow()
+    qtbot.addWidget(admin_window)
+    admin_window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
+    admin_window.render_rows(
+        "Setores",
+        [
+            {"id": "sector-id", "name": "Laboratorio", "description": "Bancada tecnica"},
+            {"id": "sector-2", "name": "Campo", "description": "Atendimento externo"},
+        ],
+        [("Nome", "name")],
+        "sectors",
+    )
+
+    assert admin_window.sector_operational_status.property("level") == "info"
+    assert "2 setor(es) cadastrado(s)" in admin_window.sector_operational_status.text()
+    assert "Admin: pode criar" in admin_window.sector_scope_status.text()
+
+    admin_window._populate_sector_form(
+        {"id": "sector-id", "name": "Laboratorio", "description": "Bancada tecnica"}
+    )
+
+    assert "Setor selecionado: Laboratorio" in admin_window.sector_operational_status.text()
+    assert admin_window.sector_save_button.isEnabled()
+    assert admin_window.sector_delete_button.isEnabled()
+
+    manager_window = DashboardWindow()
+    qtbot.addWidget(manager_window)
+    manager_window.set_user(
+        {"full_name": "Gestor", "email": "gestor@example.com", "role": "manager"}
+    )
+    manager_window.render_rows(
+        "Setores",
+        [{"id": "sector-id", "name": "Laboratorio", "description": "Bancada tecnica"}],
+        [("Nome", "name")],
+        "sectors",
+    )
+    manager_window._populate_sector_form(
+        {"id": "sector-id", "name": "Laboratorio", "description": "Bancada tecnica"}
+    )
+
+    assert manager_window.sector_operational_status.property("level") == "warning"
+    assert "consulta liberada" in manager_window.sector_operational_status.text()
+    assert "restritas ao administrador" in manager_window.sector_scope_status.text()
+    assert not manager_window.sector_save_button.isEnabled()
+    assert not manager_window.sector_delete_button.isEnabled()
+
+
+def test_user_operational_status_tracks_account_and_security(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
+    window.set_user_sectors([{"id": "sector-id", "name": "Laboratorio"}])
+    window.render_rows(
+        "Usuarios",
+        [
+            {
+                "id": "user-id",
+                "full_name": "Tecnico Teste",
+                "email": "tecnico@example.com",
+                "role": "technician",
+                "sector_id": "sector-id",
+                "is_active": False,
+                "must_change_password": True,
+            }
+        ],
+        [("Nome", "full_name")],
+        "users",
+    )
+
+    assert window.user_operational_status.property("level") == "info"
+    assert "1 usuario(s) carregado(s)" in window.user_operational_status.text()
+    assert "senha inicial obrigatoria" in window.user_security_status.text().lower()
+
+    window._populate_user_form(
+        {
+            "id": "user-id",
+            "full_name": "Tecnico Teste",
+            "email": "tecnico@example.com",
+            "role": "technician",
+            "sector_id": "sector-id",
+            "is_active": False,
+            "must_change_password": True,
+        }
+    )
+
+    assert window.user_operational_status.property("level") == "warning"
+    assert "Tecnico Teste" in window.user_operational_status.text()
+    assert "Tecnico" in window.user_operational_status.text()
+    assert "Laboratorio" in window.user_operational_status.text()
+    assert "inativo" in window.user_operational_status.text()
+    assert "Troca de senha pendente" in window.user_security_status.text()
+    assert not window.user_initial_password_input.isEnabled()
+    assert window.user_reset_password_button.isEnabled()
+
+
+def test_password_reset_operational_status_tracks_pending_and_resolved(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_user({"full_name": "Gestor", "email": "gestor@example.com", "role": "manager"})
+    window.render_rows(
+        "Solicitacoes de senha",
+        [
+            {
+                "id": "request-id",
+                "requester_full_name": "Tecnico Teste",
+                "requester_email": "tecnico@example.com",
+                "requester_role": "technician",
+                "status": "pending",
+                "created_at": "2026-05-14T10:00:00",
+            },
+            {
+                "id": "request-resolved",
+                "requester_full_name": "Usuario Resolvido",
+                "requester_email": "resolvido@example.com",
+                "requester_role": "manager",
+                "status": "resolved",
+                "created_at": "2026-05-14T11:00:00",
+            },
+        ],
+        [("Solicitante", "requester_full_name")],
+        "password_resets",
+    )
+
+    assert window.password_reset_operational_status.property("level") == "warning"
+    assert "2 solicitacao(oes) carregada(s)" in window.password_reset_operational_status.text()
+    assert "1 pendente(s)" in window.password_reset_operational_status.text()
+
+    window._populate_password_reset_form(
+        {
+            "id": "request-id",
+            "requester_full_name": "Tecnico Teste",
+            "requester_email": "tecnico@example.com",
+            "requester_role": "technician",
+            "status": "pending",
+            "created_at": "2026-05-14T10:00:00",
+        }
+    )
+
+    assert window.password_reset_operational_status.property("level") == "warning"
+    assert "Tecnico Teste" in window.password_reset_operational_status.text()
+    assert "Pendente" in window.password_reset_operational_status.text()
+    assert "senha temporaria" in window.password_reset_security_status.text()
+    assert window.password_reset_resolve_button.isEnabled()
+
+    window._populate_password_reset_form(
+        {
+            "id": "request-resolved",
+            "requester_full_name": "Usuario Resolvido",
+            "requester_email": "resolvido@example.com",
+            "requester_role": "manager",
+            "status": "resolved",
+            "created_at": "2026-05-14T11:00:00",
+        }
+    )
+
+    assert window.password_reset_operational_status.property("level") == "info"
+    assert "Resolvida" in window.password_reset_operational_status.text()
+    assert "bloqueada" in window.password_reset_security_status.text()
+    assert not window.password_reset_resolve_button.isEnabled()
+    assert "Status: Resolvida" in window.password_reset_full_summary.toPlainText()
+
+
 def test_audit_log_selection_renders_summary(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
@@ -317,9 +570,63 @@ def test_audit_log_selection_renders_summary(qtbot) -> None:
     )
 
     summary = window.audit_full_summary.toPlainText()
+    assert window.audit_operational_status.property("level") == "warning"
+    assert "1 log(s) carregado(s)" in window.audit_operational_status.text()
+    assert "1 evento(s) sensivel(is)" in window.audit_operational_status.text()
     assert "Acao: customers.delete" in summary
     assert "Entidade: Clientes" in summary
     assert "Resumo: Cliente removido" in summary
+    assert "Evento sensivel: Sim" in summary
     assert not window.generic_record_container.isHidden()
     assert not window.audit_form_panel.isHidden()
     assert window.audit_delete_button.isEnabled()
+
+    window._populate_audit_form(
+        {
+            "id": "log-id",
+            "action": "customers.delete",
+            "entity_type": "customers",
+            "entity_id": "customer-id",
+            "summary": "Cliente removido",
+            "actor_type": "staff",
+        }
+    )
+
+    assert "Evento selecionado: customers.delete" in window.audit_operational_status.text()
+    assert "Retencao:" in window.audit_retention_status.text()
+
+
+def test_audit_operational_status_tracks_regular_events(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_rows(
+        "Logs/Auditoria",
+        [
+            {
+                "id": "log-id",
+                "action": "customers.update",
+                "entity_type": "customers",
+                "entity_id": "customer-id",
+                "summary": "Cliente atualizado",
+                "actor_type": "staff",
+            }
+        ],
+        [("Acao", "action")],
+        "audit_logs",
+    )
+
+    assert window.audit_operational_status.property("level") == "info"
+    assert "1 log(s) carregado(s)" in window.audit_operational_status.text()
+    window._populate_audit_form(
+        {
+            "id": "log-id",
+            "action": "customers.update",
+            "entity_type": "customers",
+            "entity_id": "customer-id",
+            "summary": "Cliente atualizado",
+            "actor_type": "staff",
+        }
+    )
+    assert "Evento selecionado: customers.update" in window.audit_operational_status.text()
+    assert "Evento sensivel: Nao" in window.audit_full_summary.toPlainText()

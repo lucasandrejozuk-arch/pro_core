@@ -24,6 +24,7 @@ def initialize_dashboard_state(self) -> None:
     self.selected_sector_id: str | None = None
     self.selected_user_id: str | None = None
     self.selected_password_reset_request_id: str | None = None
+    self.selected_password_reset_status: str | None = None
     self.selected_service_order_document_path: str | None = None
     self.current_tools: list[dict[str, Any]] = []
     self.current_settings: dict[str, Any] = {}

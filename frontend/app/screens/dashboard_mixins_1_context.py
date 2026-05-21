@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from frontend.app.screens.dashboard_modules import MODULE_STAGE_BY_KEY, module_stage_label
+
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
     from frontend.app.screens import dashboard
@@ -218,7 +220,9 @@ class DashboardContextMenuMixin:
         actions_layout = QVBoxLayout()
         actions_layout.setSpacing(8)
         for module_key in allowed_modules:
-            button = QPushButton(self.module_labels[module_key])
+            button = QPushButton(
+                f"{module_stage_label(module_key)} - {self.module_labels[module_key]}"
+            )
             button.setObjectName("adminMenuButton")
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setToolTip(descriptions[module_key])
@@ -248,12 +252,15 @@ class DashboardContextMenuMixin:
 
     def _sync_module_visibility(self) -> None:
         for module_key, button in self.module_buttons.items():
-            if module_key in {"customers", "admin_area"}:
-                visible = self.current_user_role in {"admin", "manager"}
-            elif module_key == "settings":
-                visible = self.current_user_role == "admin"
-            elif module_key in self.admin_module_keys:
+            stage = MODULE_STAGE_BY_KEY.get(module_key)
+            if module_key in self.admin_module_keys:
                 visible = False
+            elif stage is None:
+                visible = True
+            elif stage.admin_only and not stage.manager_visible:
+                visible = self.current_user_role == "admin"
+            elif stage.manager_visible:
+                visible = self.current_user_role in {"admin", "manager"}
             else:
                 visible = True
             button.setVisible(visible)

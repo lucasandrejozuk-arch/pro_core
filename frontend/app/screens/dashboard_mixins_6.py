@@ -30,6 +30,7 @@ class DashboardMixin6:
             )
         else:
             self._set_inventory_stock_status("Estoque em nivel operacional.", "info")
+        self._refresh_inventory_reorder_status(item)
         self.inventory_delete_button.setEnabled(True)
         self.set_inventory_form_status("Editando item selecionado.")
 
@@ -75,6 +76,40 @@ class DashboardMixin6:
         ):
             return
         self.inventory_delete_requested.emit(self.selected_inventory_item_id)
+
+    def _refresh_inventory_reorder_status(self, item: dict[str, Any]) -> None:
+        quantity = self._safe_float(item.get("quantity"))
+        minimum = self._safe_float(item.get("minimum_quantity"))
+        unit_cost = self._safe_float(item.get("unit_cost"))
+        reorder_quantity = max(0.0, minimum - quantity)
+        stock_value = max(0.0, quantity * unit_cost)
+        reorder_value = max(0.0, reorder_quantity * unit_cost)
+
+        if reorder_quantity > 0:
+            self._set_inventory_reorder_status(
+                "Reposicao necessaria: "
+                f"{self._format_number(reorder_quantity)} unidade(s), "
+                f"custo estimado R$ {self._format_number(reorder_value)}. "
+                f"Valor atual em estoque R$ {self._format_number(stock_value)}.",
+                "error",
+            )
+            return
+
+        if minimum > 0:
+            surplus = quantity - minimum
+            self._set_inventory_reorder_status(
+                "Reposicao em dia: "
+                f"{self._format_number(surplus)} unidade(s) acima do minimo. "
+                f"Valor atual em estoque R$ {self._format_number(stock_value)}.",
+                "info",
+            )
+            return
+
+        self._set_inventory_reorder_status(
+            "Reposicao sem minimo configurado. Defina um minimo para gerar alerta operacional. "
+            f"Valor atual em estoque R$ {self._format_number(stock_value)}.",
+            "warning",
+        )
 
     def _populate_service_order_form(self, service_order: dict[str, Any]) -> None:
         self.selected_service_order_id = str(service_order["id"])
@@ -180,7 +215,7 @@ class DashboardMixin6:
         self.service_order_documents_summary.setText(
             self._format_service_order_documents(service_order)
         )
-        self._set_service_order_flow_buttons_enabled(True)
+        self._set_service_order_flow_buttons_enabled(True, str(service_order.get("status") or ""))
         self.service_order_delete_button.setEnabled(True)
         self.set_service_order_form_status("Editando ordem de servico selecionada.")
 
@@ -357,15 +392,23 @@ class DashboardMixin6:
         self.set_service_order_form_status("Selecione uma OS.", is_error=True)
         return False
 
+    def _handle_service_order_status_changed(self, *_args: Any) -> None:
+        status = str(self.service_order_status_combo.currentData() or "")
+        self._update_service_order_workflow(status)
+        self._set_service_order_flow_buttons_enabled(bool(self.selected_service_order_id), status)
+
     def _update_service_order_workflow(self, status: str | None) -> None:
         stage_by_status = {
             "open": 0,
             "assigned": 0,
-            "pending_quote": 1,
+            "pending_tech": 0,
+            "diagnosis": 1,
+            "pending_quote": 2,
             "quote_sent": 2,
             "pending_approval": 3,
             "approved": 3,
             "in_progress": 4,
+            "ready_dispatch": 5,
             "completed": 5,
             "rejected": 5,
             "closed": 5,
@@ -381,3 +424,40 @@ class DashboardMixin6:
             label.setProperty("stage", stage)
             label.style().unpolish(label)
             label.style().polish(label)
+        self._update_service_order_next_step(status)
+
+    def _update_service_order_next_step(self, status: str | None) -> None:
+        if not hasattr(self, "service_order_next_step_label"):
+            return
+        status_key = status or ""
+        message, level = {
+            "open": (
+                "Proximo passo: validar entrada, atribuir tecnico e registrar diagnostico.",
+                "warning",
+            ),
+            "assigned": ("Proximo passo: registrar diagnostico tecnico.", "warning"),
+            "pending_tech": ("Proximo passo: atribuir tecnico responsavel.", "warning"),
+            "diagnosis": ("Proximo passo: concluir diagnostico e montar orcamento.", "warning"),
+            "pending_quote": ("Proximo passo: adicionar itens e enviar orcamento.", "warning"),
+            "quote_sent": (
+                "Proximo passo: aguardar aprovacao do cliente ou registrar reprovacao.",
+                "info",
+            ),
+            "pending_approval": (
+                "Proximo passo: aprovar, reprovar ou complementar o orcamento.",
+                "info",
+            ),
+            "approved": ("Proximo passo: iniciar execucao do servico.", "info"),
+            "in_progress": ("Proximo passo: concluir servico e preparar expedicao.", "info"),
+            "ready_dispatch": ("Proximo passo: concluir OS apos entrega/expedicao.", "info"),
+            "completed": ("Fluxo concluido: revise anexos e historico antes de arquivar.", "info"),
+            "rejected": ("Fluxo encerrado: orcamento reprovado pelo cliente.", "error"),
+            "closed": ("Fluxo encerrado.", "info"),
+        }.get(
+            status_key,
+            ("Selecione uma OS para ver o proximo passo.", "warning"),
+        )
+        self.service_order_next_step_label.setText(message)
+        self.service_order_next_step_label.setProperty("level", level)
+        self.service_order_next_step_label.style().unpolish(self.service_order_next_step_label)
+        self.service_order_next_step_label.style().polish(self.service_order_next_step_label)

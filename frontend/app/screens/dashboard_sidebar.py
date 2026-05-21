@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout, QWidget
 
+from frontend.app.screens.dashboard_modules import MODULE_STAGES
+
 
 def build_dashboard_sidebar(self) -> None:
     self.setWindowTitle("PRO CORE - Dashboard")
@@ -45,62 +47,18 @@ def build_dashboard_sidebar(self) -> None:
     sidebar_nav_layout.setSpacing(10)
 
     self.module_buttons: dict[str, QPushButton] = {}
-    self.module_icon_names = {
-        "dashboard": "dashboard",
-        "service_orders": "service_orders",
-        "customers": "customers",
-        "equipment": "equipment",
-        "inventory": "inventory",
-        "tools": "tools",
-        "sectors": "sectors",
-        "users": "users",
-        "password_resets": "password_resets",
-        "settings": "settings",
-        "audit_logs": "audit_logs",
-        "admin_area": "admin",
-    }
-    self.module_labels = {
-        "dashboard": "Dashboard",
-        "service_orders": "Ordens de Serviço",
-        "customers": "Clientes",
-        "equipment": "Equipamentos",
-        "inventory": "Estoque",
-        "tools": "Ferramentas",
-        "sectors": "Setores",
-        "users": "Usuarios",
-        "password_resets": "Solicitacoes de senha",
-        "settings": "Configuracoes",
-        "audit_logs": "Logs/Auditoria",
-        "admin_area": "Area administrativa",
-    }
-    self.module_descriptions = {
-        "dashboard": "Indicadores operacionais e alertas do dia",
-        "service_orders": "Fluxo operacional de ordens de serviço",
-        "customers": "Cadastro e relacionamento de clientes",
-        "equipment": "Gestao hierarquica de ativos, objetos e componentes",
-        "inventory": "Estoque, custos e niveis minimos",
-        "tools": "Calculadoras e utilitarios por perfil operacional",
-        "sectors": "Setores, liderancas e estrutura operacional",
-        "users": "Contas, perfis, setores e seguranca",
-        "password_resets": "Atendimento de solicitacoes de acesso",
-        "settings": "Identidade visual, empresa, tema e backup",
-        "audit_logs": "Rastreabilidade administrativa e operacional",
-        "admin_area": "Central de administracao, usuarios e auditoria",
-    }
-    self.searchable_module_keys = {
-        "service_orders",
-        "customers",
-        "inventory",
-        "sectors",
-        "users",
-        "password_resets",
-        "audit_logs",
-    }
-    self.record_module_keys = self.searchable_module_keys
-    module_groups = [
+    self.module_icon_names = {stage.key: stage.icon_name for stage in MODULE_STAGES}
+    self.module_labels = {stage.key: stage.label for stage in MODULE_STAGES}
+    self.module_descriptions = {stage.key: stage.description for stage in MODULE_STAGES}
+    self.module_action_hints = {stage.key: stage.action_hint for stage in MODULE_STAGES}
+    self.module_stage_numbers = {stage.key: stage.stage for stage in MODULE_STAGES}
+    self.module_groups = {stage.key: stage.group for stage in MODULE_STAGES}
+    self.searchable_module_keys = {stage.key for stage in MODULE_STAGES if stage.searchable}
+    self.record_module_keys = {stage.key for stage in MODULE_STAGES if stage.record_module}
+    module_groups = (
         ("OPERACAO", ("dashboard", "service_orders", "tools")),
         ("CADASTROS", ("customers", "equipment", "inventory")),
-    ]
+    )
 
     for caption, module_keys in module_groups:
         if sidebar_nav_layout.count() > 0:
@@ -169,3 +127,4 @@ def build_dashboard_sidebar(self) -> None:
     self._configure_sidebar_button(self.exit_button, "exit", "Sair")
     self.exit_button.clicked.connect(self.request_exit)
     self.sidebar_layout.addWidget(self.exit_button)
+

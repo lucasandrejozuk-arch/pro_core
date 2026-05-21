@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 
+from frontend.app.screens.dashboard_modules import module_stage_label
+
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
     from frontend.app.screens import dashboard
@@ -30,12 +32,17 @@ class DashboardMixin5:
                 self.module_search_input.blockSignals(False)
         if hasattr(self, "session_module_label"):
             self.session_module_label.setText(
-                self.module_labels.get(module_key, "Painel Principal")
+                f"{module_stage_label(module_key)} - "
+                f"{self.module_labels.get(module_key, 'Painel Principal')}"
             )
         if hasattr(self, "command_context_label"):
             self.command_context_label.setText(
                 self.module_labels.get(module_key, "Painel Principal")
             )
+        if hasattr(self, "command_stage_label"):
+            self.command_stage_label.setText(module_stage_label(module_key))
+        if hasattr(self, "command_hint_label"):
+            self.command_hint_label.setText(self.module_action_hints.get(module_key, ""))
         self.setWindowTitle(
             f"{self.sidebar_title.text() or 'PRO CORE'} - {self.title_label.text()}"
         )
@@ -63,9 +70,13 @@ class DashboardMixin5:
         self.table.setVisible(module_key in self.searchable_module_keys)
         self.record_summary_panel.setVisible(module_key in self.searchable_module_keys)
         if hasattr(self, "command_editor_button"):
-            self.command_editor_button.setEnabled(module_key in self.record_module_keys)
+            is_record_module = module_key in self.record_module_keys
+            self.command_editor_button.setVisible(is_record_module)
+            self.command_editor_button.setEnabled(is_record_module)
         if hasattr(self, "command_clear_selection_button"):
-            self.command_clear_selection_button.setEnabled(module_key in self.record_module_keys)
+            is_record_module = module_key in self.record_module_keys
+            self.command_clear_selection_button.setVisible(is_record_module)
+            self.command_clear_selection_button.setEnabled(is_record_module)
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
         self.tools_form_panel.setVisible(module_key == "tools")
@@ -157,8 +168,7 @@ class DashboardMixin5:
             return
 
         if self.active_module_key == "audit_logs":
-            self.audit_full_summary.setPlainText(self._format_audit_summary(selected_row))
-            self.audit_delete_button.setEnabled(True)
+            self._populate_audit_form(selected_row)
             return
 
         self._populate_user_form(selected_row)
@@ -181,7 +191,34 @@ class DashboardMixin5:
         self.customer_active_checkbox.setChecked(bool(customer.get("is_active", True)))
         self.customer_full_summary.setPlainText(self._format_customer_full_summary(customer))
         self.customer_delete_button.setEnabled(True)
+        self.customer_upload_document_button.setEnabled(False)
+        self._refresh_customer_operational_status()
+        self._set_customer_document_status(
+            "Anexos: selecione um arquivo para vincular evidencia ao cliente.",
+            "info",
+        )
         self.set_customer_form_status("Editando cliente selecionado.")
+
+    def _refresh_customer_operational_status(self) -> None:
+        if not hasattr(self, "customer_operational_status"):
+            return
+        if not self.selected_customer_id:
+            self._set_customer_operational_status(
+                "Novo cliente: preencha nome, email e telefone para liberar o cadastro.",
+                "warning",
+            )
+            return
+        customer_name = self.customer_name_input.text().strip() or "cliente selecionado"
+        if self.customer_active_checkbox.isChecked():
+            self._set_customer_operational_status(
+                f"Cliente ativo: {customer_name}. Pode receber equipamentos, OS e anexos.",
+                "info",
+            )
+            return
+        self._set_customer_operational_status(
+            f"Cliente inativo: {customer_name}. Revise antes de abrir novas operacoes.",
+            "error",
+        )
 
     def _request_customer_save(self) -> None:
         name = self.customer_name_input.text().strip()
@@ -246,6 +283,11 @@ class DashboardMixin5:
 
         self.selected_customer_document_path = file_path
         self.customer_document_path_input.setText(file_path)
+        self.customer_upload_document_button.setEnabled(bool(self.selected_customer_id))
+        self._set_customer_document_status(
+            "Anexo pronto para envio ao cliente selecionado.",
+            "info",
+        )
 
     def _request_customer_document_upload(self) -> None:
         if not self.selected_customer_id:

@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from frontend.app.core.grid import GRID_COLUMNS, create_grid
+from frontend.app.screens.dashboard_modules import module_stage_label
 from frontend.app.widgets import create_summary_text
 
 
@@ -171,6 +172,19 @@ class DashboardMixin4:
         settings_details_title.setObjectName("formGroupTitle")
         self.settings_full_summary = create_summary_text()
 
+        self.settings_operational_status = QLabel(
+            "Status: carregue configuracoes para revisar identidade e interface."
+        )
+        self.settings_operational_status.setObjectName("statusBanner")
+        self.settings_operational_status.setProperty("level", "warning")
+        self.settings_operational_status.setWordWrap(True)
+
+        self.settings_backup_status = QLabel(
+            "Backup: informe intervalo e destino antes de salvar."
+        )
+        self.settings_backup_status.setObjectName("moduleActionHint")
+        self.settings_backup_status.setWordWrap(True)
+
         self.settings_form_status = QLabel("")
         self.settings_form_status.setObjectName("mutedText")
 
@@ -209,6 +223,8 @@ class DashboardMixin4:
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
+        layout.addWidget(self.settings_operational_status)
+        layout.addWidget(self.settings_backup_status)
         layout.addWidget(self.settings_tabs, 1)
         layout.addWidget(self.settings_form_status)
         layout.addLayout(actions)
@@ -235,12 +251,23 @@ class DashboardMixin4:
         description = QLabel("Usuarios, setores, solicitacoes de senha e logs de auditoria.")
         description.setObjectName("mutedText")
         description.setWordWrap(True)
+        self.admin_area_status_label = QLabel(
+            "Selecione uma etapa administrativa liberada para o seu perfil."
+        )
+        self.admin_area_status_label.setObjectName("statusBanner")
+        self.admin_area_status_label.setProperty("level", "warning")
+        self.admin_area_status_label.setWordWrap(True)
+        self.admin_area_scope_label = QLabel("Etapas administrativas disponiveis: carregando.")
+        self.admin_area_scope_label.setObjectName("moduleActionHint")
+        self.admin_area_scope_label.setWordWrap(True)
         self.admin_area_actions_layout = create_grid(spacing=10, margins=(0, 0, 0, 0))
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
         layout.addWidget(title)
         layout.addWidget(description)
+        layout.addWidget(self.admin_area_status_label)
+        layout.addWidget(self.admin_area_scope_label)
         layout.addLayout(self.admin_area_actions_layout)
         return panel
 
@@ -252,19 +279,52 @@ class DashboardMixin4:
             for module_key in self._allowed_admin_modules()
             if module_key in {"sectors", "users", "password_resets", "audit_logs"}
         ]
+        self.admin_area_scope_label.setText(self._format_admin_area_scope(allowed_modules))
         if not allowed_modules:
+            self._set_admin_area_status(
+                "Seu perfil nao possui acesso a area administrativa.", "error"
+            )
             label = QLabel("Seu perfil nao possui acesso a area administrativa.")
             label.setObjectName("mutedText")
             self.admin_area_actions_layout.addWidget(label, 0, 0, 1, GRID_COLUMNS)
             return
+        role_name = "Administrador" if self.current_user_role == "admin" else "Gestor"
+        self._set_admin_area_status(
+            f"{role_name}: {len(allowed_modules)} etapa(s) administrativa(s) liberada(s).",
+            "info",
+        )
         for index, module_key in enumerate(allowed_modules):
-            button = QPushButton(self.module_labels[module_key])
+            button = QPushButton(
+                f"{module_stage_label(module_key)} - {self.module_labels[module_key]}"
+            )
             button.setObjectName("adminMenuButton")
             button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setToolTip(self.module_action_hints.get(module_key, ""))
             button.clicked.connect(
                 lambda checked=False, key=module_key: self.module_selected.emit(key)
             )
-            self.admin_area_actions_layout.addWidget(button, index // 2, (index % 2) * 6, 1, 6)
+            hint = QLabel(self.module_action_hints.get(module_key, ""))
+            hint.setObjectName("moduleActionHint")
+            hint.setWordWrap(True)
+            row = (index // 2) * 2
+            column = (index % 2) * 6
+            self.admin_area_actions_layout.addWidget(button, row, column, 1, 6)
+            self.admin_area_actions_layout.addWidget(hint, row + 1, column, 1, 6)
+
+    def _set_admin_area_status(self, message: str, level: str) -> None:
+        self.admin_area_status_label.setText(message)
+        self.admin_area_status_label.setProperty("level", level)
+        self.admin_area_status_label.style().unpolish(self.admin_area_status_label)
+        self.admin_area_status_label.style().polish(self.admin_area_status_label)
+
+    def _format_admin_area_scope(self, allowed_modules: list[str]) -> str:
+        if not allowed_modules:
+            return "Etapas administrativas disponiveis: nenhuma para o perfil atual."
+        stages = [
+            f"{module_stage_label(module_key)} {self.module_labels[module_key]}"
+            for module_key in allowed_modules
+        ]
+        return "Etapas administrativas disponiveis: " + " | ".join(stages)
 
     def _build_audit_form(self) -> QFrame:
         panel = QFrame()
@@ -272,6 +332,17 @@ class DashboardMixin4:
         title = QLabel("LOGS E AUDITORIA")
         title.setObjectName("sectionTitle")
         self.audit_full_summary = create_summary_text()
+        self.audit_operational_status = QLabel(
+            "Status: carregue logs para revisar rastreabilidade operacional."
+        )
+        self.audit_operational_status.setObjectName("statusBanner")
+        self.audit_operational_status.setProperty("level", "warning")
+        self.audit_operational_status.setWordWrap(True)
+        self.audit_retention_status = QLabel(
+            "Retencao: selecione um evento antes de avaliar exclusao."
+        )
+        self.audit_retention_status.setObjectName("moduleActionHint")
+        self.audit_retention_status.setWordWrap(True)
         self.audit_form_status = QLabel("")
         self.audit_form_status.setObjectName("mutedText")
         self.audit_delete_button = QPushButton("Excluir log")
@@ -285,6 +356,8 @@ class DashboardMixin4:
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
+        layout.addWidget(self.audit_operational_status)
+        layout.addWidget(self.audit_retention_status)
         layout.addWidget(self.audit_full_summary)
         layout.addWidget(self.audit_form_status)
         layout.addLayout(actions)

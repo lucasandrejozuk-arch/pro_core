@@ -57,6 +57,19 @@ class DashboardAdminFormsMixin:
         sector_details_title.setObjectName("formGroupTitle")
         self.sector_full_summary = create_summary_text(78, 110)
 
+        self.sector_operational_status = QLabel(
+            "Status: carregue setores para revisar a estrutura operacional."
+        )
+        self.sector_operational_status.setObjectName("statusBanner")
+        self.sector_operational_status.setProperty("level", "warning")
+        self.sector_operational_status.setWordWrap(True)
+
+        self.sector_scope_status = QLabel(
+            "Escopo: administradores mantem setores; gestores consultam a estrutura."
+        )
+        self.sector_scope_status.setObjectName("moduleActionHint")
+        self.sector_scope_status.setWordWrap(True)
+
         self.sector_form_status = QLabel("")
         self.sector_form_status.setObjectName("mutedText")
 
@@ -83,6 +96,8 @@ class DashboardAdminFormsMixin:
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(sector_fields_panel)
+        layout.addWidget(self.sector_operational_status)
+        layout.addWidget(self.sector_scope_status)
         layout.addWidget(sector_details_title)
         layout.addWidget(self.sector_full_summary)
         layout.addWidget(self.sector_form_status)
@@ -163,6 +178,19 @@ class DashboardAdminFormsMixin:
         user_details_title.setObjectName("formGroupTitle")
         self.user_full_summary = create_summary_text()
 
+        self.user_operational_status = QLabel(
+            "Status: carregue usuarios para revisar contas, perfis e setores."
+        )
+        self.user_operational_status.setObjectName("statusBanner")
+        self.user_operational_status.setProperty("level", "warning")
+        self.user_operational_status.setWordWrap(True)
+
+        self.user_security_status = QLabel(
+            "Seguranca: senha inicial obrigatoria para novas contas."
+        )
+        self.user_security_status.setObjectName("moduleActionHint")
+        self.user_security_status.setWordWrap(True)
+
         self.user_form_status = QLabel("")
         self.user_form_status.setObjectName("mutedText")
 
@@ -194,6 +222,8 @@ class DashboardAdminFormsMixin:
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addLayout(fields_layout)
+        layout.addWidget(self.user_operational_status)
+        layout.addWidget(self.user_security_status)
         layout.addWidget(user_details_title)
         layout.addWidget(self.user_full_summary)
         layout.addWidget(self.user_form_status)
@@ -235,6 +265,19 @@ class DashboardAdminFormsMixin:
         password_reset_details_title.setObjectName("formGroupTitle")
         self.password_reset_full_summary = create_summary_text(78, 110)
 
+        self.password_reset_operational_status = QLabel(
+            "Status: carregue solicitacoes para revisar recuperacoes de acesso."
+        )
+        self.password_reset_operational_status.setObjectName("statusBanner")
+        self.password_reset_operational_status.setProperty("level", "warning")
+        self.password_reset_operational_status.setWordWrap(True)
+
+        self.password_reset_security_status = QLabel(
+            "Seguranca: selecione uma solicitacao pendente para definir senha temporaria."
+        )
+        self.password_reset_security_status.setObjectName("moduleActionHint")
+        self.password_reset_security_status.setWordWrap(True)
+
         self.password_reset_form_status = QLabel("")
         self.password_reset_form_status.setObjectName("mutedText")
 
@@ -250,6 +293,8 @@ class DashboardAdminFormsMixin:
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(password_reset_panel)
+        layout.addWidget(self.password_reset_operational_status)
+        layout.addWidget(self.password_reset_security_status)
         layout.addWidget(password_reset_details_title)
         layout.addWidget(self.password_reset_full_summary)
         layout.addWidget(self.password_reset_form_status)

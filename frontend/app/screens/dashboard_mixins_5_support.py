@@ -29,6 +29,93 @@ class DashboardEquipmentSupportMixin:
         self.component_add_button.setEnabled(has_board)
         self.component_edit_button.setEnabled(has_component)
         self.component_remove_button.setEnabled(has_component)
+        self._refresh_equipment_operational_status()
+
+    def _refresh_equipment_operational_status(self) -> None:
+        if not hasattr(self, "equipment_operational_status"):
+            return
+
+        equipment = self._selected_equipment()
+        board = self._selected_equipment_board()
+        component = self._selected_equipment_component()
+        search_text = self.equipment_search_input.text().strip()
+
+        if not self.current_rows:
+            self._set_equipment_operational_status(
+                "Nenhum equipamento cadastrado. Cadastre um equipamento ou importe CSV.",
+                "warning",
+            )
+            self._set_equipment_hierarchy_status(
+                "Hierarquia: nenhum equipamento disponivel.",
+                "warning",
+            )
+            return
+
+        if not self.equipment_visible_rows:
+            suffix = f" para a busca \"{search_text}\"" if search_text else ""
+            self._set_equipment_operational_status(
+                f"Nenhum equipamento encontrado{suffix}. Ajuste a busca ou cadastre novo item.",
+                "warning",
+            )
+            self._set_equipment_hierarchy_status(
+                "Hierarquia: selecione um equipamento para carregar objetos e componentes.",
+                "warning",
+            )
+            return
+
+        if equipment is None:
+            self._set_equipment_operational_status(
+                f"{len(self.equipment_visible_rows)} equipamento(s) visivel(is). "
+                "Selecione um equipamento para gerenciar a hierarquia.",
+                "warning",
+            )
+            self._set_equipment_hierarchy_status(
+                "Hierarquia: nenhum equipamento selecionado.",
+                "warning",
+            )
+            return
+
+        boards = equipment.get("boards") or []
+        components_count = sum(len(board_item.get("components") or []) for board_item in boards)
+        self._set_equipment_operational_status(
+            f"Equipamento selecionado: {self._equipment_label(equipment)}. "
+            f"{len(boards)} objeto(s) vinculado(s), {components_count} componente(s).",
+            "info",
+        )
+
+        if board is None:
+            self._set_equipment_hierarchy_status(
+                "Hierarquia: adicione ou selecione um objeto vinculado para gerenciar componentes.",
+                "warning",
+            )
+            return
+
+        board_components = board.get("components") or []
+        if component is None:
+            self._set_equipment_hierarchy_status(
+                f"Objeto selecionado: {self._board_label(board)}. "
+                f"{len(board_components)} componente(s) vinculado(s).",
+                "info",
+            )
+            return
+
+        self._set_equipment_hierarchy_status(
+            f"Componente selecionado: {self._format_value(component.get('name')) or '-'} "
+            f"em {self._board_label(board)}.",
+            "info",
+        )
+
+    def _set_equipment_operational_status(self, message: str, level: str) -> None:
+        self.equipment_operational_status.setText(message)
+        self.equipment_operational_status.setProperty("level", level)
+        self.equipment_operational_status.style().unpolish(self.equipment_operational_status)
+        self.equipment_operational_status.style().polish(self.equipment_operational_status)
+
+    def _set_equipment_hierarchy_status(self, message: str, level: str) -> None:
+        self.equipment_hierarchy_status.setText(message)
+        self.equipment_hierarchy_status.setProperty("level", level)
+        self.equipment_hierarchy_status.style().unpolish(self.equipment_hierarchy_status)
+        self.equipment_hierarchy_status.style().polish(self.equipment_hierarchy_status)
 
     def _selected_equipment(self) -> dict[str, Any] | None:
         return self._find_by_id(self.current_rows, self.selected_equipment_id)

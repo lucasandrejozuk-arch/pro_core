@@ -38,6 +38,41 @@ def test_settings_menu_keeps_all_configuration_groups_visible(qtbot) -> None:
     assert window.settings_backup_enabled_checkbox.text() == "Backup automatico ativo"
 
 
+def test_settings_operational_status_tracks_identity_interface_and_backup(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.configure_ui_scale(0.82, 1.18, 1.08)
+
+    window._populate_settings_form(
+        {
+            "company_name": "PRO CORE Lab",
+            "trade_name": "Assistencia Teste",
+            "brand_name": "Pro Assist",
+            "brand_subtitle": "Bancada premium",
+            "color_palette": "green",
+            "theme": "dark",
+            "language": "pt-BR",
+            "backup_enabled": True,
+            "backup_interval_hours": 12,
+            "backup_storage_path": "D:/backups",
+            "backup_last_run_at": "2026-05-14T10:00:00",
+        }
+    )
+
+    assert window.settings_operational_status.property("level") == "info"
+    assert "Pro Assist" in window.settings_operational_status.text()
+    assert "PRO CORE Lab" in window.settings_operational_status.text()
+    assert "Escala: 108%" in window.settings_operational_status.text()
+    assert "backup: ativo" in window.settings_backup_status.text().lower()
+    assert "intervalo 12h" in window.settings_backup_status.text()
+    assert "D:/backups" in window.settings_backup_status.text()
+    assert "Status operacional" in window.settings_full_summary.toPlainText()
+
+    window.settings_ui_scale_slider.setValue(112)
+
+    assert "Escala: 112%" in window.settings_operational_status.text()
+
+
 def test_settings_save_emits_branding_payload(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)

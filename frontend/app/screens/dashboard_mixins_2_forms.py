@@ -56,6 +56,14 @@ class DashboardRecordFormsMixin:
 
         self.customer_active_checkbox = QCheckBox("Cliente ativo")
         self.customer_active_checkbox.setChecked(True)
+        self.customer_active_checkbox.toggled.connect(self._refresh_customer_operational_status)
+
+        self.customer_operational_status = QLabel(
+            "Novo cliente: preencha nome, email e telefone para liberar o cadastro."
+        )
+        self.customer_operational_status.setObjectName("statusBanner")
+        self.customer_operational_status.setProperty("level", "warning")
+        self.customer_operational_status.setWordWrap(True)
 
         identity_title = QLabel("DADOS DO CLIENTE")
         identity_title.setObjectName("formGroupTitle")
@@ -112,6 +120,13 @@ class DashboardRecordFormsMixin:
         self.customer_document_path_input.setPlaceholderText("Anexo do cliente")
         self.customer_document_path_input.setReadOnly(True)
 
+        self.customer_document_status = QLabel(
+            "Anexos: salve ou selecione um cliente antes de enviar evidencias."
+        )
+        self.customer_document_status.setObjectName("statusBanner")
+        self.customer_document_status.setProperty("level", "warning")
+        self.customer_document_status.setWordWrap(True)
+
         self.customer_select_document_button = QPushButton("Selecionar anexo")
         self.customer_select_document_button.setObjectName("secondaryButton")
         self.customer_select_document_button.clicked.connect(self._select_customer_document)
@@ -139,9 +154,11 @@ class DashboardRecordFormsMixin:
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
+        layout.addWidget(self.customer_operational_status)
         layout.addLayout(fields_layout)
         layout.addWidget(details_title)
         layout.addWidget(self.customer_full_summary)
+        layout.addWidget(self.customer_document_status)
         layout.addLayout(document_actions)
         layout.addWidget(self.customer_form_status)
         layout.addLayout(actions)
@@ -156,6 +173,20 @@ class DashboardRecordFormsMixin:
         title.setObjectName("pageTitle")
         subtitle = QLabel("Gestao hierarquica de ativos, objetos e componentes")
         subtitle.setObjectName("mutedText")
+
+        self.equipment_operational_status = QLabel(
+            "Selecione um equipamento para gerenciar objetos, componentes e casos de defeito."
+        )
+        self.equipment_operational_status.setObjectName("statusBanner")
+        self.equipment_operational_status.setProperty("level", "warning")
+        self.equipment_operational_status.setWordWrap(True)
+
+        self.equipment_hierarchy_status = QLabel(
+            "Hierarquia: nenhum equipamento selecionado."
+        )
+        self.equipment_hierarchy_status.setObjectName("statusBanner")
+        self.equipment_hierarchy_status.setProperty("level", "warning")
+        self.equipment_hierarchy_status.setWordWrap(True)
 
         self.equipment_search_input = QLineEdit()
         self.equipment_search_input.setObjectName("sectionSearch")
@@ -262,6 +293,7 @@ class DashboardRecordFormsMixin:
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        layout.addWidget(self.equipment_operational_status)
         layout.addWidget(
             self._build_equipment_section(
                 "EQUIPAMENTOS",
@@ -280,6 +312,7 @@ class DashboardRecordFormsMixin:
             )
         )
         layout.addWidget(self.equipment_context_label)
+        layout.addWidget(self.equipment_hierarchy_status)
         layout.addWidget(
             self._build_equipment_section(
                 "OBJETOS VINCULADOS",

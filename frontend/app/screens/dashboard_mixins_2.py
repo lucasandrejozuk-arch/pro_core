@@ -77,6 +77,14 @@ class DashboardMixin2:
         self.module_search_input.setPlaceholderText(self._module_search_placeholder(module_key))
         self._reset_pagination_for_module(module_key)
         self._populate_current_table(self._filtered_rows())
+        if module_key == "sectors":
+            self._refresh_sector_operational_status()
+        elif module_key == "users":
+            self._refresh_user_operational_status()
+        elif module_key == "password_resets":
+            self._refresh_password_reset_operational_status()
+        elif module_key == "audit_logs":
+            self._refresh_audit_operational_status()
 
     def _populate_current_table(self, rows: list[dict[str, Any]]) -> None:
         columns = self.current_columns

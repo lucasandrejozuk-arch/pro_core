@@ -161,6 +161,20 @@ def _light_stylesheet() -> str:
             font-size: 11px;
             font-weight: 700;
         }
+        QLabel#moduleStageBadge {
+            background: #ddf4ff;
+            border: 1px solid #0969da;
+            border-radius: 6px;
+            color: #0969da;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 8px;
+        }
+        QLabel#moduleActionHint {
+            color: #57606a;
+            font-size: 11px;
+            font-weight: 600;
+        }
         QFrame#dashboardKpiCard,
         QFrame#dashboardAlertsFrame {
             background: #ffffff;
