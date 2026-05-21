@@ -57,7 +57,7 @@ def build_dashboard_sidebar(self) -> None:
         "password_resets": "password_resets",
         "settings": "settings",
         "audit_logs": "audit_logs",
-        "admin_area": "settings",
+        "admin_area": "admin",
     }
     self.module_labels = {
         "dashboard": "Dashboard",
@@ -161,8 +161,8 @@ def build_dashboard_sidebar(self) -> None:
     self.session_button.setCursor(Qt.CursorShape.PointingHandCursor)
     self._configure_sidebar_button(
         self.session_button,
-        "settings",
-        "Personalizacao e configuracoes",
+        "appearance",
+        "Aparencia e personalizacao",
     )
     self.session_button.clicked.connect(lambda: self.module_selected.emit("settings"))
     self.sidebar_layout.addWidget(self.session_button)

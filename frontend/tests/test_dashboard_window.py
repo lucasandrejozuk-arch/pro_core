@@ -380,6 +380,15 @@ def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
     assert dashboard_button.toolTip()
 
 
+def test_sidebar_settings_admin_and_appearance_icons_are_distinct(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    assert window.module_icon_names["admin_area"] == "admin"
+    assert window.module_icon_names["settings"] == "settings"
+    assert window.sidebar_buttons_by_icon[window.session_button] == "appearance"
+
+
 def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)

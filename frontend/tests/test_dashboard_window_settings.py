@@ -19,6 +19,23 @@ def test_settings_save_rejects_invalid_backup_interval(qtbot) -> None:
     assert "1 e 720" in window.settings_form_status.text()
 
 
+def test_settings_menu_keeps_all_configuration_groups_visible(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    assert window.settings_tabs.count() == 4
+    assert [window.settings_tabs.tabText(index) for index in range(4)] == [
+        "Empresa",
+        "Aparencia",
+        "Interface e backup",
+        "Resumo",
+    ]
+    assert window.settings_company_name_input is not None
+    assert window.settings_brand_name_input is not None
+    assert window.settings_theme_combo.count() == 2
+    assert window.settings_backup_enabled_checkbox.text() == "Backup automatico ativo"
+
+
 def test_settings_save_emits_branding_payload(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)

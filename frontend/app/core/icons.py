@@ -60,15 +60,19 @@ ICON_PATHS = {
         <path d="M7.5 14.5l2 2"/>
     """,
     "settings": """
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 2v3"/>
-        <path d="M12 19v3"/>
-        <path d="M4.9 4.9 7 7"/>
-        <path d="M17 17l2.1 2.1"/>
-        <path d="M2 12h3"/>
-        <path d="M19 12h3"/>
-        <path d="M4.9 19.1 7 17"/>
-        <path d="M17 7l2.1-2.1"/>
+        <circle cx="12" cy="12" r="3.2"/>
+        <path d="M12 2v4"/>
+        <path d="M12 18v4"/>
+        <path d="M2 12h4"/>
+        <path d="M18 12h4"/>
+        <path d="m4.9 4.9 2.8 2.8"/>
+        <path d="m16.3 16.3 2.8 2.8"/>
+        <path d="m19.1 4.9-2.8 2.8"/>
+        <path d="m7.7 16.3-2.8 2.8"/>
+        <path d="M8.2 3.6 9.4 6"/>
+        <path d="M14.6 18l1.2 2.4"/>
+        <path d="m20.4 8.2-2.4 1.2"/>
+        <path d="m6 14.6-2.4 1.2"/>
     """,
     "users": """
         <circle cx="9" cy="8" r="3"/>
@@ -95,15 +99,17 @@ ICON_PATHS = {
         <path d="M8 16h5"/>
     """,
     "admin": """
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 2v3"/>
-        <path d="M12 19v3"/>
-        <path d="M4.9 4.9 7 7"/>
-        <path d="M17 17l2.1 2.1"/>
-        <path d="M2 12h3"/>
-        <path d="M19 12h3"/>
-        <path d="M4.9 19.1 7 17"/>
-        <path d="M17 7l2.1-2.1"/>
+        <path d="M12 3 19 6v5c0 4.6-2.6 7.8-7 10-4.4-2.2-7-5.4-7-10V6z"/>
+        <circle cx="12" cy="11" r="2.2"/>
+        <path d="M12 13.2V17"/>
+        <path d="M10.5 15.5h3"/>
+    """,
+    "appearance": """
+        <path d="M12 3a7 7 0 0 0 0 14h1.2a1.8 1.8 0 0 1 0 3H12a9 9 0 1 1 9-9"/>
+        <circle cx="7.5" cy="10" r=".7"/>
+        <circle cx="10" cy="7.5" r=".7"/>
+        <circle cx="14" cy="7.5" r=".7"/>
+        <path d="M16.5 13.5 21 9l-2-2-4.5 4.5V14h2z"/>
     """,
     "logout": """
         <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"/>

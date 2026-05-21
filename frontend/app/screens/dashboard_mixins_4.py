@@ -13,10 +13,11 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSlider,
+    QTabWidget,
     QVBoxLayout,
 )
 
-from frontend.app.core.grid import GRID_COLUMNS, add_widget, create_grid
+from frontend.app.core.grid import GRID_COLUMNS, create_grid
 from frontend.app.widgets import create_summary_text
 
 
@@ -116,31 +117,51 @@ class DashboardMixin4:
         branding_panel_layout.addWidget(branding_title)
         branding_panel_layout.addLayout(branding_layout)
 
-        operation_layout = QFormLayout()
-        operation_layout.setSpacing(10)
-        operation_layout.addRow("Tema", self.settings_theme_combo)
+        interface_layout = QFormLayout()
+        interface_layout.setSpacing(10)
+        interface_layout.addRow("Tema", self.settings_theme_combo)
         scale_row = QHBoxLayout()
         scale_row.addWidget(self.settings_ui_scale_slider, 1)
         scale_row.addWidget(self.settings_ui_scale_label)
-        operation_layout.addRow("Escala da interface", scale_row)
-        operation_layout.addRow("", self.settings_backup_enabled_checkbox)
-        operation_layout.addRow("Intervalo", self.settings_backup_interval_input)
-        operation_layout.addRow("Destino", self.settings_backup_path_input)
+        interface_layout.addRow("Escala da interface", scale_row)
 
-        operation_panel = QFrame()
-        operation_panel.setObjectName("formSubPanel")
-        operation_panel_layout = QVBoxLayout(operation_panel)
-        operation_panel_layout.setContentsMargins(12, 12, 12, 12)
-        operation_panel_layout.setSpacing(8)
-        operation_title = QLabel("CONFIGURACOES GERAIS")
-        operation_title.setObjectName("formGroupTitle")
-        operation_panel_layout.addWidget(operation_title)
-        operation_panel_layout.addLayout(operation_layout)
+        interface_panel = QFrame()
+        interface_panel.setObjectName("formSubPanel")
+        interface_panel_layout = QVBoxLayout(interface_panel)
+        interface_panel_layout.setContentsMargins(12, 12, 12, 12)
+        interface_panel_layout.setSpacing(8)
+        interface_title = QLabel("INTERFACE")
+        interface_title.setObjectName("formGroupTitle")
+        interface_hint = QLabel("Ajustes locais aplicados ao painel e janelas do operador.")
+        interface_hint.setObjectName("mutedText")
+        interface_hint.setWordWrap(True)
+        interface_panel_layout.addWidget(interface_title)
+        interface_panel_layout.addWidget(interface_hint)
+        interface_panel_layout.addLayout(interface_layout)
 
-        fields_layout = create_grid(spacing=8)
-        add_widget(fields_layout, company_panel, 0, 0, 6)
-        add_widget(fields_layout, branding_panel, 0, 6, 6)
-        add_widget(fields_layout, operation_panel, 1)
+        backup_layout = QFormLayout()
+        backup_layout.setSpacing(10)
+        backup_layout.addRow("", self.settings_backup_enabled_checkbox)
+        backup_layout.addRow("Intervalo", self.settings_backup_interval_input)
+        backup_layout.addRow("Destino", self.settings_backup_path_input)
+
+        backup_panel = QFrame()
+        backup_panel.setObjectName("formSubPanel")
+        backup_panel_layout = QVBoxLayout(backup_panel)
+        backup_panel_layout.setContentsMargins(12, 12, 12, 12)
+        backup_panel_layout.setSpacing(8)
+        backup_title = QLabel("BACKUP E RETENCAO")
+        backup_title.setObjectName("formGroupTitle")
+        backup_hint = QLabel(
+            "Mantenha um destino persistente e revise o ultimo backup antes de atualizacoes."
+        )
+        backup_hint.setObjectName("mutedText")
+        backup_hint.setWordWrap(True)
+        backup_panel_layout.addWidget(backup_title)
+        backup_panel_layout.addWidget(backup_hint)
+        backup_panel_layout.addLayout(backup_layout)
+        backup_panel_layout.addWidget(self.settings_backup_last_run_label)
+        backup_panel_layout.addStretch()
 
         settings_details_title = QLabel("RESUMO OPERACIONAL")
         settings_details_title.setObjectName("formGroupTitle")
@@ -161,18 +182,45 @@ class DashboardMixin4:
         actions.addWidget(self.settings_run_backup_button)
         actions.addWidget(self.settings_save_button)
 
+        summary_panel = QFrame()
+        summary_panel.setObjectName("formSubPanel")
+        summary_panel_layout = QVBoxLayout(summary_panel)
+        summary_panel_layout.setContentsMargins(12, 12, 12, 12)
+        summary_panel_layout.setSpacing(8)
+        summary_panel_layout.addWidget(settings_details_title)
+        summary_panel_layout.addWidget(self.settings_full_summary)
+
+        self.settings_tabs = QTabWidget()
+        self.settings_tabs.setObjectName("settingsTabs")
+        self.settings_tabs.addTab(self._wrap_settings_tab(company_panel), "Empresa")
+        self.settings_tabs.addTab(self._wrap_settings_tab(branding_panel), "Aparencia")
+        self.settings_tabs.addTab(
+            self._wrap_settings_tab(interface_panel, backup_panel),
+            "Interface e backup",
+        )
+        self.settings_tabs.addTab(self._wrap_settings_tab(summary_panel), "Resumo")
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addLayout(fields_layout)
-        layout.addWidget(settings_details_title)
-        layout.addWidget(self.settings_full_summary)
-        layout.addWidget(self.settings_backup_last_run_label)
+        layout.addWidget(self.settings_tabs)
         layout.addWidget(self.settings_form_status)
         layout.addLayout(actions)
 
         return panel
+
+    @staticmethod
+    def _wrap_settings_tab(*widgets: QFrame) -> QFrame:
+        tab = QFrame()
+        tab.setObjectName("settingsTab")
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+        for widget in widgets:
+            layout.addWidget(widget)
+        layout.addStretch()
+        return tab
 
     def _build_admin_area_panel(self) -> QFrame:
         panel = QFrame()
