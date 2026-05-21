@@ -144,6 +144,7 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
     assert window.active_module_key == "tools"
     assert not window.tools_form_panel.isHidden()
     assert window.tools_tabs.count() == 1
+    assert window.tools_form_panel.findChildren(QTabWidget)[0] is window.tools_tabs
     assert window.tools_tabs.tabText(0) == "Eletrica"
     specialty_tabs = window.tools_tabs.widget(0).findChild(QTabWidget, "specialtyTabs")
     assert specialty_tabs is not None
@@ -156,6 +157,37 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
     window._calculate_ohm_tool()
 
     assert "20 V" in window.ohm_result.toPlainText()
+
+
+def test_equipment_hierarchy_uses_compact_full_width_sections(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_rows(
+        "Equipamentos",
+        [
+            {
+                "id": "equipment-id",
+                "category": "Inversor",
+                "brand": "Siemens",
+                "model": "G120",
+                "special_number": "ESP-1",
+                "boards": [
+                    {
+                        "id": "board-id",
+                        "name": "Placa Principal",
+                        "components": [{"id": "component-id", "name": "CI"}],
+                    }
+                ],
+            }
+        ],
+        [],
+        "equipment",
+    )
+
+    assert window.equipment_table.maximumHeight() <= 280
+    assert window.equipment_boards_table.maximumHeight() <= 280
+    assert window.component_full_summary.maximumHeight() == 112
 
 
 def test_ui_scale_slider_emits_live_scale(qtbot) -> None:

@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from frontend.app.core.grid import add_layout, add_widget, create_grid
+from frontend.app.core.grid import add_widget, create_grid
 from frontend.app.widgets import create_summary_text
 
 
@@ -163,10 +163,10 @@ class DashboardRecordFormsMixin:
         self._configure_equipment_table(
             self.equipment_table,
             ["ID", "TIPO", "MARCA", "MODELO", "NO ESPECIAL"],
-            210,
+            150,
         )
         self.equipment_table.itemSelectionChanged.connect(self._handle_equipment_table_selection)
-        self.equipment_full_summary = create_summary_text(150, 220)
+        self.equipment_full_summary = create_summary_text(76, 112)
         self.equipment_full_summary.setPlainText(
             "SELECIONE UM EQUIPAMENTO PARA VER OS DADOS COMPLETOS."
         )
@@ -208,12 +208,12 @@ class DashboardRecordFormsMixin:
         self._configure_equipment_table(
             self.equipment_boards_table,
             ["ID", "NOME", "NO ESPECIAL", "MODELO", "REVISAO"],
-            190,
+            136,
         )
         self.equipment_boards_table.itemSelectionChanged.connect(
             self._handle_equipment_board_table_selection
         )
-        self.board_full_summary = create_summary_text(150, 220)
+        self.board_full_summary = create_summary_text(76, 112)
         self.board_full_summary.setPlainText("SELECIONE UM OBJETO PARA VER OS DADOS COMPLETOS.")
         self.board_add_button = QPushButton("+Objeto Vinculado")
         self.board_add_button.clicked.connect(self._request_equipment_board_create)
@@ -234,12 +234,12 @@ class DashboardRecordFormsMixin:
         self._configure_equipment_table(
             self.equipment_components_table,
             ["ID", "CATEGORIA", "DADOS", "MODELO/PART NUMBER", "LOCALIZACAO", "OBSERVACOES"],
-            190,
+            136,
         )
         self.equipment_components_table.itemSelectionChanged.connect(
             self._handle_equipment_component_table_selection
         )
-        self.component_full_summary = create_summary_text(150, 220)
+        self.component_full_summary = create_summary_text(76, 112)
         self.component_full_summary.setPlainText(
             "SELECIONE UM COMPONENTE PARA VER OS DADOS COMPLETOS."
         )
@@ -325,22 +325,6 @@ class DashboardRecordFormsMixin:
         details_title = QLabel("DADOS COMPLETOS:")
         details_title.setObjectName("formGroupTitle")
 
-        table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(6)
-        table_layout.addWidget(search_input)
-        table_layout.addWidget(table)
-
-        details_layout = QVBoxLayout()
-        details_layout.setContentsMargins(0, 0, 0, 0)
-        details_layout.setSpacing(6)
-        details_layout.addWidget(details_title)
-        details_layout.addWidget(summary)
-
-        grid_layout = create_grid(spacing=10)
-        add_layout(grid_layout, table_layout, 0, 0, 7)
-        add_layout(grid_layout, details_layout, 0, 7, 5)
-
         actions = QHBoxLayout()
         actions.setSpacing(6)
         for button in buttons:
@@ -351,7 +335,10 @@ class DashboardRecordFormsMixin:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
         layout.addWidget(title_label)
-        layout.addLayout(grid_layout)
+        layout.addWidget(search_input)
+        layout.addWidget(table)
+        layout.addWidget(details_title)
+        layout.addWidget(summary)
         layout.addLayout(actions)
         return section
 

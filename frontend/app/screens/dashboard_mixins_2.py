@@ -72,7 +72,7 @@ class DashboardMixin2:
         self._set_active_module(module_key)
         self.all_rows = list(rows)
         self.current_columns = list(columns)
-        self.data_title.setText(title)
+        self.data_title.setText("Registros")
         self.data_description.setText(self.module_descriptions.get(module_key, ""))
         self.module_search_input.setPlaceholderText(self._module_search_placeholder(module_key))
         self._populate_current_table(self._filtered_rows())
@@ -80,10 +80,18 @@ class DashboardMixin2:
     def _populate_current_table(self, rows: list[dict[str, Any]]) -> None:
         columns = self.current_columns
         self.current_rows = rows
+        if hasattr(self, "record_count_label"):
+            total = len(self.all_rows)
+            shown = len(rows)
+            if shown == total:
+                self.record_count_label.setText(f"{total} registro(s)")
+            else:
+                self.record_count_label.setText(f"{shown} de {total} registro(s)")
         self.table.clear()
         self.table.setColumnCount(len(columns))
         self.table.setHorizontalHeaderLabels([label for label, _key in columns])
         self.table.setRowCount(len(rows))
+        self._resize_table_to_content(self.table, len(rows), minimum=150, maximum=430)
 
         if not rows:
             message = "Nenhum registro encontrado."
@@ -104,6 +112,14 @@ class DashboardMixin2:
 
         if self.active_module_key in self.searchable_module_keys:
             self.table.selectRow(0)
+
+    @staticmethod
+    def _resize_table_to_content(table, row_count: int, minimum: int, maximum: int) -> None:
+        header_height = table.horizontalHeader().height() if table.horizontalHeader() else 34
+        row_height = table.verticalHeader().defaultSectionSize()
+        target_height = header_height + max(row_count, 1) * row_height + 12
+        table.setMinimumHeight(minimum)
+        table.setMaximumHeight(max(minimum, min(target_height, maximum)))
 
     def _apply_current_filter(self) -> None:
         if self.active_module_key not in self.searchable_module_keys:

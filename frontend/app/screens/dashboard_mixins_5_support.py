@@ -70,6 +70,8 @@ class DashboardEquipmentSupportMixin:
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 item.setData(Qt.ItemDataRole.UserRole, str(row.get("id") or ""))
                 table.setItem(row_index, column_index, item)
+            table.setRowHeight(row_index, 34)
+        self._resize_table_to_content(table, len(rows), minimum=table.minimumHeight(), maximum=280)
         table.blockSignals(False)
 
     def _select_visible_table_row(

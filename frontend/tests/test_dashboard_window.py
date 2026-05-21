@@ -116,11 +116,15 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     assert not window.generic_record_container.isHidden()
     assert window.record_toggle_rail.isHidden()
     assert window.generic_form_column.isHidden()
+    assert window.data_title.text() == "Registros"
+    assert window.record_count_label.text() == "2 registro(s)"
     assert window.module_search_input.placeholderText() == "BUSCAR CLIENTES..."
 
     window.module_search_input.setText("bruno")
 
     assert window.table.rowCount() == 1
+    assert window.table.maximumHeight() < 430
+    assert window.record_count_label.text() == "1 de 2 registro(s)"
     assert window.current_rows[0]["id"] == "customer-2"
     assert "Bruno Cliente" in window.customer_full_summary.toPlainText()
     assert not window.record_summary_panel.isHidden()
