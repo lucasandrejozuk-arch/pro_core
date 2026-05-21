@@ -32,7 +32,6 @@ class DashboardMixin3:
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.addWidget(form_panel)
-        layout.addStretch()
 
         self.ohm_target_combo = QComboBox()
         self.ohm_target_combo.addItem("Tensao", "voltage")
@@ -123,7 +122,6 @@ class DashboardMixin3:
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.addWidget(panel)
-        layout.addStretch()
         widget.parent_specialty_text = None
         return widget
 

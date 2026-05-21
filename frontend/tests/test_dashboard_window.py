@@ -72,7 +72,7 @@ def test_dashboard_content_uses_12_column_grid(qtbot) -> None:
     assert window.content_layout.columnCount() == GRID_COLUMNS
     assert all(window.content_layout.columnStretch(column) == 1 for column in range(GRID_COLUMNS))
     assert window.content_layout.getItemPosition(0) == (0, 0, 1, GRID_COLUMNS)
-    assert window.content_layout.rowStretch(5) == 1
+    assert window.content_layout.rowStretch(5) == 0
     assert window.content_layout.rowStretch(6) == 0
     assert window.content_layout.rowStretch(10) == 0
 
@@ -114,7 +114,7 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     )
 
     assert not window.generic_record_container.isHidden()
-    assert not window.record_toggle_rail.isHidden()
+    assert window.record_toggle_rail.isHidden()
     assert window.generic_form_column.isHidden()
     assert window.module_search_input.placeholderText() == "BUSCAR CLIENTES..."
 
@@ -138,21 +138,20 @@ def test_record_editor_button_opens_floating_side_panel(qtbot) -> None:
     )
 
     assert window.record_editor_collapsed is True
-    window.record_editor_toggle_button.setChecked(True)
+    window.command_editor_button.click()
 
     assert not window.generic_form_column.isHidden()
-    assert window.record_editor_toggle_button.property("collapsed") == "false"
     assert window.generic_form_column.parentWidget() is window.record_editor_dialog
     assert window.record_editor_dialog is not None
     assert window.record_editor_dialog.width() >= min(window.record_editor_width, 520)
-    assert window.record_editor_toggle_button.text() == "E\nd\ni\nt\no\nr"
-    assert window.record_editor_toggle_button.height() > window.record_editor_toggle_button.width()
-    assert window.record_toggle_rail.width() <= 56
+    assert window.command_editor_button.text() == "Fechar editor"
+    assert window.record_toggle_rail.width() == 0
 
-    window.record_editor_toggle_button.setChecked(False)
+    window.command_editor_button.click()
 
     assert window.record_editor_collapsed is True
     assert window.generic_form_column.isHidden()
+    assert window.command_editor_button.text() == "Editor"
 
 
 def test_record_table_context_actions_open_editor_and_clear_form(qtbot) -> None:
@@ -170,7 +169,7 @@ def test_record_table_context_actions_open_editor_and_clear_form(qtbot) -> None:
 
     assert window.selected_customer_id is None
     assert not window.generic_form_column.isHidden()
-    assert window.record_editor_toggle_button.isChecked()
+    assert window.record_editor_collapsed is False
     assert window.record_editor_dialog is not None
 
 

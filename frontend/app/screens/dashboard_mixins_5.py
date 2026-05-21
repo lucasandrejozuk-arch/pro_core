@@ -55,6 +55,10 @@ class DashboardMixin5:
         self.module_search_input.setVisible(module_key in self.searchable_module_keys)
         self.table.setVisible(module_key in self.searchable_module_keys)
         self.record_summary_panel.setVisible(module_key in self.searchable_module_keys)
+        if hasattr(self, "command_editor_button"):
+            self.command_editor_button.setEnabled(module_key in self.record_module_keys)
+        if hasattr(self, "command_clear_selection_button"):
+            self.command_clear_selection_button.setEnabled(module_key in self.record_module_keys)
         self.customer_form_panel.setVisible(module_key == "customers")
         self.equipment_form_panel.setVisible(module_key == "equipment")
         self.tools_form_panel.setVisible(module_key == "tools")

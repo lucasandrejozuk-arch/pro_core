@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import QEvent, QObject, QSize, Qt
-from PySide6.QtGui import QIcon, QResizeEvent
+from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -71,14 +71,9 @@ class DashboardMixin1:
             button.setIcon(build_icon(icon_name, color))
             button.setIconSize(self.sidebar_icon_size)
 
-        if hasattr(self, "record_editor_toggle_button"):
-            self._refresh_record_editor_button_icon()
-
     def apply_record_editor_icon_colors(self, inactive_color: str, active_color: str) -> None:
         self.record_editor_icon_color = inactive_color
         self.record_editor_active_icon_color = active_color
-        if hasattr(self, "record_editor_toggle_button"):
-            self._refresh_record_editor_button_icon()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.Wheel and isinstance(watched, (QComboBox, QAbstractSpinBox)):
@@ -171,7 +166,7 @@ class DashboardMixin1:
             self.content_layout.setRowStretch(9, 1)
             return
         if module_key == "dashboard":
-            self.content_layout.setRowStretch(5, 1)
+            self.content_layout.setRowStretch(5, 0)
 
     def _position_record_editor(self) -> None:
         if not hasattr(self, "generic_form_column"):
@@ -183,20 +178,14 @@ class DashboardMixin1:
         if not is_record_module or not is_open:
             return
 
-        rail_width = self.record_toggle_rail.width() if hasattr(self, "record_toggle_rail") else 88
         margin = 10
-        available_width = max(320, self.generic_record_container.width() - rail_width - margin)
+        available_width = max(320, self.generic_record_container.width() - margin)
         target_width = max(self.record_editor_width, round(available_width * 0.46))
         width = min(target_width, available_width)
         height = max(260, self.generic_record_container.height())
-        x = max(0, self.generic_record_container.width() - rail_width - width - margin)
+        x = max(0, self.generic_record_container.width() - width - margin)
         self.generic_form_column.setGeometry(x, 0, width, height)
         self.generic_form_column.raise_()
-        self.record_toggle_rail.raise_()
-
-    def _refresh_record_editor_button_icon(self) -> None:
-        self.record_editor_toggle_button.setIcon(QIcon())
-        self.record_editor_toggle_button.setIconSize(QSize(0, 0))
 
     def _set_dashboard_grid_columns(self, columns: int) -> None:
         normalized_columns = max(1, min(columns, 4))
@@ -329,16 +318,8 @@ class DashboardMixin1:
 
     def _set_record_editor_open(self, is_open: bool) -> None:
         self.record_editor_collapsed = not is_open
-        self.record_editor_toggle_button.setToolTip(
-            "Fechar editor de registro" if is_open else "Abrir editor de registro"
-        )
-        self.record_editor_toggle_button.setProperty(
-            "collapsed",
-            "false" if is_open else "true",
-        )
-        self.record_editor_toggle_button.style().unpolish(self.record_editor_toggle_button)
-        self.record_editor_toggle_button.style().polish(self.record_editor_toggle_button)
-        self._refresh_record_editor_button_icon()
+        if hasattr(self, "command_editor_button"):
+            self.command_editor_button.setText("Fechar editor" if is_open else "Editor")
         if is_open:
             self._show_record_editor_dialog()
         elif self.record_editor_dialog is not None:
@@ -347,10 +328,7 @@ class DashboardMixin1:
     def _open_record_editor(self) -> None:
         if self.active_module_key not in self.record_module_keys:
             return
-        if not self.record_editor_toggle_button.isChecked():
-            self.record_editor_toggle_button.setChecked(True)
-            return
-        self._set_record_editor_open(True)
+        self._set_record_editor_open(self.record_editor_collapsed)
 
     def _show_record_editor_dialog(self) -> None:
         if self.record_editor_dialog is not None:
@@ -391,12 +369,8 @@ class DashboardMixin1:
         self.record_editor_dialog = None
         self.record_editor_popup_layout = None
         self.record_editor_collapsed = True
-        self.record_editor_toggle_button.blockSignals(True)
-        self.record_editor_toggle_button.setChecked(False)
-        self.record_editor_toggle_button.blockSignals(False)
-        self.record_editor_toggle_button.setProperty("collapsed", "true")
-        self.record_editor_toggle_button.style().unpolish(self.record_editor_toggle_button)
-        self.record_editor_toggle_button.style().polish(self.record_editor_toggle_button)
+        if hasattr(self, "command_editor_button"):
+            self.command_editor_button.setText("Editor")
 
     def _open_record_details(self) -> None:
         if (

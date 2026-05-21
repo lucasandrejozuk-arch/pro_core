@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
-    QPushButton,
     QScrollArea,
     QSizePolicy,
     QTableWidget,
@@ -33,10 +32,6 @@ def build_dashboard_content(self) -> QScrollArea:
     self.user_label = QLabel("")
     self.user_label.setObjectName("mutedText")
 
-    self.refresh_button = QPushButton("Atualizar")
-    self.refresh_button.setObjectName("secondaryButton")
-    self.refresh_button.clicked.connect(self.refresh_requested.emit)
-
     header_text_layout = QVBoxLayout()
     header_text_layout.setSpacing(2)
     header_text_layout.addWidget(self.title_label)
@@ -50,7 +45,6 @@ def build_dashboard_content(self) -> QScrollArea:
     header_layout.setSpacing(6)
     header_layout.addLayout(header_text_layout)
     header_layout.addStretch()
-    header_layout.addWidget(self.refresh_button)
 
     self.dashboard_section_title = QLabel("Dashboard")
     self.dashboard_section_title.setObjectName("sectionTitle")
@@ -100,7 +94,7 @@ def build_dashboard_content(self) -> QScrollArea:
     self.dashboard_alerts_frame.setObjectName("dashboardAlertsFrame")
     self.dashboard_alerts_frame.setSizePolicy(
         QSizePolicy.Policy.Expanding,
-        QSizePolicy.Policy.Expanding,
+        QSizePolicy.Policy.Minimum,
     )
     self.dashboard_alerts_layout = QVBoxLayout(self.dashboard_alerts_frame)
     self.dashboard_alerts_layout.setContentsMargins(10, 10, 10, 10)
@@ -200,7 +194,7 @@ def build_dashboard_content(self) -> QScrollArea:
     record_summary_layout.setSpacing(6)
     self.record_summary_title = QLabel("Resumo do item selecionado")
     self.record_summary_title.setObjectName("formGroupTitle")
-    self.record_summary_text = create_summary_text(92, 150)
+    self.record_summary_text = create_summary_text(78, 118)
     self.record_summary_text.setPlainText("Nenhum item selecionado.")
     record_summary_layout.addWidget(self.record_summary_title)
     record_summary_layout.addWidget(self.record_summary_text)
@@ -223,30 +217,10 @@ def build_dashboard_content(self) -> QScrollArea:
     generic_form_layout.addWidget(self.password_reset_form_panel)
     generic_form_layout.addWidget(self.audit_form_panel)
 
-    self.record_editor_toggle_button = QPushButton("E\nd\ni\nt\no\nr")
-    self.record_editor_toggle_button.setObjectName("recordEditorToggleButton")
-    self.record_editor_toggle_button.setCheckable(True)
-    self.record_editor_toggle_button.setCursor(Qt.CursorShape.PointingHandCursor)
-    self.record_editor_toggle_button.setToolTip("Abrir editor de registro")
-    self.record_editor_toggle_button.setFixedSize(42, 132)
-    self.record_editor_toggle_button.toggled.connect(self._set_record_editor_open)
-
     self.record_toggle_rail = QFrame()
     self.record_toggle_rail.setObjectName("recordToggleRail")
-    self.record_toggle_rail.setFixedWidth(56)
-    self.record_toggle_rail.setSizePolicy(
-        QSizePolicy.Policy.Fixed,
-        QSizePolicy.Policy.Expanding,
-    )
-    record_toggle_layout = QVBoxLayout(self.record_toggle_rail)
-    record_toggle_layout.setContentsMargins(4, 2, 4, 0)
-    record_toggle_layout.setSpacing(6)
-    record_toggle_layout.addWidget(
-        self.record_editor_toggle_button,
-        0,
-        Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter,
-    )
-    record_toggle_layout.addStretch()
+    self.record_toggle_rail.setFixedWidth(0)
+    self.record_toggle_rail.hide()
 
     self.generic_record_container = QFrame()
     self.generic_record_container.setObjectName("recordModuleContainer")
@@ -260,7 +234,6 @@ def build_dashboard_content(self) -> QScrollArea:
     self.generic_form_column.setParent(self.generic_record_container)
     self.generic_form_column.hide()
     generic_record_layout.addWidget(self.record_list_panel, 1)
-    generic_record_layout.addWidget(self.record_toggle_rail)
 
     add_widget(self.content_layout, header_bar, 0)
     add_widget(self.content_layout, self.dashboard_section_title, 1)
@@ -280,6 +253,5 @@ def build_dashboard_content(self) -> QScrollArea:
     scroll_area.setFrameShape(QFrame.Shape.NoFrame)
     scroll_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
     scroll_area.setWidget(content)
-
 
     return scroll_area

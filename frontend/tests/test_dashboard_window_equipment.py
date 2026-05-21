@@ -144,7 +144,7 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
     assert window.active_module_key == "tools"
     assert not window.tools_form_panel.isHidden()
     assert window.tools_tabs.count() == 1
-    assert window.tools_tabs.tabText(0) == "eletrica"
+    assert window.tools_tabs.tabText(0) == "Eletrica"
     specialty_tabs = window.tools_tabs.widget(0).findChild(QTabWidget, "specialtyTabs")
     assert specialty_tabs is not None
     assert specialty_tabs.count() == 2

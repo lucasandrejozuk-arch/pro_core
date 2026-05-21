@@ -175,9 +175,7 @@ class DashboardMixin2:
             empty_message = QLabel("Nenhum aviso no momento")
             empty_message.setObjectName("emptyAlertText")
             empty_message.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.dashboard_alerts_layout.addStretch()
             self.dashboard_alerts_layout.addWidget(empty_message)
-            self.dashboard_alerts_layout.addStretch()
             return
 
         for alert in alerts:

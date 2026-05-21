@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -25,9 +24,8 @@ class DashboardToolTabsMixin:
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("CALCULADORAS ELETRICAS")
+        title = QLabel("FERRAMENTAS")
         title.setObjectName("pageTitle")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.tools_tabs = QTabWidget()
         self.tools_tabs.setObjectName("toolsTabs")
@@ -36,7 +34,8 @@ class DashboardToolTabsMixin:
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addWidget(self.tools_tabs, 1)
+        layout.addWidget(self.tools_tabs, 0)
+        layout.addStretch()
         return panel
 
     def render_tools(self, tools: list[dict[str, Any]]) -> None:
@@ -53,7 +52,7 @@ class DashboardToolTabsMixin:
         tools_by_specialty = self._group_tools_by_specialty(tool_ids)
         for specialty_name, specialty_tools in tools_by_specialty.items():
             tab_widget = self._build_specialty_tab(specialty_name, specialty_tools)
-            self.tools_tabs.addTab(tab_widget, specialty_name)
+            self.tools_tabs.addTab(tab_widget, self._specialty_label(specialty_name))
 
     def _group_tools_by_specialty(
         self, tool_ids: set[str]
@@ -143,6 +142,15 @@ class DashboardToolTabsMixin:
             available_specialties["geral"] = []
         return available_specialties
 
+    @staticmethod
+    def _specialty_label(specialty_name: str) -> str:
+        labels = {
+            "eletrica": "Eletrica",
+            "operacional": "Operacional",
+            "geral": "Geral",
+        }
+        return labels.get(specialty_name, specialty_name.title())
+
     def _build_specialty_tab(
         self,
         specialty_name: str,
@@ -177,7 +185,7 @@ class DashboardToolTabsMixin:
             tool_widget.parent_specialty_text = history_text
             specialty_tabs.addTab(tool_widget, tool_title)
 
-        layout.addWidget(specialty_tabs, 1)
+        layout.addWidget(specialty_tabs, 0)
 
         history_section = QFrame()
         history_section.setObjectName("formSubPanel")
@@ -192,6 +200,7 @@ class DashboardToolTabsMixin:
         history_layout.addWidget(history_text)
 
         layout.addWidget(history_section, 0)
+        layout.addStretch()
 
         return panel
 
