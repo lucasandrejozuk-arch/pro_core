@@ -63,6 +63,7 @@ class DashboardWindow(
     QWidget,
 ):
     logout_requested = Signal()
+    exit_requested = Signal()
     module_selected = Signal(str)
     refresh_requested = Signal()
     customer_create_requested = Signal(dict)
@@ -117,3 +118,14 @@ class DashboardWindow(
         self.apply_display_profile()
         self._set_record_editor_open(False)
         self._mark_active_nav(self.active_module_key)
+
+    def request_exit(self) -> None:
+        answer = QMessageBox.question(
+            self,
+            "Fechar programa",
+            "Deseja realmente fechar o PRO CORE?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.exit_requested.emit()

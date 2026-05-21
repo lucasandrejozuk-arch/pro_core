@@ -28,7 +28,8 @@ def test_admin_can_read_and_update_system_settings(
     assert settings["theme"] == "light"
     assert settings["brand_name"] is None
     assert settings["color_palette"] == "blue"
-    assert settings["primary_color"] == "#0969da"
+    assert settings["primary_color"] == "#25636f"
+    assert settings["language"] == "pt-BR"
     assert settings["backup_interval_hours"] == 24
     assert settings["backup_storage_path"] == "backups"
 
@@ -45,6 +46,7 @@ def test_admin_can_read_and_update_system_settings(
             "brand_subtitle": "Laboratorio tecnico",
             "color_palette": "green",
             "theme": "dark",
+            "language": "en-US",
             "backup_enabled": False,
             "backup_interval_hours": 12,
             "backup_storage_path": "D:/pro-core/backups",
@@ -58,6 +60,7 @@ def test_admin_can_read_and_update_system_settings(
     assert updated_settings["color_palette"] == "green"
     assert updated_settings["primary_color"] == "#0f766e"
     assert updated_settings["theme"] == "dark"
+    assert updated_settings["language"] == "en-US"
     assert updated_settings["backup_enabled"] is False
     assert updated_settings["backup_interval_hours"] == 12
     assert updated_settings["backup_storage_path"] == "D:/pro-core/backups"
@@ -92,7 +95,8 @@ def test_authenticated_users_can_read_appearance_settings(
     body = response.json()
     assert body["theme"] == "light"
     assert body["color_palette"] == "blue"
-    assert body["primary_color"] == "#0969da"
+    assert body["primary_color"] == "#25636f"
+    assert body["language"] == "pt-BR"
 
 
 def test_login_appearance_is_public_and_uses_admin_branding(
@@ -112,6 +116,7 @@ def test_login_appearance_is_public_and_uses_admin_branding(
     assert body["brand_subtitle"] == "Laboratorio tecnico"
     assert body["color_palette"] == "blue"
     assert body["theme"] == "light"
+    assert body["language"] == "pt-BR"
 
 
 def test_settings_reject_invalid_color_palette(

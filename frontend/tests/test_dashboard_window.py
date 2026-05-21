@@ -348,8 +348,8 @@ def test_sidebar_collapse_keeps_fixed_lateral_rail_without_moving_content(qtbot)
     window._set_sidebar_collapsed(True)
 
     assert not window.sidebar_nav_container.isHidden()
-    assert not window.session_button.isHidden()
     assert not window.logout_button.isHidden()
+    assert not window.exit_button.isHidden()
     assert window.sidebar.width() == initial_width
     assert window.sidebar.height() > 52
     assert window.sidebar.parentWidget().objectName() == "mainArea"
@@ -380,13 +380,14 @@ def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
     assert dashboard_button.toolTip()
 
 
-def test_sidebar_settings_admin_and_appearance_icons_are_distinct(qtbot) -> None:
+def test_sidebar_settings_admin_logout_and_exit_icons_are_distinct(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
     assert window.module_icon_names["admin_area"] == "admin"
     assert window.module_icon_names["settings"] == "settings"
-    assert window.sidebar_buttons_by_icon[window.session_button] == "appearance"
+    assert window.sidebar_buttons_by_icon[window.logout_button] == "logout"
+    assert window.sidebar_buttons_by_icon[window.exit_button] == "exit"
 
 
 def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:

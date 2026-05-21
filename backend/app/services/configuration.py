@@ -14,19 +14,27 @@ BRAND_NAME_SETTING_KEY = "ui.brand_name"
 BRAND_SUBTITLE_SETTING_KEY = "ui.brand_subtitle"
 COLOR_PALETTE_SETTING_KEY = "ui.color_palette"
 PRIMARY_COLOR_SETTING_KEY = "ui.primary_color"
+LANGUAGE_SETTING_KEY = "ui.language"
 DEFAULT_THEME = "light"
 DEFAULT_COLOR_PALETTE = "blue"
-DEFAULT_PRIMARY_COLOR = "#0969da"
+DEFAULT_LANGUAGE = "pt-BR"
+DEFAULT_PRIMARY_COLOR = "#25636f"
 DEFAULT_LOGIN_BRAND_NAME = "PRO CORE"
 DEFAULT_LOGIN_BRAND_SUBTITLE = "Gestao completa para assistencias tecnicas"
 THEME_PRIMARY_COLORS = {
     "light": {
-        "blue": "#0969da",
+        "blue": "#25636f",
         "green": "#0f766e",
+        "amber": "#9a6700",
+        "ruby": "#a12f42",
+        "cyan": "#087990",
     },
     "dark": {
-        "blue": "#1f6feb",
+        "blue": "#38bdf8",
         "green": "#0f766e",
+        "amber": "#f2b84b",
+        "ruby": "#ff8aa0",
+        "cyan": "#22d3ee",
     },
 }
 
@@ -86,6 +94,14 @@ def update_system_settings(
             update_data["theme"],
             "Tema visual padrao da empresa.",
         )
+    if "language" in update_data:
+        set_setting_value(
+            db,
+            company_id,
+            LANGUAGE_SETTING_KEY,
+            update_data["language"] or DEFAULT_LANGUAGE,
+            "Idioma padrao da interface.",
+        )
     if "brand_name" in update_data:
         set_setting_value(
             db,
@@ -142,6 +158,9 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
     if not _is_valid_palette(theme, color_palette):
         color_palette = _legacy_palette(db, company_id, theme)
     primary_color = THEME_PRIMARY_COLORS[theme][color_palette]
+    language = get_setting_value(db, company_id, LANGUAGE_SETTING_KEY) or DEFAULT_LANGUAGE
+    if language not in {"pt-BR", "en-US"}:
+        language = DEFAULT_LANGUAGE
 
     return {
         "brand_name": get_setting_value(db, company_id, BRAND_NAME_SETTING_KEY) or None,
@@ -149,6 +168,7 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
         "color_palette": color_palette,
         "primary_color": primary_color,
         "theme": theme,
+        "language": language,
     }
 
 
@@ -166,6 +186,7 @@ def get_login_appearance_settings(db: Session) -> dict:
             "color_palette": DEFAULT_COLOR_PALETTE,
             "primary_color": DEFAULT_PRIMARY_COLOR,
             "theme": DEFAULT_THEME,
+            "language": DEFAULT_LANGUAGE,
         }
 
     appearance = get_appearance_settings(db, company.id)

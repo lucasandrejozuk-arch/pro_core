@@ -7,7 +7,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 ThemeMode = Literal["light", "dark"]
-ColorPalette = Literal["blue", "green"]
+ColorPalette = Literal["blue", "green", "amber", "ruby", "cyan"]
+LanguageCode = Literal["pt-BR", "en-US"]
 
 
 class AppearanceSettingsResponse(BaseModel):
@@ -16,6 +17,7 @@ class AppearanceSettingsResponse(BaseModel):
     color_palette: ColorPalette
     primary_color: str
     theme: ThemeMode
+    language: LanguageCode
 
 
 class SystemSettingsResponse(BaseModel):
@@ -30,6 +32,7 @@ class SystemSettingsResponse(BaseModel):
     color_palette: ColorPalette
     primary_color: str
     theme: ThemeMode
+    language: LanguageCode
     backup_enabled: bool
     backup_interval_hours: int
     backup_storage_path: str
@@ -47,6 +50,7 @@ class SystemSettingsUpdate(BaseModel):
     color_palette: ColorPalette | None = None
     primary_color: str | None = Field(default=None, min_length=7, max_length=7)
     theme: ThemeMode | None = None
+    language: LanguageCode | None = None
     backup_enabled: bool | None = None
     backup_interval_hours: int | None = Field(default=None, ge=1, le=720)
     backup_storage_path: str | None = Field(default=None, min_length=1, max_length=1000)

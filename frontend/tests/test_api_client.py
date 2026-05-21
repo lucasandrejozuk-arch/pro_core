@@ -102,8 +102,8 @@ def test_error_response_raises_api_error_with_backend_detail() -> None:
         client.login("admin@example.com", "wrong")
 
     assert exc_info.value.status_code == 401
-    assert exc_info.value.message == "Invalid email or password."
-    assert exc_info.value.display_message == "[HTTP-401] Invalid email or password."
+    assert exc_info.value.message == "Email ou senha invalidos."
+    assert exc_info.value.display_message == "Erro 401: Email ou senha invalidos."
 
 
 def test_list_customers_returns_list_payload() -> None:

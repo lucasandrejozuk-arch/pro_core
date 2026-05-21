@@ -11,4 +11,4 @@ class ApiError(Exception):
     def display_message(self) -> str:
         if self.status_code is None:
             return self.message
-        return f"[HTTP-{self.status_code}] {self.message}"
+        return f"Erro {self.status_code}: {self.message}"

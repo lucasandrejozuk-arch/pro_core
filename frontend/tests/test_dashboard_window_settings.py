@@ -33,6 +33,7 @@ def test_settings_menu_keeps_all_configuration_groups_visible(qtbot) -> None:
     assert window.settings_company_name_input is not None
     assert window.settings_brand_name_input is not None
     assert window.settings_theme_combo.count() == 2
+    assert window.settings_language_combo.count() == 2
     assert window.settings_backup_enabled_checkbox.text() == "Backup automatico ativo"
 
 
@@ -54,6 +55,7 @@ def test_settings_save_emits_branding_payload(qtbot) -> None:
     assert emitted[0]["brand_name"] == "Pro Assist"
     assert emitted[0]["brand_subtitle"] == "Laboratorio tecnico"
     assert emitted[0]["color_palette"] == "green"
+    assert emitted[0]["language"] == "pt-BR"
     assert "primary_color" not in emitted[0]
 
 

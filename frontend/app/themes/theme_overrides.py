@@ -207,6 +207,9 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border: 1px solid {palette["line"]};
             border-radius: 6px;
         }}
+        QWidget#dashboardGrid {{
+            background-color: transparent;
+        }}
         QFrame#sidebar {{
             background: linear-gradient(
                 180deg,
@@ -230,6 +233,8 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLineEdit,
         QComboBox,
         QDateTimeEdit,
+        QTableWidget,
+        QTableView,
         QTreeWidget,
         QTextEdit,
         QTabWidget::pane {{
@@ -237,19 +242,37 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-color: {palette["line"]};
             border-radius: 4px;
             color: {palette["text"]};
+        }}
+        QLineEdit,
+        QComboBox,
+        QDateTimeEdit {{
             min-height: 26px;
             padding: 3px 8px;
         }}
+        QTextEdit {{
+            padding: 6px 8px;
+        }}
+        QTabWidget::pane {{
+            padding: 8px;
+        }}
         QTabBar::tab {{
-            background-color: transparent;
+            background-color: {palette["surface_alt"]};
             color: {palette["muted"]};
             min-height: 28px;
             padding: 4px 10px;
-            border-bottom: 2px solid transparent;
+            border: 1px solid {palette["line"]};
+            border-bottom: 2px solid {palette["line"]};
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
         }}
         QTabBar::tab:selected {{
+            background-color: {palette["surface"]};
             color: {palette["text"]};
             border-bottom-color: {palette["primary"]};
+        }}
+        QTabBar::tab:disabled {{
+            background-color: {palette["disabled_bg"]};
+            color: {palette["surface"]};
         }}
         QSlider::groove:horizontal {{
             height: 4px;
@@ -314,6 +337,13 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QPushButton#dangerButton:hover {{
             background-color: {palette["danger_bg"]};
         }}
+        QPushButton#warningButton {{
+            background-color: {palette["warning_bg"]};
+            color: {palette["warning"]};
+        }}
+        QPushButton#warningButton:hover {{
+            background-color: {palette["primary_subtle"]};
+        }}
         QPushButton#sidebarToggleButton,
         QPushButton#sidebarFooterButton {{
             background-color: rgba(255, 255, 255, 0.14);
@@ -324,6 +354,14 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QPushButton#sidebarToggleButton:hover,
         QPushButton#sidebarFooterButton:hover {{
             background-color: rgba(255, 255, 255, 0.22);
+        }}
+        QPushButton#sidebarFooterButton[variant="warning"] {{
+            color: {palette["warning"]};
+            border: 1px solid {palette["warning"]};
+        }}
+        QPushButton#sidebarFooterButton[variant="danger"] {{
+            color: {palette["danger"]};
+            border: 1px solid {palette["danger"]};
         }}
         QPushButton#recordEditorToggleButton {{
             background-color: {palette["surface_alt"]};
@@ -370,14 +408,23 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QTableWidget#dataTable {{
             background-color: {palette["surface"]};
             alternate-background-color: {palette["surface_alt"]};
-            border-color: {palette["line"]};
+            border: 1px solid {palette["line"]};
             border-radius: 6px;
             color: {palette["text"]};
             gridline-color: {palette["line"]};
         }}
+        QTableWidget::item {{
+            color: {palette["text"]};
+            padding: 4px;
+        }}
+        QTableWidget::item:selected {{
+            background-color: {palette["selection_bg"]};
+            color: {palette["selection_text"]};
+        }}
         QHeaderView::section {{
             background-color: {palette["surface_alt"]};
-            border-bottom-color: {palette["line"]};
+            border: 0;
+            border-bottom: 1px solid {palette["line"]};
             color: {palette["text"]};
             font-weight: 700;
             min-height: 26px;

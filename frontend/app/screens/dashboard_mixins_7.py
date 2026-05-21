@@ -37,6 +37,7 @@ class DashboardMixin7:
         backup_enabled = "Ativo" if settings.get("backup_enabled", True) else "Inativo"
         theme = self._format_value(settings.get("theme")) or str(settings.get("theme") or "light")
         color_palette = self._format_color_palette(settings.get("color_palette"))
+        language = self._format_language(settings.get("language"))
         lines = [
             f"Empresa: {self._format_value(settings.get('company_name')) or '-'}",
             f"Nome fantasia: {self._format_value(settings.get('trade_name')) or '-'}",
@@ -44,6 +45,7 @@ class DashboardMixin7:
             f"Subtitulo: {self._format_value(settings.get('brand_subtitle')) or '-'}",
             f"Paleta: {color_palette}",
             f"Tema: {theme}",
+            f"Idioma: {language}",
             f"Escala da interface: {round(self.ui_scale_value * 100)}%",
             f"Backup automatico: {backup_enabled}",
             f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
@@ -162,6 +164,14 @@ class DashboardMixin7:
             if palette_id == value_text:
                 return label
         return COLOR_PALETTE_OPTIONS[0][1]
+
+    @staticmethod
+    def _format_language(value: object) -> str:
+        languages = {
+            "pt-BR": "Portugues brasileiro",
+            "en-US": "English (US)",
+        }
+        return languages.get(str(value or "pt-BR"), "Portugues brasileiro")
 
     @staticmethod
     def _select_combo_value(combo: QComboBox, value: str) -> None:

@@ -105,7 +105,10 @@ class ServiceOrder(ModelBase, Base):
         cascade="all, delete-orphan",
         order_by="ServiceOrderEvent.created_at",
     )
-    documents: Mapped[list[DocumentAttachment]] = relationship(back_populates="service_order")
+    documents: Mapped[list[DocumentAttachment]] = relationship(
+        back_populates="service_order",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def customer_name(self) -> str | None:

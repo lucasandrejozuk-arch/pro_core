@@ -187,6 +187,10 @@ class DashboardAdminActionsMixin:
             str(settings.get("color_palette") or DEFAULT_COLOR_PALETTE),
         )
         self._select_combo_value(self.settings_theme_combo, str(settings.get("theme") or "light"))
+        self._select_combo_value(
+            self.settings_language_combo,
+            str(settings.get("language") or "pt-BR"),
+        )
         self.settings_backup_enabled_checkbox.setChecked(bool(settings.get("backup_enabled", True)))
         self.settings_backup_interval_input.setText(
             str(settings.get("backup_interval_hours") or "24")
@@ -255,6 +259,7 @@ class DashboardAdminActionsMixin:
                 self.settings_color_palette_combo.currentData() or DEFAULT_COLOR_PALETTE
             ),
             "theme": str(self.settings_theme_combo.currentData() or "light"),
+            "language": str(self.settings_language_combo.currentData() or "pt-BR"),
             "backup_enabled": self.settings_backup_enabled_checkbox.isChecked(),
             "backup_interval_hours": backup_interval_hours,
             "backup_storage_path": backup_storage_path,

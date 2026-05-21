@@ -388,6 +388,8 @@ class DashboardFormStateMixin:
         self._select_combo_value(self.settings_color_palette_combo, DEFAULT_COLOR_PALETTE)
         if self.settings_theme_combo.count() > 0:
             self.settings_theme_combo.setCurrentIndex(0)
+        if self.settings_language_combo.count() > 0:
+            self._select_combo_value(self.settings_language_combo, "pt-BR")
         self.settings_backup_enabled_checkbox.setChecked(True)
         self.settings_backup_interval_input.setText("24")
         self.settings_backup_path_input.setText("backups")

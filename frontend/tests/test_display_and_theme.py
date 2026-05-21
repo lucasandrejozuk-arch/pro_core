@@ -40,7 +40,7 @@ def test_theme_palette_uses_named_palette() -> None:
 def test_theme_palette_rejects_invalid_palette() -> None:
     palette = build_theme_palette("dark", "azul")
 
-    assert palette["primary"] == "#1f6feb"
+    assert palette["primary"] == "#38bdf8"
     assert palette["color_palette"] == "blue"
     assert palette["app_bg"].startswith("#")
 

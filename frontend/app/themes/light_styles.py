@@ -332,15 +332,6 @@ def _light_stylesheet() -> str:
             background: rgba(13, 110, 253, 0.08);
             color: #24292f;
         }
-            border-radius: 8px;
-        }
-        QPushButton#navButton:hover {
-            background: #eaeef2;
-        }
-        QPushButton#navButton[active="true"] {
-            background: #0969da;
-            color: #ffffff;
-        }
         QPushButton#adminMenuButton {
             background: #ffffff;
             border: 1px solid #d0d7de;

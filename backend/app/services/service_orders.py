@@ -12,6 +12,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.models.customer import Customer
@@ -214,8 +215,14 @@ def delete_service_order(
         entity_id=service_order.id,
         summary=f"Ordem de servico {code} excluida.",
     )
-    db.delete(service_order)
-    db.commit()
+    try:
+        db.delete(service_order)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise ValueError(
+            "Nao foi possivel excluir a ordem de servico por vinculos operacionais."
+        ) from exc
 
 
 def register_diagnosis(

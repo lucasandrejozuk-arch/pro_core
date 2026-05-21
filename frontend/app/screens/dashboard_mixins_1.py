@@ -153,6 +153,7 @@ class DashboardMixin1:
 
     def _sync_active_module_space(self, module_key: str) -> None:
         self._reset_content_row_stretches()
+        self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         if module_key in self.record_module_keys:
             self.content_layout.setRowStretch(6, 1)
             return
@@ -224,7 +225,8 @@ class DashboardMixin1:
                 ]
             )
         )
-        self.session_button.setToolTip(self.session_info_label.text())
+        if hasattr(self, "session_button"):
+            self.session_button.setToolTip(self.session_info_label.text())
         self._sync_module_visibility()
         if "users_total" in self.dashboard_cards:
             self.dashboard_cards["users_total"].setVisible(role_key in {"admin", "manager"})
@@ -309,8 +311,8 @@ class DashboardMixin1:
     def _set_sidebar_collapsed(self, collapsed: bool) -> None:
         self.sidebar_collapsed = False
         self.sidebar_nav_container.setVisible(True)
-        self.session_button.setVisible(True)
         self.logout_button.setVisible(True)
+        self.exit_button.setVisible(True)
         self._sync_module_visibility()
         self.sidebar_layout.setContentsMargins(8, 8, 8, 8)
         self.sidebar.setFixedWidth(self.sidebar_expanded_width)

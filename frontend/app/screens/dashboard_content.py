@@ -24,6 +24,7 @@ def build_dashboard_content(self) -> QScrollArea:
     content.setObjectName("contentPanel")
     content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
     self.content_layout = create_grid(spacing=20, margins=(28, 28, 28, 28))
+    self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
     content.setLayout(self.content_layout)
 
     self.title_label = QLabel("Dashboard")
@@ -33,9 +34,11 @@ def build_dashboard_content(self) -> QScrollArea:
     self.user_label.setObjectName("mutedText")
 
     header_text_layout = QVBoxLayout()
+    header_text_layout.setContentsMargins(0, 0, 0, 0)
     header_text_layout.setSpacing(2)
     header_text_layout.addWidget(self.title_label)
     header_text_layout.addWidget(self.user_label)
+    header_text_layout.addStretch()
 
     header_bar = QFrame()
     header_bar.setObjectName("headerBar")
@@ -45,6 +48,7 @@ def build_dashboard_content(self) -> QScrollArea:
     header_layout.setSpacing(6)
     header_layout.addLayout(header_text_layout)
     header_layout.addStretch()
+    header_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
     self.dashboard_section_title = QLabel("Dashboard")
     self.dashboard_section_title.setObjectName("sectionTitle")

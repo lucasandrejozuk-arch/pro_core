@@ -105,3 +105,30 @@ def test_delete_inventory_and_service_order_routes(
 
     assert inventory_delete.status_code == 204
     assert service_order_delete.status_code == 204
+
+
+def test_delete_service_order_with_document_returns_no_server_error(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    customer = _create_customer(client, auth_headers, "delete.order.document@example.com")
+    equipment = _create_equipment(client, auth_headers, customer["id"])
+    service_order = _create_service_order(client, auth_headers, customer["id"], equipment["id"])
+
+    upload_response = client.post(
+        "/api/v1/documents",
+        headers=auth_headers,
+        data={
+            "service_order_id": service_order["id"],
+            "document_type": "other",
+        },
+        files={"file": ("diagnostico.txt", b"conteudo", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+
+    delete_response = client.delete(
+        f"/api/v1/service-orders/{service_order['id']}",
+        headers=auth_headers,
+    )
+
+    assert delete_response.status_code == 204

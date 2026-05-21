@@ -94,15 +94,55 @@ class ApiTransportMixin:
         try:
             body = response.json()
         except ValueError:
-            return response.text or "Erro inesperado do backend."
+            return _fallback_error_message(response.status_code, response.text)
 
         detail = body.get("detail")
         if isinstance(detail, str):
-            return detail
+            return _translate_error_message(detail, response.status_code)
 
         if isinstance(detail, list) and detail:
             first_error = detail[0]
             if isinstance(first_error, dict) and "msg" in first_error:
-                return str(first_error["msg"])
+                location = first_error.get("loc")
+                field = ".".join(str(part) for part in location or [] if part != "body")
+                prefix = f"{field}: " if field else ""
+                return prefix + _translate_error_message(
+                    str(first_error["msg"]),
+                    response.status_code,
+                )
 
-        return "Erro inesperado do backend."
+        return _fallback_error_message(response.status_code)
+
+
+def _fallback_error_message(status_code: int, raw_message: str = "") -> str:
+    raw = raw_message.strip()
+    if status_code >= 500:
+        return "Falha interna no servidor. Tente novamente ou acione o suporte."
+    if status_code == 404:
+        return "Registro nao encontrado."
+    if status_code == 403:
+        return "Acesso negado para esta operacao."
+    if status_code == 401:
+        return "Sessao invalida ou expirada."
+    if status_code == 422:
+        return "Dados invalidos. Revise os campos informados."
+    return raw or "Erro inesperado ao processar a solicitacao."
+
+
+def _translate_error_message(message: str, status_code: int) -> str:
+    normalized = message.strip()
+    translations = {
+        "Invalid email or password.": "Email ou senha invalidos.",
+        "Service order not found.": "Ordem de servico nao encontrada.",
+        "Customer not found.": "Cliente nao encontrado.",
+        "Equipment not found.": "Equipamento nao encontrado.",
+        "User not found.": "Usuario nao encontrado.",
+        "Company not found.": "Empresa nao encontrada.",
+        "Internal Server Error": "Falha interna no servidor. Tente novamente ou acione o suporte.",
+    }
+    if normalized in translations:
+        return translations[normalized]
+    generic_server_errors = {"internal error server", "internal server error"}
+    if status_code >= 500 and normalized.lower() in generic_server_errors:
+        return translations["Internal Server Error"]
+    return normalized or _fallback_error_message(status_code)

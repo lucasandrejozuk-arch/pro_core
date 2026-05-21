@@ -63,6 +63,10 @@ class DashboardMixin4:
         self.settings_theme_combo.addItem("Claro", "light")
         self.settings_theme_combo.addItem("Escuro", "dark")
 
+        self.settings_language_combo = QComboBox()
+        self.settings_language_combo.addItem("Portugues brasileiro", "pt-BR")
+        self.settings_language_combo.addItem("English (US)", "en-US")
+
         self.settings_ui_scale_label = QLabel("100%")
         self.settings_ui_scale_label.setObjectName("mutedText")
         self.settings_ui_scale_slider = QSlider(Qt.Orientation.Horizontal)
@@ -120,6 +124,7 @@ class DashboardMixin4:
         interface_layout = QFormLayout()
         interface_layout.setSpacing(10)
         interface_layout.addRow("Tema", self.settings_theme_combo)
+        interface_layout.addRow("Idioma", self.settings_language_combo)
         scale_row = QHBoxLayout()
         scale_row.addWidget(self.settings_ui_scale_slider, 1)
         scale_row.addWidget(self.settings_ui_scale_label)

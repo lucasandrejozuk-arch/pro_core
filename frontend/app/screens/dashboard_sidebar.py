@@ -156,20 +156,18 @@ def build_dashboard_sidebar(self) -> None:
     self.session_info_label.setWordWrap(True)
     self.session_info_label.hide()
 
-    self.session_button = QPushButton("")
-    self.session_button.setObjectName("sidebarFooterButton")
-    self.session_button.setCursor(Qt.CursorShape.PointingHandCursor)
-    self._configure_sidebar_button(
-        self.session_button,
-        "appearance",
-        "Aparencia e personalizacao",
-    )
-    self.session_button.clicked.connect(lambda: self.module_selected.emit("settings"))
-    self.sidebar_layout.addWidget(self.session_button)
-
     self.logout_button = QPushButton("")
     self.logout_button.setObjectName("sidebarFooterButton")
-    self.logout_button.setToolTip("Sair")
-    self._configure_sidebar_button(self.logout_button, "logout", "Sair")
+    self.logout_button.setProperty("variant", "warning")
+    self.logout_button.setToolTip("Logout")
+    self._configure_sidebar_button(self.logout_button, "logout", "Logout")
     self.logout_button.clicked.connect(self.logout_requested.emit)
     self.sidebar_layout.addWidget(self.logout_button)
+
+    self.exit_button = QPushButton("")
+    self.exit_button.setObjectName("sidebarFooterButton")
+    self.exit_button.setProperty("variant", "danger")
+    self.exit_button.setToolTip("Sair")
+    self._configure_sidebar_button(self.exit_button, "exit", "Sair")
+    self.exit_button.clicked.connect(self.request_exit)
+    self.sidebar_layout.addWidget(self.exit_button)
