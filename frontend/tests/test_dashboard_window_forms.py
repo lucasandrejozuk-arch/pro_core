@@ -46,6 +46,22 @@ def test_customer_save_rejects_incomplete_phone(qtbot) -> None:
     assert "telefone" in window.footer_message_label.text().lower()
 
 
+def test_customer_save_rejects_invalid_email(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.customer_create_requested.connect(lambda payload: emitted.append(payload))
+
+    window.customer_name_input.setText("Cliente Novo")
+    window.customer_email_input.setText("cliente-invalido")
+    window.customer_phone_input.setText("(11) 99999-9999")
+
+    window._request_customer_save()
+
+    assert emitted == []
+    assert "email valido" in window.footer_message_label.text().lower()
+
+
 def test_service_order_budget_item_emits_payload(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)

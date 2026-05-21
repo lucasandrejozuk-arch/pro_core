@@ -30,7 +30,7 @@ class DashboardMixin3:
     def _build_ohm_tool(self) -> QWidget:
         widget = QWidget()
         form_panel = QFrame()
-        form_panel.setObjectName("formSubPanel")
+        form_panel.setObjectName("toolPanel")
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.addWidget(form_panel)
@@ -81,6 +81,7 @@ class DashboardMixin3:
         input_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
         result_layout = QVBoxLayout()
         result_layout.setSpacing(6)
+        result_layout.setContentsMargins(6, 0, 0, 0)
         result_layout.addWidget(result_title)
         result_layout.addWidget(self.ohm_result)
         body_layout.addLayout(input_layout, 3)
@@ -102,7 +103,7 @@ class DashboardMixin3:
     ) -> QWidget:
         widget = QWidget()
         panel = QFrame()
-        panel.setObjectName("formSubPanel")
+        panel.setObjectName("toolPanel")
         inputs: dict[str, QLineEdit] = {}
         form = QFormLayout()
         form.setSpacing(8)
@@ -139,6 +140,7 @@ class DashboardMixin3:
         input_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
         result_layout = QVBoxLayout()
         result_layout.setSpacing(6)
+        result_layout.setContentsMargins(6, 0, 0, 0)
         result_layout.addWidget(result_title)
         result_layout.addWidget(result)
         body_layout.addLayout(input_layout, 3)

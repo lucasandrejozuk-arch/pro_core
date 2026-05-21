@@ -72,13 +72,11 @@ def test_dashboard_content_uses_12_column_grid(qtbot) -> None:
     assert window.content_layout.columnCount() == GRID_COLUMNS
     assert all(window.content_layout.columnStretch(column) == 1 for column in range(GRID_COLUMNS))
     assert window.content_layout.getItemPosition(0) == (0, 0, 1, GRID_COLUMNS)
-    assert window.content_layout.rowStretch(5) == 0
-    assert window.content_layout.rowStretch(6) == 0
-    assert window.content_layout.rowStretch(10) == 0
+    assert window.content_layout.getItemPosition(1) == (1, 0, 1, GRID_COLUMNS)
+    assert window.content_layout.rowStretch(1) == 0
 
     window.render_rows("Clientes", [], [("Nome", "name")], "customers")
-    assert window.content_layout.rowStretch(6) == 1
-    assert window.content_layout.rowStretch(7) == 0
+    assert window.content_layout.rowStretch(1) == 1
 
     window._set_dashboard_grid_columns(4)
     assert window.dashboard_grid_layout.getItemPosition(0) == (0, 0, 1, 3)

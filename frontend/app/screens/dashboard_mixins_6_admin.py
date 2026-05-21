@@ -88,6 +88,10 @@ class DashboardAdminActionsMixin:
             self.set_user_form_status("Informe o email do usuario.", is_error=True)
             return
 
+        if not self._is_valid_email(email):
+            self.set_user_form_status("Informe um email valido.", is_error=True)
+            return
+
         if not role:
             self.set_user_form_status("Selecione o perfil do usuario.", is_error=True)
             return
@@ -109,6 +113,9 @@ class DashboardAdminActionsMixin:
         if not password:
             self.set_user_form_status("Informe a senha inicial.", is_error=True)
             return
+        if not self._is_valid_password(password):
+            self.set_user_form_status("Senha deve ter pelo menos 8 caracteres.", is_error=True)
+            return
 
         create_payload = payload.copy()
         create_payload.pop("is_active")
@@ -123,6 +130,9 @@ class DashboardAdminActionsMixin:
         new_password = self.user_reset_password_input.text()
         if not new_password:
             self.set_user_form_status("Informe a nova senha.", is_error=True)
+            return
+        if not self._is_valid_password(new_password):
+            self.set_user_form_status("Senha deve ter pelo menos 8 caracteres.", is_error=True)
             return
 
         self.set_user_form_status("")
@@ -165,6 +175,12 @@ class DashboardAdminActionsMixin:
         new_password = self.password_reset_new_password_input.text()
         if not new_password:
             self.set_password_reset_form_status("Informe a nova senha.", is_error=True)
+            return
+        if not self._is_valid_password(new_password):
+            self.set_password_reset_form_status(
+                "Senha deve ter pelo menos 8 caracteres.",
+                is_error=True,
+            )
             return
 
         self.set_password_reset_form_status("")
@@ -247,11 +263,16 @@ class DashboardAdminActionsMixin:
             self.set_settings_form_status("Informe a pasta de backup.", is_error=True)
             return
 
+        email = self._optional_text(self.settings_email_input)
+        if email and not self._is_valid_email(email):
+            self.set_settings_form_status("Informe um email valido.", is_error=True)
+            return
+
         payload = {
             "company_name": company_name,
             "trade_name": self._optional_text(self.settings_trade_name_input),
             "document_number": self._optional_text(self.settings_document_input),
-            "email": self._optional_text(self.settings_email_input),
+            "email": email,
             "phone": self._optional_text(self.settings_phone_input),
             "brand_name": self._optional_text(self.settings_brand_name_input),
             "brand_subtitle": self._optional_text(self.settings_brand_subtitle_input),

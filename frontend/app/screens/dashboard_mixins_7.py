@@ -152,6 +152,22 @@ class DashboardMixin7:
         return "_" not in value and len(digits) == 11
 
     @staticmethod
+    def _is_valid_email(value: str) -> bool:
+        email = value.strip()
+        if not email or len(email) > 254 or any(character.isspace() for character in email):
+            return False
+        if email.count("@") != 1:
+            return False
+        local, domain = email.split("@", 1)
+        if not local or not domain or "." not in domain:
+            return False
+        return not any(part == "" for part in domain.split("."))
+
+    @staticmethod
+    def _is_valid_password(value: str) -> bool:
+        return len(value) >= 8
+
+    @staticmethod
     def _populate_color_palette_combo(combo: QComboBox) -> None:
         combo.clear()
         for palette_id, label in COLOR_PALETTE_OPTIONS:

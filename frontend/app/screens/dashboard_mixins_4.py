@@ -166,7 +166,6 @@ class DashboardMixin4:
         backup_panel_layout.addWidget(backup_hint)
         backup_panel_layout.addLayout(backup_layout)
         backup_panel_layout.addWidget(self.settings_backup_last_run_label)
-        backup_panel_layout.addStretch()
 
         settings_details_title = QLabel("RESUMO OPERACIONAL")
         settings_details_title.setObjectName("formGroupTitle")
@@ -192,6 +191,7 @@ class DashboardMixin4:
         summary_panel_layout = QVBoxLayout(summary_panel)
         summary_panel_layout.setContentsMargins(12, 12, 12, 12)
         summary_panel_layout.setSpacing(8)
+        summary_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         summary_panel_layout.addWidget(settings_details_title)
         summary_panel_layout.addWidget(self.settings_full_summary)
 
@@ -209,7 +209,7 @@ class DashboardMixin4:
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addWidget(self.settings_tabs)
+        layout.addWidget(self.settings_tabs, 1)
         layout.addWidget(self.settings_form_status)
         layout.addLayout(actions)
 
@@ -222,9 +222,9 @@ class DashboardMixin4:
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         for widget in widgets:
             layout.addWidget(widget)
-        layout.addStretch()
         return tab
 
     def _build_admin_area_panel(self) -> QFrame:
@@ -242,7 +242,6 @@ class DashboardMixin4:
         layout.addWidget(title)
         layout.addWidget(description)
         layout.addLayout(self.admin_area_actions_layout)
-        layout.addStretch()
         return panel
 
     def render_admin_area(self) -> None:

@@ -22,6 +22,12 @@ from PySide6.QtWidgets import (
 from frontend.app.core.display import DisplayProfile, detect_display_profile
 from frontend.app.core.grid import span_for_items
 from frontend.app.core.icons import build_icon
+from frontend.app.themes.tokens import (
+    EDITOR_DEFAULT_MAX_HEIGHT,
+    EDITOR_SERVICE_ORDER_MAX_HEIGHT,
+    EQUIPMENT_SCROLL_MIN_HEIGHT,
+    FOOTER_MESSAGE_TIMEOUT_MS,
+)
 from frontend.app.widgets import create_summary_text
 
 
@@ -158,25 +164,13 @@ class DashboardMixin1:
         self._reset_content_row_stretches()
         self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self._sync_scroll_policy(module_key)
-        if module_key in self.record_module_keys:
-            self.content_layout.setRowStretch(6, 1)
-            return
-        if module_key == "equipment":
-            self.content_layout.setRowStretch(7, 1)
-            return
-        if module_key == "tools":
-            self.content_layout.setRowStretch(8, 1)
-            return
-        if module_key == "settings":
-            self.content_layout.setRowStretch(9, 1)
-            return
-        if module_key == "dashboard":
-            self.content_layout.setRowStretch(5, 0)
+        if module_key != "dashboard":
+            self.content_layout.setRowStretch(1, 1)
 
     def _sync_scroll_policy(self, module_key: str) -> None:
         if not hasattr(self, "main_scroll_area"):
             return
-        if module_key == "equipment" and self.height() >= 820:
+        if module_key == "equipment" and self.height() >= EQUIPMENT_SCROLL_MIN_HEIGHT:
             self.main_scroll_area.setVerticalScrollBarPolicy(
                 Qt.ScrollBarPolicy.ScrollBarAlwaysOff
             )
@@ -299,7 +293,7 @@ class DashboardMixin1:
         self.footer_message_label.style().unpolish(self.footer_message_label)
         self.footer_message_label.style().polish(self.footer_message_label)
         if message:
-            self._footer_message_timer.start(6500)
+            self._footer_message_timer.start(FOOTER_MESSAGE_TIMEOUT_MS)
 
     def _clear_footer_message(self) -> None:
         if hasattr(self, "footer_message_label"):
@@ -368,15 +362,22 @@ class DashboardMixin1:
         dialog.setWindowTitle(
             f"Editor - {self.module_labels.get(self.active_module_key, 'Registro')}"
         )
-        dialog.resize(self.record_editor_width, max(620, self.height() - 160))
+        max_height = (
+            EDITOR_SERVICE_ORDER_MAX_HEIGHT
+            if self.active_module_key == "service_orders"
+            else EDITOR_DEFAULT_MAX_HEIGHT
+        )
+        editor_height = min(max(620, self.height() - 160), max_height)
+        dialog.resize(self.record_editor_width, editor_height)
         dialog.setMinimumWidth(min(self.record_editor_width, 960))
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.generic_form_column.setParent(dialog)
         self.generic_form_column.setSizePolicy(
             QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Minimum,
         )
         self.generic_form_column.show()
         layout.addWidget(self.generic_form_column)

@@ -131,6 +131,8 @@ def _fallback_error_message(status_code: int, raw_message: str = "") -> str:
 
 def _translate_error_message(message: str, status_code: int) -> str:
     normalized = message.strip()
+    if status_code >= 500 or _looks_internal(normalized):
+        return _fallback_error_message(status_code)
     translations = {
         "Invalid email or password.": "Email ou senha invalidos.",
         "Service order not found.": "Ordem de servico nao encontrada.",
@@ -148,3 +150,19 @@ def _translate_error_message(message: str, status_code: int) -> str:
     if status_code >= 500 and normalized.lower() in generic_server_errors:
         return translations["Internal Server Error"]
     return normalized or _fallback_error_message(status_code)
+
+
+def _looks_internal(message: str) -> bool:
+    lowered = message.lower()
+    internal_markers = (
+        "traceback",
+        "sqlalchemy",
+        "psycopg",
+        "sqlite",
+        "starlette",
+        "fastapi",
+        "exception",
+        "file \"",
+        "c:\\",
+    )
+    return any(marker in lowered for marker in internal_markers)

@@ -26,6 +26,9 @@ class DashboardToolTabsMixin:
 
         title = QLabel("FERRAMENTAS")
         title.setObjectName("pageTitle")
+        subtitle = QLabel("Calculadoras tecnicas e apoio operacional em fluxo rapido.")
+        subtitle.setObjectName("mutedText")
+        subtitle.setWordWrap(True)
 
         self.tools_tabs = QTabWidget()
         self.tools_tabs.setObjectName("toolsTabs")
@@ -34,8 +37,8 @@ class DashboardToolTabsMixin:
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addWidget(self.tools_tabs, 0)
-        layout.addStretch()
+        layout.addWidget(subtitle)
+        layout.addWidget(self.tools_tabs, 1)
         return panel
 
     def render_tools(self, tools: list[dict[str, Any]]) -> None:
@@ -160,7 +163,7 @@ class DashboardToolTabsMixin:
         panel.setObjectName("formSubPanel")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(4)
+        layout.setSpacing(8)
 
         if not specialty_tools:
             label = QLabel(f"Nenhuma ferramenta de {specialty_name.lower()} disponivel.")
@@ -185,7 +188,7 @@ class DashboardToolTabsMixin:
             tool_widget.parent_specialty_text = history_text
             specialty_tabs.addTab(tool_widget, tool_title)
 
-        layout.addWidget(specialty_tabs, 0)
+        layout.addWidget(specialty_tabs, 1)
 
         history_section = QFrame()
         history_section.setObjectName("formSubPanel")
@@ -200,7 +203,6 @@ class DashboardToolTabsMixin:
         history_layout.addWidget(history_text)
 
         layout.addWidget(history_section, 0)
-        layout.addStretch()
 
         return panel
 

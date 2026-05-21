@@ -104,6 +104,21 @@ def build_dashboard_content(self) -> QScrollArea:
     self.dashboard_alerts_layout.setContentsMargins(10, 10, 10, 10)
     self.dashboard_alerts_layout.setSpacing(6)
 
+    self.dashboard_body_panel = QFrame()
+    self.dashboard_body_panel.setObjectName("dashboardBodyPanel")
+    self.dashboard_body_panel.setSizePolicy(
+        QSizePolicy.Policy.Expanding,
+        QSizePolicy.Policy.Minimum,
+    )
+    dashboard_body_layout = QVBoxLayout(self.dashboard_body_panel)
+    dashboard_body_layout.setContentsMargins(0, 0, 0, 0)
+    dashboard_body_layout.setSpacing(8)
+    dashboard_body_layout.addWidget(self.dashboard_section_title)
+    dashboard_body_layout.addWidget(self.dashboard_greeting_label)
+    dashboard_body_layout.addWidget(self.dashboard_last_refresh_label)
+    dashboard_body_layout.addWidget(self.dashboard_grid_widget)
+    dashboard_body_layout.addWidget(self.dashboard_alerts_frame)
+
     self.data_title = QLabel("Dados")
     self.data_title.setObjectName("sectionTitle")
 
@@ -217,6 +232,7 @@ def build_dashboard_content(self) -> QScrollArea:
     generic_form_layout = QVBoxLayout(self.generic_form_column)
     generic_form_layout.setContentsMargins(0, 0, 0, 0)
     generic_form_layout.setSpacing(0)
+    generic_form_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
     generic_form_layout.addWidget(self.customer_form_panel)
     generic_form_layout.addWidget(self.inventory_form_panel)
     generic_form_layout.addWidget(self.service_order_form_panel)
@@ -242,18 +258,15 @@ def build_dashboard_content(self) -> QScrollArea:
     self.generic_form_column.setParent(self.generic_record_container)
     self.generic_form_column.hide()
     generic_record_layout.addWidget(self.record_list_panel, 1)
+    self.generic_record_container.hide()
 
     add_widget(self.content_layout, header_bar, 0)
-    add_widget(self.content_layout, self.dashboard_section_title, 1)
-    add_widget(self.content_layout, self.dashboard_greeting_label, 2)
-    add_widget(self.content_layout, self.dashboard_last_refresh_label, 3)
-    add_widget(self.content_layout, self.dashboard_grid_widget, 4)
-    add_widget(self.content_layout, self.dashboard_alerts_frame, 5)
-    add_widget(self.content_layout, self.generic_record_container, 6)
-    add_widget(self.content_layout, self.equipment_form_panel, 7)
-    add_widget(self.content_layout, self.tools_form_panel, 8)
-    add_widget(self.content_layout, self.settings_form_panel, 9)
-    add_widget(self.content_layout, self.admin_area_panel, 10)
+    add_widget(self.content_layout, self.dashboard_body_panel, 1)
+    add_widget(self.content_layout, self.generic_record_container, 1)
+    add_widget(self.content_layout, self.equipment_form_panel, 1)
+    add_widget(self.content_layout, self.tools_form_panel, 1)
+    add_widget(self.content_layout, self.settings_form_panel, 1)
+    add_widget(self.content_layout, self.admin_area_panel, 1)
     self._reset_content_row_stretches()
 
     scroll_area = QScrollArea()

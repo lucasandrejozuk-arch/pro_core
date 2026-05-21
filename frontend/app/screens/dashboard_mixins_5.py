@@ -40,6 +40,7 @@ class DashboardMixin5:
             f"{self.sidebar_title.text() or 'PRO CORE'} - {self.title_label.text()}"
         )
         self._mark_active_nav(module_key)
+        self.dashboard_body_panel.setVisible(module_key == "dashboard")
         self.dashboard_section_title.setVisible(module_key == "dashboard")
         self.dashboard_greeting_label.setVisible(module_key == "dashboard")
         self.dashboard_last_refresh_label.setVisible(module_key == "dashboard")
@@ -186,6 +187,10 @@ class DashboardMixin5:
 
         if not email:
             self.set_customer_form_status("Informe o email do cliente.", is_error=True)
+            return
+
+        if not self._is_valid_email(email):
+            self.set_customer_form_status("Informe um email valido.", is_error=True)
             return
 
         if not self._is_complete_phone(phone):

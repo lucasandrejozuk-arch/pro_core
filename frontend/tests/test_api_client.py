@@ -106,6 +106,26 @@ def test_error_response_raises_api_error_with_backend_detail() -> None:
     assert exc_info.value.display_message == "Erro 401: Email ou senha invalidos."
 
 
+def test_server_error_does_not_expose_internal_detail() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            500,
+            json={"detail": "sqlalchemy.exc.IntegrityError: database path C:\\app\\db.sqlite"},
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(ApiError) as exc_info:
+        client.list_customers("token")
+
+    assert exc_info.value.message == (
+        "Falha interna no servidor. Tente novamente ou acione o suporte."
+    )
+
+
 def test_list_customers_returns_list_payload() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"

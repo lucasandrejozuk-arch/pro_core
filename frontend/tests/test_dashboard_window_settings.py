@@ -73,3 +73,20 @@ def test_settings_save_uses_default_palette(qtbot) -> None:
     window._request_settings_save()
 
     assert emitted[0]["color_palette"] == "blue"
+
+
+def test_settings_save_rejects_invalid_company_email(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[dict] = []
+    window.settings_update_requested.connect(lambda payload: emitted.append(payload))
+
+    window.settings_company_name_input.setText("PRO CORE Lab")
+    window.settings_email_input.setText("contato sem arroba")
+    window.settings_backup_interval_input.setText("24")
+    window.settings_backup_path_input.setText("backups")
+
+    window._request_settings_save()
+
+    assert emitted == []
+    assert "email valido" in window.footer_message_label.text().lower()

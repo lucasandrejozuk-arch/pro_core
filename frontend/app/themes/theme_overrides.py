@@ -159,10 +159,14 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QFrame#moduleCard,
         QFrame#dashboardKpiCard,
+        QFrame#dashboardBodyPanel,
         QFrame#dashboardAlertsFrame,
         QFrame#recordListPanel {{
             background-color: {palette["surface"]};
             border-color: {palette["line"]};
+        }}
+        QFrame#dashboardBodyPanel {{
+            border: 0;
         }}
         QFrame#recordModuleContainer {{
             background-color: transparent;
@@ -178,11 +182,16 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border: 0;
         }}
         QFrame#formSubPanel,
+        QFrame#toolPanel,
         QFrame#workflowPanel,
         QFrame#dashboardAlertRow,
         QFrame#equipmentSection {{
             background-color: {palette["surface_alt"]};
             border-color: {palette["line"]};
+        }}
+        QFrame#toolPanel {{
+            border: 1px solid {palette["line"]};
+            border-radius: 6px;
         }}
         QFrame#topCommandBar {{
             background-color: {palette["surface"]};
@@ -254,6 +263,12 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QDateTimeEdit {{
             min-height: 26px;
             padding: 3px 8px;
+        }}
+        QLineEdit:hover,
+        QComboBox:hover,
+        QDateTimeEdit:hover,
+        QTextEdit:hover {{
+            border-color: {palette["primary"]};
         }}
         QTextEdit {{
             padding: 6px 8px;
@@ -349,6 +364,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QPushButton:hover {{
             background-color: {palette["primary_hover"]};
+        }}
+        QPushButton:pressed {{
+            background-color: {palette["primary_subtle"]};
+            color: {palette["text"]};
         }}
         QPushButton:disabled {{
             background-color: {palette["disabled_bg"]};
@@ -461,6 +480,9 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QTableWidget::item:selected {{
             background-color: {palette["selection_bg"]};
             color: {palette["selection_text"]};
+        }}
+        QTableWidget::item:hover {{
+            background-color: {palette["primary_subtle"]};
         }}
         QHeaderView::section {{
             background-color: {palette["surface_alt"]};
