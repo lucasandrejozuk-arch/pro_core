@@ -74,6 +74,8 @@ class DashboardMixin1:
     def apply_record_editor_icon_colors(self, inactive_color: str, active_color: str) -> None:
         self.record_editor_icon_color = inactive_color
         self.record_editor_active_icon_color = active_color
+        for button in getattr(self, "summary_copy_buttons", []):
+            button.setIcon(build_icon("copy", inactive_color, 18))
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.Wheel and isinstance(watched, (QComboBox, QAbstractSpinBox)):

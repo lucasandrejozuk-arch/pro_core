@@ -120,6 +120,10 @@ ICON_PATHS = {
         <path d="M12 3v9"/>
         <path d="M6.4 6.8a8 8 0 1 0 11.2 0"/>
     """,
+    "copy": """
+        <rect x="9" y="9" width="11" height="11" rx="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    """,
     "session": """
         <circle cx="12" cy="8" r="3.5"/>
         <path d="M5 21c1-4.5 3.4-7 7-7s6 2.5 7 7"/>

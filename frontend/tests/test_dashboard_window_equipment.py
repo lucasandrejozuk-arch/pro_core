@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QMessageBox, QTabWidget
+from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QTabWidget
 
 from frontend.app.screens.dashboard import DashboardWindow, EquipmentAssetDialog
 
@@ -53,6 +53,12 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
     assert window.equipment_components_table.rowCount() == 1
     assert "Placa Principal" in window.board_full_summary.toPlainText()
     assert "C100" in window.component_full_summary.toPlainText()
+    copy_buttons = window.equipment_form_panel.findChildren(QPushButton, "summaryCopyButton")
+    assert len(copy_buttons) == 3
+
+    copy_buttons[0].click()
+
+    assert QApplication.clipboard().text() == window.equipment_full_summary.toPlainText().strip()
 
 
 def test_equipment_search_filters_hierarchy(qtbot) -> None:
@@ -187,7 +193,7 @@ def test_equipment_hierarchy_uses_compact_full_width_sections(qtbot) -> None:
 
     assert window.equipment_table.maximumHeight() <= 280
     assert window.equipment_boards_table.maximumHeight() <= 280
-    assert window.component_full_summary.maximumHeight() == 112
+    assert window.component_full_summary.maximumHeight() == 180
 
 
 def test_ui_scale_slider_emits_live_scale(qtbot) -> None:

@@ -380,6 +380,16 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-color: {palette["primary"]};
             color: {palette["button_text"]};
         }}
+        QPushButton#summaryCopyButton {{
+            background-color: {palette["surface_alt"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 4px;
+            padding: 0;
+        }}
+        QPushButton#summaryCopyButton:hover {{
+            background-color: {palette["primary_subtle"]};
+            border-color: {palette["primary"]};
+        }}
         QPushButton#navButton {{
             background-color: transparent;
             border-radius: 6px;

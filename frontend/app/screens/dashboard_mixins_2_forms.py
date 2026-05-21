@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
     QFormLayout,
     QFrame,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from frontend.app.core.grid import add_widget, create_grid
+from frontend.app.core.icons import build_icon
 from frontend.app.widgets import create_summary_text
 
 
@@ -166,7 +168,7 @@ class DashboardRecordFormsMixin:
             150,
         )
         self.equipment_table.itemSelectionChanged.connect(self._handle_equipment_table_selection)
-        self.equipment_full_summary = create_summary_text(76, 112)
+        self.equipment_full_summary = create_summary_text(110, 180)
         self.equipment_full_summary.setPlainText(
             "SELECIONE UM EQUIPAMENTO PARA VER OS DADOS COMPLETOS."
         )
@@ -213,7 +215,7 @@ class DashboardRecordFormsMixin:
         self.equipment_boards_table.itemSelectionChanged.connect(
             self._handle_equipment_board_table_selection
         )
-        self.board_full_summary = create_summary_text(76, 112)
+        self.board_full_summary = create_summary_text(110, 180)
         self.board_full_summary.setPlainText("SELECIONE UM OBJETO PARA VER OS DADOS COMPLETOS.")
         self.board_add_button = QPushButton("+Objeto Vinculado")
         self.board_add_button.clicked.connect(self._request_equipment_board_create)
@@ -239,7 +241,7 @@ class DashboardRecordFormsMixin:
         self.equipment_components_table.itemSelectionChanged.connect(
             self._handle_equipment_component_table_selection
         )
-        self.component_full_summary = create_summary_text(76, 112)
+        self.component_full_summary = create_summary_text(110, 180)
         self.component_full_summary.setPlainText(
             "SELECIONE UM COMPONENTE PARA VER OS DADOS COMPLETOS."
         )
@@ -324,6 +326,7 @@ class DashboardRecordFormsMixin:
         title_label.setObjectName("sectionTitle")
         details_title = QLabel("DADOS COMPLETOS:")
         details_title.setObjectName("formGroupTitle")
+        copy_button = self._build_copy_summary_button(summary)
 
         actions = QHBoxLayout()
         actions.setSpacing(6)
@@ -331,16 +334,59 @@ class DashboardRecordFormsMixin:
             actions.addWidget(button)
         actions.addStretch()
 
+        table_column = QVBoxLayout()
+        table_column.setContentsMargins(0, 0, 0, 0)
+        table_column.setSpacing(6)
+        table_column.addWidget(search_input)
+        table_column.addWidget(table)
+        table_column.addLayout(actions)
+
+        details_header = QHBoxLayout()
+        details_header.setContentsMargins(0, 0, 0, 0)
+        details_header.setSpacing(6)
+        details_header.addWidget(details_title)
+        details_header.addStretch()
+        details_header.addWidget(copy_button)
+
+        details_column = QVBoxLayout()
+        details_column.setContentsMargins(0, 0, 0, 0)
+        details_column.setSpacing(6)
+        details_column.addLayout(details_header)
+        details_column.addWidget(summary)
+
+        content = QHBoxLayout()
+        content.setContentsMargins(0, 0, 0, 0)
+        content.setSpacing(10)
+        content.addLayout(table_column, 7)
+        content.addLayout(details_column, 5)
+
         layout = QVBoxLayout(section)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
         layout.addWidget(title_label)
-        layout.addWidget(search_input)
-        layout.addWidget(table)
-        layout.addWidget(details_title)
-        layout.addWidget(summary)
-        layout.addLayout(actions)
+        layout.addLayout(content)
         return section
+
+    def _build_copy_summary_button(self, summary: QTextEdit) -> QPushButton:
+        button = QPushButton("")
+        button.setObjectName("summaryCopyButton")
+        button.setToolTip("Copiar dados completos")
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setIcon(build_icon("copy", self.record_editor_icon_color, 18))
+        button.setIconSize(QSize(18, 18))
+        button.setFixedSize(30, 28)
+        button.clicked.connect(
+            lambda checked=False, source=summary: self._copy_summary_text(source)
+        )
+        if not hasattr(self, "summary_copy_buttons"):
+            self.summary_copy_buttons = []
+        self.summary_copy_buttons.append(button)
+        return button
+
+    def _copy_summary_text(self, summary: QTextEdit) -> None:
+        QApplication.clipboard().setText(summary.toPlainText().strip())
+        if hasattr(self, "equipment_form_status"):
+            self.set_equipment_form_status("Dados completos copiados.")
 
     def _configure_equipment_table(
         self,
