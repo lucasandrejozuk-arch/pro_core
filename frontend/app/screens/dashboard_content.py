@@ -3,11 +3,13 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
+    QPushButton,
     QScrollArea,
     QSizePolicy,
     QTableWidget,
@@ -38,7 +40,6 @@ def build_dashboard_content(self) -> QScrollArea:
     header_text_layout.setSpacing(2)
     header_text_layout.addWidget(self.title_label)
     header_text_layout.addWidget(self.user_label)
-    header_text_layout.addStretch()
 
     header_bar = QFrame()
     header_bar.setObjectName("headerBar")
@@ -74,8 +75,8 @@ def build_dashboard_content(self) -> QScrollArea:
         ("service_orders_open", "OS", "OS abertas", "#238636", "service_orders"),
         (
             "service_orders_pending",
-            "APROVACAO",
-            "Aguardando aprovacao",
+            "APROVAÇÃO",
+            "Aguardando aprovação",
             "#d29922",
             "service_orders",
         ),
@@ -83,7 +84,7 @@ def build_dashboard_content(self) -> QScrollArea:
         ("inventory_low", "ALERTA", "Estoque critico", "#da3633", "inventory"),
         ("customers_total", "CLIENTES", "Clientes ativos", "#8250df", "customers"),
         ("equipment_total", "EQUIP", "Equipamentos cadastrados", "#1a7f37", "equipment"),
-        ("users_total", "USUARIOS", "Usuarios ativos", "#bf8700", "users"),
+        ("users_total", "USUÁRIOS", "Usuários ativos", "#bf8700", "users"),
         ("system_health", "SAUDE", "Pendencias operacionais", "#238636", None),
     ]
 
@@ -210,6 +211,39 @@ def build_dashboard_content(self) -> QScrollArea:
     record_list_layout.addWidget(self.module_search_input)
     record_list_layout.addWidget(self.empty_label)
     record_list_layout.addWidget(self.table, 1)
+
+    self.pagination_bar = QFrame()
+    self.pagination_bar.setObjectName("recordPaginationBar")
+    pagination_layout = QHBoxLayout(self.pagination_bar)
+    pagination_layout.setContentsMargins(0, 0, 0, 0)
+    pagination_layout.setSpacing(8)
+
+    self.pagination_prev_button = QPushButton("Anterior")
+    self.pagination_prev_button.setObjectName("secondaryButton")
+    self.pagination_prev_button.clicked.connect(self._go_previous_page)
+
+    self.pagination_next_button = QPushButton("Proxima")
+    self.pagination_next_button.setObjectName("secondaryButton")
+    self.pagination_next_button.clicked.connect(self._go_next_page)
+
+    self.pagination_label = QLabel("Pagina 1 de 1")
+    self.pagination_label.setObjectName("mutedText")
+
+    self.pagination_size_combo = QComboBox()
+    self.pagination_size_combo.setObjectName("sectionSearch")
+    self.pagination_size_combo.addItem("10 por pagina", 10)
+    self.pagination_size_combo.addItem("20 por pagina", 20)
+    self.pagination_size_combo.addItem("50 por pagina", 50)
+    self.pagination_size_combo.currentIndexChanged.connect(self._set_page_size)
+
+    pagination_layout.addWidget(self.pagination_prev_button)
+    pagination_layout.addWidget(self.pagination_next_button)
+    pagination_layout.addWidget(self.pagination_label)
+    pagination_layout.addStretch()
+    pagination_layout.addWidget(self.pagination_size_combo)
+    self.pagination_bar.hide()
+    record_list_layout.addWidget(self.pagination_bar)
+
     self.record_summary_panel = QFrame()
     self.record_summary_panel.setObjectName("recordSummaryPanel")
     record_summary_layout = QVBoxLayout(self.record_summary_panel)
@@ -243,7 +277,16 @@ def build_dashboard_content(self) -> QScrollArea:
 
     self.record_toggle_rail = QFrame()
     self.record_toggle_rail.setObjectName("recordToggleRail")
-    self.record_toggle_rail.setFixedWidth(0)
+    self.record_toggle_rail.setFixedWidth(34)
+    rail_layout = QVBoxLayout(self.record_toggle_rail)
+    rail_layout.setContentsMargins(4, 10, 4, 10)
+    rail_layout.setSpacing(0)
+    self.record_toggle_button = QPushButton("E\nD\nI\nT\nO\nR")
+    self.record_toggle_button.setObjectName("recordEditorToggleButton")
+    self.record_toggle_button.setToolTip("Abrir editor")
+    self.record_toggle_button.clicked.connect(self._open_record_editor)
+    rail_layout.addWidget(self.record_toggle_button)
+    rail_layout.addStretch()
     self.record_toggle_rail.hide()
 
     self.generic_record_container = QFrame()
@@ -258,6 +301,7 @@ def build_dashboard_content(self) -> QScrollArea:
     self.generic_form_column.setParent(self.generic_record_container)
     self.generic_form_column.hide()
     generic_record_layout.addWidget(self.record_list_panel, 1)
+    generic_record_layout.addWidget(self.record_toggle_rail)
     self.generic_record_container.hide()
 
     add_widget(self.content_layout, header_bar, 0)

@@ -47,6 +47,12 @@ class DashboardMixin5:
         self.dashboard_grid_widget.setVisible(module_key == "dashboard")
         self.dashboard_alerts_frame.setVisible(module_key == "dashboard")
         self.generic_record_container.setVisible(module_key in self.record_module_keys)
+        if hasattr(self, "record_toggle_rail"):
+            should_show_rail = module_key == "service_orders"
+            self.record_toggle_rail.setVisible(should_show_rail)
+            self.record_toggle_rail.setFixedWidth(34 if should_show_rail else 0)
+        if hasattr(self, "pagination_bar") and module_key != "service_orders":
+            self.pagination_bar.hide()
         self.data_title.setVisible(
             module_key not in {"dashboard", "equipment", "tools", "admin_area"}
         )

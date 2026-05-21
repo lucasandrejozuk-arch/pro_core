@@ -78,6 +78,9 @@ class DashboardMixin6:
 
     def _populate_service_order_form(self, service_order: dict[str, Any]) -> None:
         self.selected_service_order_id = str(service_order["id"])
+        self.service_order_custom_id_input.setText(
+            str(service_order.get("custom_id") or service_order.get("code") or "")
+        )
         self._select_combo_value(
             self.service_order_customer_combo,
             str(service_order.get("customer_id") or ""),
@@ -101,13 +104,65 @@ class DashboardMixin6:
             self.service_order_priority_combo,
             str(service_order.get("priority") or "normal"),
         )
+        self._select_combo_value(
+            self.service_order_service_type_combo,
+            str(service_order.get("service_type") or "repair"),
+        )
+        self._select_combo_value(
+            self.service_order_status_combo,
+            str(service_order.get("status") or "open"),
+        )
+        self._select_combo_value(
+            self.service_order_customer_approval_combo,
+            str(service_order.get("customer_approval") or "pending"),
+        )
+        self.service_order_entry_date_input.setText(
+            str(service_order.get("entry_date") or str(service_order.get("created_at") or "")[:10])
+        )
+        self.service_order_budget_sent_at_input.setText(
+            str(service_order.get("budget_sent_at") or "")
+        )
         self.service_order_sla_input.setText(str(service_order.get("sla_due_at") or ""))
+        self.service_order_special_number_input.setText(
+            str(
+                (selected_equipment or {}).get("special_number")
+                or service_order.get("special_number")
+                or ""
+            )
+        )
+        self.service_order_serial_number_input.setText(
+            str(
+                (selected_equipment or {}).get("serial_number")
+                or service_order.get("serial_number")
+                or ""
+            )
+        )
         self.service_order_problem_input.setText(
             str(service_order.get("problem_description") or "")
         )
         self.service_order_diagnosis_input.setText(
             str(service_order.get("technical_diagnosis") or "")
         )
+        self.service_order_inspection_visual_input.setPlainText(
+            str(service_order.get("inspection_visual") or "")
+        )
+        self.service_order_proposed_solution_input.setPlainText(
+            str(service_order.get("proposed_solution") or "")
+        )
+        self.service_order_proposed_actions_input.setPlainText(
+            str(service_order.get("proposed_actions") or "")
+        )
+        self.service_order_intake_checklist_input.setPlainText(
+            str(service_order.get("intake_checklist") or "")
+        )
+        self.service_order_linked_objects_input.setPlainText(
+            str(service_order.get("linked_objects") or "")
+        )
+        self.service_order_parts_used_input.setPlainText(str(service_order.get("parts_used") or ""))
+        self.service_order_workflow_history_input.setPlainText(
+            str(service_order.get("workflow_history") or "")
+        )
+        self.service_order_notes_input.setPlainText(str(service_order.get("notes") or ""))
         self.service_order_rejection_input.setText(str(service_order.get("rejection_reason") or ""))
         self.service_order_budget_description_input.clear()
         self.service_order_budget_quantity_input.setText("1")

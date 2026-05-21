@@ -99,19 +99,22 @@ class LoginWindow(QWidget):
 
         self.brand_label = QLabel("PRO CORE")
         self.brand_label.setObjectName("brandTitle")
+        self.brand_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         self.tagline_label = QLabel("Gestao completa para assistencias tecnicas")
         self.tagline_label.setObjectName("brandSubtitle")
         self.tagline_label.setWordWrap(True)
+        self.tagline_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         brand_panel = LoginBrandPanel()
         brand_layout = QVBoxLayout(brand_panel)
         brand_margin = round(22 * profile.ui_scale)
         brand_layout.setContentsMargins(brand_margin, brand_margin, brand_margin, brand_margin)
-        brand_layout.addStretch()
-        brand_layout.addWidget(self.brand_label)
-        brand_layout.addWidget(self.tagline_label)
-        brand_layout.addStretch()
+        brand_layout.setSpacing(round(10 * profile.ui_scale))
+        brand_layout.addStretch(3)
+        brand_layout.addWidget(self.brand_label, 0, Qt.AlignmentFlag.AlignHCenter)
+        brand_layout.addWidget(self.tagline_label, 0, Qt.AlignmentFlag.AlignHCenter)
+        brand_layout.addStretch(9)
 
         heading = QLabel("Entrar")
         heading.setObjectName("formTitle")

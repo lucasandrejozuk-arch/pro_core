@@ -33,6 +33,17 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLabel#sidebarTitle {{
             color: {palette["text"]};
         }}
+        QLabel#brandTitle {{
+            font-size: 46px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: {palette["button_text"]};
+        }}
+        QLabel#brandSubtitle {{
+            font-size: 19px;
+            font-weight: 600;
+            color: {palette["button_text"]};
+        }}
         QLabel#pageTitle {{
             font-size: 18px;
             font-weight: 700;
@@ -177,6 +188,12 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-left: 1px solid {palette["line"]};
             border-right: 1px solid {palette["line"]};
         }}
+        QFrame#recordPaginationBar,
+        QFrame#serviceOrderSideMenu {{
+            background-color: {palette["surface_alt"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 6px;
+        }}
         QFrame#headerBar {{
             background-color: transparent;
             border: 0;
@@ -194,11 +211,11 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-radius: 6px;
         }}
         QFrame#topCommandBar {{
-            background-color: {palette["surface"]};
+            background-color: {palette["sidebar"]};
             border-bottom: 1px solid {palette["line"]};
         }}
         QFrame#sessionFooter {{
-            background-color: {palette["surface"]};
+            background-color: {palette["sidebar"]};
             border-top-color: {palette["line"]};
         }}
         QFrame#dashboardKpiCard:hover {{
@@ -451,10 +468,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             max-height: 42px;
         }}
         QPushButton#navButton:hover {{
-            background-color: rgba(255, 255, 255, 0.16);
+            background-color: rgba(56, 189, 248, 0.16);
         }}
         QPushButton#navButton[active="true"] {{
-            background-color: rgba(255, 255, 255, 0.26);
+            background-color: rgba(56, 189, 248, 0.26);
         }}
         QPushButton#adminMenuButton {{
             background-color: {palette["surface"]};

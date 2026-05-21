@@ -77,7 +77,7 @@ class ProCoreDataMixin:
                 return []
 
         service_orders = safe_list(
-            "ordens de servico",
+            "ordens de serviço",
             lambda: self.api_client.list_service_orders(access_token),
         )
         role = str(self.session.user.get("role") or "")
@@ -133,7 +133,10 @@ class ProCoreDataMixin:
         if service_orders_pending:
             alerts.append(
                 {
-                    "message": f"{len(service_orders_pending)} OS aguardando aprovacao do cliente.",
+                    "message": (
+                        f"{len(service_orders_pending)} O.S. aguardando aprovação "
+                        "do cliente."
+                    ),
                     "level": "warning",
                 }
             )
@@ -280,12 +283,12 @@ class ProCoreDataMixin:
             return ("Dashboard", [])
 
         return (
-            "Ordens de Servico",
+            "Ordens de Serviço",
             [
-                ("Codigo", "code"),
+                ("Código", "code"),
                 ("Status", "status"),
                 ("Prioridade", "priority"),
-                ("Problema", "problem_description"),
+                ("Defeito Informado", "problem_description"),
                 ("Total", "quoted_total"),
                 ("SLA", "sla_due_at"),
                 ("Criada em", "created_at"),

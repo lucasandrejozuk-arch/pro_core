@@ -205,17 +205,36 @@ class DashboardFormStateMixin:
 
     def clear_service_order_form(self) -> None:
         self.selected_service_order_id = None
+        self.service_order_custom_id_input.clear()
         if self.service_order_customer_combo.count() > 0:
             self.service_order_customer_combo.setCurrentIndex(0)
         if self.service_order_equipment_type_combo.count() > 0:
             self.service_order_equipment_type_combo.setCurrentIndex(0)
         if self.service_order_technician_combo.count() > 0:
             self.service_order_technician_combo.setCurrentIndex(0)
+        if self.service_order_service_type_combo.count() > 0:
+            self.service_order_service_type_combo.setCurrentIndex(0)
+        if self.service_order_status_combo.count() > 0:
+            self.service_order_status_combo.setCurrentIndex(0)
+        if self.service_order_customer_approval_combo.count() > 0:
+            self.service_order_customer_approval_combo.setCurrentIndex(0)
         self._refresh_service_order_equipment_combo()
         self._select_combo_value(self.service_order_priority_combo, "normal")
+        self.service_order_entry_date_input.clear()
+        self.service_order_budget_sent_at_input.clear()
+        self.service_order_special_number_input.clear()
+        self.service_order_serial_number_input.clear()
         self.service_order_sla_input.clear()
         self.service_order_problem_input.clear()
         self.service_order_diagnosis_input.clear()
+        self.service_order_inspection_visual_input.clear()
+        self.service_order_proposed_solution_input.clear()
+        self.service_order_proposed_actions_input.clear()
+        self.service_order_intake_checklist_input.clear()
+        self.service_order_linked_objects_input.clear()
+        self.service_order_parts_used_input.clear()
+        self.service_order_workflow_history_input.clear()
+        self.service_order_notes_input.clear()
         self.service_order_rejection_input.clear()
         if self.service_order_budget_type_combo.count() > 0:
             self.service_order_budget_type_combo.setCurrentIndex(0)
@@ -227,12 +246,12 @@ class DashboardFormStateMixin:
         self.selected_service_order_document_path = None
         self.service_order_document_path_input.clear()
         self.service_order_current_status.setText("Status: nova")
-        self.service_order_budget_summary.setText("Orcamento: nenhum item.")
+        self.service_order_budget_summary.setText("Orçamento: nenhum item.")
         self.service_order_documents_summary.setText("Anexos: nenhum arquivo.")
-        self.service_order_full_summary.setPlainText("Novo registro de ordem de servico.")
+        self.service_order_full_summary.setPlainText("Novo registro de ordem de serviço.")
         self._update_service_order_workflow(None)
         self._set_service_order_flow_buttons_enabled(False)
-        self.service_order_form_status.setText("Nova ordem de servico.")
+        self.service_order_form_status.setText("Nova ordem de serviço.")
         self.service_order_delete_button.setEnabled(False)
         self.table.clearSelection()
 

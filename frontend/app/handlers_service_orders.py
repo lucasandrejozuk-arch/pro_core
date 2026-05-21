@@ -18,7 +18,7 @@ class ServiceOrderHandlersMixin:
             return
 
         self.dashboard_window.set_service_order_form_loading(False)
-        self.dashboard_window.set_service_order_form_status("Ordem de servico criada.")
+        self.dashboard_window.set_service_order_form_status("Ordem de serviço criada.")
         self.load_module("service_orders")
 
     def handle_service_order_update(self, service_order_id: str, payload: dict) -> None:
@@ -39,7 +39,7 @@ class ServiceOrderHandlersMixin:
             return
 
         self.dashboard_window.set_service_order_form_loading(False)
-        self.dashboard_window.set_service_order_form_status("Ordem de servico atualizada.")
+        self.dashboard_window.set_service_order_form_status("Ordem de serviço atualizada.")
         self.load_module("service_orders")
 
     def handle_service_order_delete(self, service_order_id: str) -> None:
@@ -56,7 +56,7 @@ class ServiceOrderHandlersMixin:
             return
 
         self.dashboard_window.set_service_order_form_loading(False)
-        self.dashboard_window.set_service_order_form_status("Ordem de servico excluida.")
+        self.dashboard_window.set_service_order_form_status("Ordem de serviço excluída.")
         self.load_module("service_orders")
 
     def handle_service_order_diagnosis(
@@ -70,7 +70,7 @@ class ServiceOrderHandlersMixin:
                 service_order_id,
                 technical_diagnosis,
             ),
-            "Diagnostico registrado.",
+            "Diagnóstico registrado.",
         )
 
     def handle_service_order_budget_item(
@@ -84,7 +84,7 @@ class ServiceOrderHandlersMixin:
                 service_order_id,
                 payload,
             ),
-            "Item de orcamento adicionado.",
+            "Item de orçamento adicionado.",
         )
 
     def handle_service_order_submit_quote(self, service_order_id: str) -> None:
@@ -93,7 +93,7 @@ class ServiceOrderHandlersMixin:
                 access_token,
                 service_order_id,
             ),
-            "Orcamento enviado.",
+            "Orçamento enviado.",
         )
 
     def handle_service_order_approve(self, service_order_id: str) -> None:
@@ -102,7 +102,7 @@ class ServiceOrderHandlersMixin:
                 access_token,
                 service_order_id,
             ),
-            "Ordem de servico aprovada.",
+            "Ordem de serviço aprovada.",
         )
 
     def handle_service_order_reject(self, service_order_id: str, rejection_reason: str) -> None:
@@ -112,7 +112,7 @@ class ServiceOrderHandlersMixin:
                 service_order_id,
                 rejection_reason,
             ),
-            "Ordem de servico reprovada.",
+            "Ordem de serviço reprovada.",
         )
 
     def handle_service_order_start(self, service_order_id: str) -> None:
@@ -121,7 +121,7 @@ class ServiceOrderHandlersMixin:
                 access_token,
                 service_order_id,
             ),
-            "Execucao iniciada.",
+            "Execução iniciada.",
         )
 
     def handle_service_order_complete(self, service_order_id: str) -> None:
@@ -130,7 +130,7 @@ class ServiceOrderHandlersMixin:
                 access_token,
                 service_order_id,
             ),
-            "Ordem de servico concluida.",
+            "Ordem de serviço concluída.",
         )
 
     def handle_service_order_document_upload(

@@ -171,9 +171,7 @@ class DashboardMixin1:
         if not hasattr(self, "main_scroll_area"):
             return
         if module_key == "equipment" and self.height() >= EQUIPMENT_SCROLL_MIN_HEIGHT:
-            self.main_scroll_area.setVerticalScrollBarPolicy(
-                Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-            )
+            self.main_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             return
         self.main_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
@@ -367,9 +365,13 @@ class DashboardMixin1:
             if self.active_module_key == "service_orders"
             else EDITOR_DEFAULT_MAX_HEIGHT
         )
-        editor_height = min(max(620, self.height() - 160), max_height)
-        dialog.resize(self.record_editor_width, editor_height)
-        dialog.setMinimumWidth(min(self.record_editor_width, 960))
+        editor_height = min(max(700, self.height() - 140), max_height)
+        editor_width = self.record_editor_width
+        if self.active_module_key == "service_orders":
+            editor_width = max(editor_width, 1120)
+        dialog.resize(editor_width, editor_height)
+        dialog.setMinimumWidth(min(editor_width, 980))
+        dialog.setMinimumHeight(680)
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)

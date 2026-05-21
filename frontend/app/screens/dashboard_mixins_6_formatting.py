@@ -21,22 +21,22 @@ class DashboardFormattingMixin:
         labels = {
             "open": "Aberta",
             "assigned": "Atribuida",
-            "pending_quote": "Pendente de orcamento",
-            "quote_sent": "Orcamento enviado",
-            "pending_approval": "Pendente de aprovacao",
+            "pending_quote": "Pendente de orçamento",
+            "quote_sent": "Orçamento enviado",
+            "pending_approval": "Pendente de aprovação",
             "approved": "Aprovada",
-            "in_progress": "Em execucao",
-            "completed": "Concluida",
+            "in_progress": "Em execução",
+            "completed": "Concluída",
             "rejected": "Reprovada",
             "closed": "Encerrada",
             "admin": "Administrador",
             "manager": "Gestor/Lider",
-            "technician": "Tecnico",
+            "technician": "Técnico",
             "customer": "Cliente",
             "pending": "Pendente",
             "resolved": "Resolvida",
-            "service": "Servico",
-            "part": "Peca",
+            "service": "Serviço",
+            "part": "Peça",
             "other": "Outro",
             "light": "Claro",
             "dark": "Escuro",
@@ -54,11 +54,11 @@ class DashboardFormattingMixin:
             "system": "Sistema",
             "sent": "Enviada",
             "failed": "Falhou",
-            "service_orders": "Ordens de Servico",
+            "service_orders": "Ordens de Serviço",
             "customers": "Clientes",
             "equipment": "Equipamentos",
             "inventory": "Estoque",
-            "users": "Usuarios",
+            "users": "Usuários",
             "audit_logs": "Logs/Auditoria",
         }
         if isinstance(value, str) and value in labels:
@@ -70,7 +70,7 @@ class DashboardFormattingMixin:
         items = service_order.get("budget_items") or []
         total = self._format_value(service_order.get("quoted_total"))
         if not items:
-            return f"Orcamento: nenhum item. Total: {total or '0'}"
+            return f"Orçamento: nenhum item. Total: {total or '0'}"
 
         descriptions = []
         for item in items[:4]:
@@ -82,7 +82,7 @@ class DashboardFormattingMixin:
 
         remaining = len(items) - len(descriptions)
         suffix = f" + {remaining} item(ns)" if remaining > 0 else ""
-        return f"Orcamento: {'; '.join(descriptions)}{suffix}. Total: {total}"
+        return f"Orçamento: {'; '.join(descriptions)}{suffix}. Total: {total}"
 
     def _format_service_order_documents(self, service_order: dict[str, Any]) -> str:
         documents = service_order.get("documents") or []
@@ -129,20 +129,50 @@ class DashboardFormattingMixin:
             self.service_order_technicians,
             service_order.get("assigned_technician_id"),
             "full_name",
-            "Sem tecnico",
+            "Sem técnico",
         )
         equipment_label = self._lookup_equipment_label(service_order.get("equipment_id"))
+        customer_approval = self._format_value(service_order.get("customer_approval"))
+        budget_sent_at = self._format_value(service_order.get("budget_sent_at"))
+        problem_description = self._format_value(service_order.get("problem_description"))
+        technical_diagnosis = self._format_value(service_order.get("technical_diagnosis"))
+        proposed_solution = self._format_value(service_order.get("proposed_solution"))
+        proposed_actions = self._format_value(service_order.get("proposed_actions"))
+        intake_checklist = self._format_value(service_order.get("intake_checklist"))
+        workflow_history = self._format_value(service_order.get("workflow_history"))
+        documents = self._format_service_order_documents(service_order).replace("Anexos: ", "")
+        rejection_reason = self._format_value(service_order.get("rejection_reason"))
         lines = [
-            f"Codigo: {self._format_value(service_order.get('code')) or '-'}",
+            f"Código: {self._format_value(service_order.get('code')) or '-'}",
+            f"ID Personalizado: {self._format_value(service_order.get('custom_id')) or '-'}",
+            f"Empresa: {customer_name}",
+            f"Técnico Responsável: {technician_name}",
+            f"Equipamento: {equipment_label}",
             f"Status: {self._format_value(service_order.get('status'))}",
             f"Prioridade: {self._format_value(service_order.get('priority')) or 'Normal'}",
-            f"Prazo SLA: {self._format_value(service_order.get('sla_due_at')) or '-'}",
-            f"Cliente: {customer_name}",
-            f"Equipamento: {equipment_label}",
-            f"Tecnico: {technician_name}",
-            f"Problema informado: {self._format_value(service_order.get('problem_description'))}",
-            f"Diagnostico: {self._format_value(service_order.get('technical_diagnosis')) or '-'}",
-            f"Total orcado: {self._format_value(service_order.get('quoted_total')) or '0'}",
+            f"Tipo de Serviço: {self._format_value(service_order.get('service_type')) or '-'}",
+            f"Nº Especial: {self._format_value(service_order.get('special_number')) or '-'}",
+            f"Número de Série: {self._format_value(service_order.get('serial_number')) or '-'}",
+            f"Aprovação do Cliente: {customer_approval or 'Pendente'}",
+            f"Data de Entrada: {self._format_value(service_order.get('entry_date')) or '-'}",
+            f"Entrega Prevista: {self._format_value(service_order.get('sla_due_at')) or '-'}",
+            f"Data de Envio do Orçamento: {budget_sent_at or '-'}",
+            "",
+            f"Defeito Informado: {problem_description or '-'}",
+            f"Defeito Encontrado: {technical_diagnosis or '-'}",
+            f"Inspeção Visual: {self._format_value(service_order.get('inspection_visual')) or '-'}",
+            f"Solução Proposta: {proposed_solution or '-'}",
+            f"Execuções Necessárias: {proposed_actions or '-'}",
+            "",
+            f"Checklist de Entrada: {intake_checklist or '-'}",
+            f"Objetos Vinculados: {self._format_value(service_order.get('linked_objects')) or '-'}",
+            f"Componentes Utilizados: {self._format_value(service_order.get('parts_used')) or '-'}",
+            f"Histórico de Workflow: {workflow_history or '-'}",
+            f"Anexos / Evidências: {documents}",
+            f"Notas: {self._format_value(service_order.get('notes')) or '-'}",
+            f"Observação de Reprovação: {rejection_reason or '-'}",
+            "",
+            f"Total Orçado: {self._format_value(service_order.get('quoted_total')) or '0'}",
             f"Criada em: {self._format_value(service_order.get('created_at'))}",
         ]
         return "\n".join(lines)

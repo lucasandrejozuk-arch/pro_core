@@ -75,25 +75,38 @@ class DashboardMixin2:
         self.data_title.setText("Registros")
         self.data_description.setText(self.module_descriptions.get(module_key, ""))
         self.module_search_input.setPlaceholderText(self._module_search_placeholder(module_key))
+        self._reset_pagination_for_module(module_key)
         self._populate_current_table(self._filtered_rows())
 
     def _populate_current_table(self, rows: list[dict[str, Any]]) -> None:
         columns = self.current_columns
-        self.current_rows = rows
+        filtered_rows = list(rows)
+        if self.active_module_key == "service_orders":
+            visible_rows = self._current_page_rows(filtered_rows)
+            self._update_pagination_controls(len(filtered_rows))
+        else:
+            visible_rows = filtered_rows
+        self.current_rows = visible_rows
         if hasattr(self, "record_count_label"):
             total = len(self.all_rows)
-            shown = len(rows)
+            shown = len(visible_rows)
             if shown == total:
                 self.record_count_label.setText(f"{total} registro(s)")
             else:
-                self.record_count_label.setText(f"{shown} de {total} registro(s)")
+                if self.active_module_key == "service_orders":
+                    self.record_count_label.setText(
+                        f"{shown} registro(s) na pagina | "
+                        f"{len(filtered_rows)} filtrado(s) de {total}"
+                    )
+                else:
+                    self.record_count_label.setText(f"{shown} de {total} registro(s)")
         self.table.clear()
         self.table.setColumnCount(len(columns))
         self.table.setHorizontalHeaderLabels([label for label, _key in columns])
-        self.table.setRowCount(len(rows))
-        self._resize_table_to_content(self.table, len(rows), minimum=190, maximum=16777215)
+        self.table.setRowCount(len(visible_rows))
+        self._resize_table_to_content(self.table, len(visible_rows), minimum=190, maximum=16777215)
 
-        if not rows:
+        if not visible_rows:
             message = "Nenhum registro encontrado."
             if self.module_search_input.text().strip():
                 message = "Nenhum registro encontrado para a busca."
@@ -102,7 +115,7 @@ class DashboardMixin2:
             return
 
         self.empty_label.hide()
-        for row_index, row in enumerate(rows):
+        for row_index, row in enumerate(visible_rows):
             for column_index, (_label, key) in enumerate(columns):
                 value = self._format_value(row.get(key))
                 item = QTableWidgetItem(value)
@@ -127,6 +140,64 @@ class DashboardMixin2:
     def _apply_current_filter(self) -> None:
         if self.active_module_key not in self.searchable_module_keys:
             return
+        if self.active_module_key == "service_orders":
+            self.current_page = 1
+        self._populate_current_table(self._filtered_rows())
+
+    def _reset_pagination_for_module(self, module_key: str) -> None:
+        self.current_page = 1
+        self.total_pages = 1
+        if hasattr(self, "pagination_bar"):
+            self.pagination_bar.setVisible(module_key == "service_orders")
+        if hasattr(self, "pagination_size_combo"):
+            index = self.pagination_size_combo.findData(self.page_size)
+            if index >= 0:
+                self.pagination_size_combo.blockSignals(True)
+                self.pagination_size_combo.setCurrentIndex(index)
+                self.pagination_size_combo.blockSignals(False)
+
+    def _current_page_rows(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if self.page_size <= 0:
+            return list(rows)
+        start = (self.current_page - 1) * self.page_size
+        end = start + self.page_size
+        return rows[start:end]
+
+    def _update_pagination_controls(self, filtered_count: int) -> None:
+        if self.page_size <= 0:
+            self.total_pages = 1
+        else:
+            self.total_pages = max(1, (filtered_count + self.page_size - 1) // self.page_size)
+        self.current_page = max(1, min(self.current_page, self.total_pages))
+        if hasattr(self, "pagination_label"):
+            self.pagination_label.setText(f"Pagina {self.current_page} de {self.total_pages}")
+        if hasattr(self, "pagination_prev_button"):
+            self.pagination_prev_button.setEnabled(self.current_page > 1)
+        if hasattr(self, "pagination_next_button"):
+            self.pagination_next_button.setEnabled(self.current_page < self.total_pages)
+
+    def _set_page_size(self, *_args: Any) -> None:
+        if not hasattr(self, "pagination_size_combo"):
+            return
+        self.page_size = int(self.pagination_size_combo.currentData() or 10)
+        self.current_page = 1
+        if self.active_module_key == "service_orders":
+            self._populate_current_table(self._filtered_rows())
+
+    def _go_previous_page(self) -> None:
+        if self.active_module_key != "service_orders":
+            return
+        if self.current_page <= 1:
+            return
+        self.current_page -= 1
+        self._populate_current_table(self._filtered_rows())
+
+    def _go_next_page(self) -> None:
+        if self.active_module_key != "service_orders":
+            return
+        if self.current_page >= self.total_pages:
+            return
+        self.current_page += 1
         self._populate_current_table(self._filtered_rows())
 
     def _filtered_rows(self) -> list[dict[str, Any]]:

@@ -16,16 +16,20 @@ def _dark_stylesheet() -> str:
         }
         QLabel#splashTitle,
         QLabel#brandTitle {
-            font-size: 32px;
+            font-size: 46px;
             font-weight: 800;
-            letter-spacing: 0;
+            letter-spacing: 1px;
         }
         QLabel#splashSubtitle,
         QLabel#brandSubtitle,
         QLabel#mutedText,
         QLabel#cardMeta {
             color: #8b949e;
-            font-size: 14px;
+            font-size: 15px;
+        }
+        QLabel#brandSubtitle {
+            font-size: 19px;
+            font-weight: 600;
         }
         QLabel#errorText {
             color: #ffb4ab;
@@ -147,12 +151,12 @@ def _dark_stylesheet() -> str:
             border-radius: 6px;
         }
         QFrame#topCommandBar {
-            background: #161b22;
-            border-bottom: 1px solid #30363d;
+            background: #091628;
+            border-bottom: 1px solid #26435b;
         }
         QFrame#sessionFooter {
-            background: #161b22;
-            border-top: 1px solid #30363d;
+            background: #0a192a;
+            border-top: 1px solid #26435b;
         }
         QLabel#sessionFooterText,
         QLabel#sessionFooterModule {
@@ -196,8 +200,8 @@ def _dark_stylesheet() -> str:
             border-radius: 8px;
         }
         QFrame#sidebar {
-            background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
-            border-right: 1px solid #30363d;
+            background: linear-gradient(180deg, #091628 0%, #0b1b2d 100%);
+            border-right: 1px solid #26435b;
         }
         QLabel#sidebarTitle {
             color: #ffffff;
@@ -309,14 +313,14 @@ def _dark_stylesheet() -> str:
             border-left: 3px solid transparent;
         }
         QPushButton#navButton:hover {
-            background: rgba(31, 111, 235, 0.10);
-            border-left-color: #1f6feb;
+            background: rgba(56, 189, 248, 0.12);
+            border-left-color: #38bdf8;
         }
         QPushButton#navButton[active="true"] {
-            background: rgba(31, 111, 235, 0.14);
-            color: #79c0ff;
+            background: rgba(56, 189, 248, 0.16);
+            color: #c5efff;
             font-weight: 600;
-            border-left-color: #1f6feb;
+            border-left-color: #38bdf8;
         }
         QPushButton#sidebarFooterButton {
             background: transparent;
@@ -326,8 +330,19 @@ def _dark_stylesheet() -> str:
             margin: 2px 4px;
         }
         QPushButton#sidebarFooterButton:hover {
-            background: rgba(31, 111, 235, 0.10);
+            background: rgba(56, 189, 248, 0.12);
             color: #e6edf7;
+        }
+        QFrame#recordPaginationBar,
+        QFrame#serviceOrderSideMenu {
+            background: #111e31;
+            border: 1px solid #26435b;
+            border-radius: 8px;
+        }
+        QFrame#recordToggleRail {
+            background: #0d1826;
+            border: 1px solid #26435b;
+            border-radius: 8px;
         }
         QPushButton#adminMenuButton {
             background: #161b22;

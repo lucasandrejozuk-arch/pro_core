@@ -61,7 +61,7 @@ def build_dashboard_sidebar(self) -> None:
     }
     self.module_labels = {
         "dashboard": "Dashboard",
-        "service_orders": "Ordens de Servico",
+        "service_orders": "Ordens de Serviço",
         "customers": "Clientes",
         "equipment": "Equipamentos",
         "inventory": "Estoque",
@@ -75,7 +75,7 @@ def build_dashboard_sidebar(self) -> None:
     }
     self.module_descriptions = {
         "dashboard": "Indicadores operacionais e alertas do dia",
-        "service_orders": "Fluxo operacional de ordens de servico",
+        "service_orders": "Fluxo operacional de ordens de serviço",
         "customers": "Cadastro e relacionamento de clientes",
         "equipment": "Gestao hierarquica de ativos, objetos e componentes",
         "inventory": "Estoque, custos e niveis minimos",
@@ -141,9 +141,7 @@ def build_dashboard_sidebar(self) -> None:
             self.module_icon_names[module_key],
             self.module_labels[module_key],
         )
-        button.clicked.connect(
-            lambda checked=False, key=module_key: self.module_selected.emit(key)
-        )
+        button.clicked.connect(lambda checked=False, key=module_key: self.module_selected.emit(key))
         self.module_buttons[module_key] = button
         sidebar_nav_layout.addWidget(button)
 

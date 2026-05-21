@@ -46,6 +46,9 @@ def initialize_dashboard_state(self) -> None:
     self.sidebar_collapsed = False
     self.record_editor_collapsed = True
     self.record_editor_width = 720
+    self.current_page = 1
+    self.page_size = 10
+    self.total_pages = 1
     self.admin_module_keys = (
         "sectors",
         "users",
