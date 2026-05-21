@@ -42,7 +42,8 @@ def test_customer_save_rejects_incomplete_phone(qtbot) -> None:
     window._request_customer_save()
 
     assert emitted == []
-    assert "telefone" in window.customer_form_status.text().lower()
+    assert window.customer_form_status.text() == ""
+    assert "telefone" in window.footer_message_label.text().lower()
 
 
 def test_service_order_budget_item_emits_payload(qtbot) -> None:

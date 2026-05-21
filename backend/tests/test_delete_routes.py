@@ -132,3 +132,23 @@ def test_delete_service_order_with_document_returns_no_server_error(
     )
 
     assert delete_response.status_code == 204
+
+
+def test_delete_sector_compat_route(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    create_response = client.post(
+        "/api/v1/sectors",
+        headers=auth_headers,
+        json={"name": "Temporario"},
+    )
+    assert create_response.status_code == 201
+    sector = create_response.json()
+
+    delete_response = client.post(
+        f"/api/v1/sectors/{sector['id']}/delete",
+        headers=auth_headers,
+    )
+
+    assert delete_response.status_code == 204

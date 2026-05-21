@@ -44,7 +44,7 @@ def test_admin_can_read_and_update_system_settings(
             "phone": "1133334444",
             "brand_name": "Pro Assist",
             "brand_subtitle": "Laboratorio tecnico",
-            "color_palette": "green",
+            "color_palette": "amber",
             "theme": "dark",
             "language": "en-US",
             "backup_enabled": False,
@@ -57,8 +57,8 @@ def test_admin_can_read_and_update_system_settings(
     assert updated_settings["company_name"] == "Assistencia Atualizada"
     assert updated_settings["brand_name"] == "Pro Assist"
     assert updated_settings["brand_subtitle"] == "Laboratorio tecnico"
-    assert updated_settings["color_palette"] == "green"
-    assert updated_settings["primary_color"] == "#0f766e"
+    assert updated_settings["color_palette"] == "amber"
+    assert updated_settings["primary_color"] == "#f2b84b"
     assert updated_settings["theme"] == "dark"
     assert updated_settings["language"] == "en-US"
     assert updated_settings["backup_enabled"] is False
@@ -68,8 +68,8 @@ def test_admin_can_read_and_update_system_settings(
     second_get_response = client.get("/api/v1/settings", headers=auth_headers)
     assert second_get_response.status_code == 200
     assert second_get_response.json()["theme"] == "dark"
-    assert second_get_response.json()["color_palette"] == "green"
-    assert second_get_response.json()["primary_color"] == "#0f766e"
+    assert second_get_response.json()["color_palette"] == "amber"
+    assert second_get_response.json()["primary_color"] == "#f2b84b"
 
 
 def test_technician_cannot_access_system_settings(

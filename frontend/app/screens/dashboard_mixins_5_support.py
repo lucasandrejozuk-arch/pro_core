@@ -71,8 +71,18 @@ class DashboardEquipmentSupportMixin:
                 item.setData(Qt.ItemDataRole.UserRole, str(row.get("id") or ""))
                 table.setItem(row_index, column_index, item)
             table.setRowHeight(row_index, 34)
-        self._resize_table_to_content(table, len(rows), minimum=table.minimumHeight(), maximum=280)
+        self._resize_table_to_content(
+            table,
+            len(rows),
+            minimum=table.minimumHeight(),
+            maximum=self._equipment_table_maximum_height(table),
+        )
         table.blockSignals(False)
+
+    def _equipment_table_maximum_height(self, table: QTableWidget) -> int:
+        if table is self.equipment_table:
+            return 178
+        return 150
 
     def _select_visible_table_row(
         self,

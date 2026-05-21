@@ -73,9 +73,22 @@ def delete_sector_record(
     current_user: User = Depends(admin_user),
     db: Session = Depends(get_db),
 ) -> None:
+    _delete_sector_record(sector_id, current_user, db)
+
+
+@router.post("/{sector_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sector_record_compat(
+    sector_id: uuid.UUID,
+    current_user: User = Depends(admin_user),
+    db: Session = Depends(get_db),
+) -> None:
+    _delete_sector_record(sector_id, current_user, db)
+
+
+def _delete_sector_record(sector_id: uuid.UUID, current_user: User, db: Session) -> None:
     sector = get_sector(db, current_user.company_id, sector_id)
     if sector is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sector not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Setor nao encontrado.")
 
     try:
         delete_sector(db, current_user.company_id, sector)

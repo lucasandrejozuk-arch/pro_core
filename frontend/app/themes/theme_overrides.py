@@ -87,6 +87,12 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             font-size: 22px;
             font-weight: 700;
         }}
+        QLabel#emptyStateText {{
+            color: {palette["muted"]};
+            font-size: 17px;
+            font-weight: 700;
+            padding: 8px;
+        }}
         QLabel#errorText {{
             color: {palette["danger"]};
         }}
@@ -307,6 +313,31 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             border-color: {palette["line"]};
             selection-background-color: {palette["selection_bg"]};
             selection-color: {palette["selection_text"]};
+        }}
+        QMenu {{
+            background-color: {palette["surface"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 6px;
+            color: {palette["text"]};
+            padding: 5px;
+        }}
+        QMenu::item {{
+            background-color: transparent;
+            border-radius: 4px;
+            color: {palette["text"]};
+            padding: 6px 24px 6px 10px;
+        }}
+        QMenu::item:selected {{
+            background-color: {palette["primary_subtle"]};
+            color: {palette["text"]};
+        }}
+        QMenu::item:disabled {{
+            color: {palette["muted"]};
+        }}
+        QMenu::separator {{
+            background-color: {palette["line"]};
+            height: 1px;
+            margin: 4px 6px;
         }}
         QPushButton {{
             background-color: {palette["primary"]};

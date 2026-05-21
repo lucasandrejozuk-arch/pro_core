@@ -204,18 +204,22 @@ def delete_service_order(
 ) -> None:
     code = service_order.code
     company_id = service_order.company_id
-    for document in list(service_order.documents):
-        db.delete(document)
-    create_audit_log(
-        db,
-        company_id=company_id,
-        actor_user_id=actor_user_id,
-        action="service_order.deleted",
-        entity_type="service_order",
-        entity_id=service_order.id,
-        summary=f"Ordem de servico {code} excluida.",
-    )
     try:
+        for document in list(service_order.documents):
+            db.delete(document)
+        for budget_item in list(service_order.budget_items):
+            db.delete(budget_item)
+        for event in list(service_order.events):
+            db.delete(event)
+        create_audit_log(
+            db,
+            company_id=company_id,
+            actor_user_id=actor_user_id,
+            action="service_order.deleted",
+            entity_type="service_order",
+            entity_id=service_order.id,
+            summary=f"Ordem de servico {code} excluida.",
+        )
         db.delete(service_order)
         db.commit()
     except SQLAlchemyError as exc:

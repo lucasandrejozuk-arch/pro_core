@@ -184,6 +184,27 @@ def test_business_delete_methods_send_delete_requests() -> None:
     ]
 
 
+def test_delete_sector_falls_back_to_compat_route_on_method_not_allowed() -> None:
+    calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        if request.method == "DELETE":
+            return httpx.Response(405, json={"detail": "Method Not Allowed"})
+        return httpx.Response(204)
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.delete_sector("token", "sector-id") is None
+    assert calls == [
+        ("DELETE", "/api/v1/sectors/sector-id"),
+        ("POST", "/api/v1/sectors/sector-id/delete"),
+    ]
+
+
 def test_equipment_nested_update_methods_send_patch_requests() -> None:
     payload = {"unit_price": "12.50"}
     paths: list[str] = []

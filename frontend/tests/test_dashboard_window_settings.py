@@ -16,7 +16,8 @@ def test_settings_save_rejects_invalid_backup_interval(qtbot) -> None:
     window._request_settings_save()
 
     assert emitted == []
-    assert "1 e 720" in window.settings_form_status.text()
+    assert window.settings_form_status.text() == ""
+    assert "1 e 720" in window.footer_message_label.text()
 
 
 def test_settings_menu_keeps_all_configuration_groups_visible(qtbot) -> None:

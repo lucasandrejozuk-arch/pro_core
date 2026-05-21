@@ -123,7 +123,7 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     window.module_search_input.setText("bruno")
 
     assert window.table.rowCount() == 1
-    assert window.table.maximumHeight() < 430
+    assert window.table.maximumHeight() > 10000
     assert window.record_count_label.text() == "1 de 2 registro(s)"
     assert window.current_rows[0]["id"] == "customer-2"
     assert "Bruno Cliente" in window.customer_full_summary.toPlainText()

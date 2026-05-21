@@ -91,7 +91,7 @@ class DashboardMixin2:
         self.table.setColumnCount(len(columns))
         self.table.setHorizontalHeaderLabels([label for label, _key in columns])
         self.table.setRowCount(len(rows))
-        self._resize_table_to_content(self.table, len(rows), minimum=150, maximum=430)
+        self._resize_table_to_content(self.table, len(rows), minimum=190, maximum=16777215)
 
         if not rows:
             message = "Nenhum registro encontrado."
@@ -119,6 +119,9 @@ class DashboardMixin2:
         row_height = table.verticalHeader().defaultSectionSize()
         target_height = header_height + max(row_count, 1) * row_height + 12
         table.setMinimumHeight(minimum)
+        if maximum >= 10000:
+            table.setMaximumHeight(maximum)
+            return
         table.setMaximumHeight(max(minimum, min(target_height, maximum)))
 
     def _apply_current_filter(self) -> None:

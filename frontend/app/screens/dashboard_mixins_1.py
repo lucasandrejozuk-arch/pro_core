@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -109,6 +109,7 @@ class DashboardMixin1:
             self._set_dashboard_grid_columns(2)
         elif self.width() >= 1500:
             self._set_dashboard_grid_columns(4)
+        self._sync_scroll_policy(self.active_module_key)
         self._position_record_editor()
 
     def apply_display_profile(self, profile: DisplayProfile | None = None) -> None:
@@ -135,7 +136,7 @@ class DashboardMixin1:
         )
         self.content_layout.setSpacing(active_profile.section_spacing)
         self.dashboard_grid_layout.setSpacing(max(6, active_profile.section_spacing // 2))
-        self.record_editor_width = int(max(640, min(round(720 * active_profile.ui_scale), 900)))
+        self.record_editor_width = int(max(860, min(round(920 * active_profile.ui_scale), 1080)))
         self._set_dashboard_grid_columns(active_profile.dashboard_columns)
         self._sync_active_module_space(self.active_module_key)
         self._position_sidebar()
@@ -156,6 +157,7 @@ class DashboardMixin1:
     def _sync_active_module_space(self, module_key: str) -> None:
         self._reset_content_row_stretches()
         self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._sync_scroll_policy(module_key)
         if module_key in self.record_module_keys:
             self.content_layout.setRowStretch(6, 1)
             return
@@ -170,6 +172,16 @@ class DashboardMixin1:
             return
         if module_key == "dashboard":
             self.content_layout.setRowStretch(5, 0)
+
+    def _sync_scroll_policy(self, module_key: str) -> None:
+        if not hasattr(self, "main_scroll_area"):
+            return
+        if module_key == "equipment" and self.height() >= 820:
+            self.main_scroll_area.setVerticalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            )
+            return
+        self.main_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def _position_record_editor(self) -> None:
         if not hasattr(self, "generic_form_column"):
@@ -277,14 +289,25 @@ class DashboardMixin1:
         self.backend_status_dot.style().polish(self.backend_status_dot)
 
     def _set_footer_message(self, message: str, level: str = "info") -> None:
+        if not hasattr(self, "_footer_message_timer"):
+            self._footer_message_timer = QTimer(self)
+            self._footer_message_timer.setSingleShot(True)
+            self._footer_message_timer.timeout.connect(self._clear_footer_message)
+        self._footer_message_timer.stop()
         self.footer_message_label.setText(message)
         self.footer_message_label.setProperty("level", level)
         self.footer_message_label.style().unpolish(self.footer_message_label)
         self.footer_message_label.style().polish(self.footer_message_label)
+        if message:
+            self._footer_message_timer.start(6500)
+
+    def _clear_footer_message(self) -> None:
+        if hasattr(self, "footer_message_label"):
+            self.footer_message_label.setText("")
 
     def _set_inline_status(self, label: QLabel, message: str, is_error: bool = False) -> None:
         label.setObjectName("errorText" if is_error else "mutedText")
-        label.setText(message)
+        label.setText("")
         label.style().unpolish(label)
         label.style().polish(label)
         if message:
@@ -345,7 +368,8 @@ class DashboardMixin1:
         dialog.setWindowTitle(
             f"Editor - {self.module_labels.get(self.active_module_key, 'Registro')}"
         )
-        dialog.resize(self.record_editor_width, max(560, self.height() - 180))
+        dialog.resize(self.record_editor_width, max(620, self.height() - 160))
+        dialog.setMinimumWidth(min(self.record_editor_width, 960))
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
@@ -386,10 +410,11 @@ class DashboardMixin1:
         dialog = QDialog(self)
         dialog.setObjectName("assetDialog")
         dialog.setWindowTitle("Dados completos")
-        dialog.resize(self.record_editor_width, max(420, self.height() - 240))
+        dialog.resize(self.record_editor_width, 520)
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         title = QLabel("DADOS COMPLETOS")
         title.setObjectName("formGroupTitle")
         details = create_summary_text(220, 360)
@@ -398,7 +423,7 @@ class DashboardMixin1:
         close_button.setObjectName("secondaryButton")
         close_button.clicked.connect(dialog.accept)
         layout.addWidget(title)
-        layout.addWidget(details, 1)
+        layout.addWidget(details)
         layout.addWidget(close_button, 0, Qt.AlignmentFlag.AlignRight)
         self.record_details_dialog = dialog
         dialog.exec()

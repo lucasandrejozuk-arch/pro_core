@@ -142,6 +142,8 @@ def _translate_error_message(message: str, status_code: int) -> str:
     }
     if normalized in translations:
         return translations[normalized]
+    if normalized.startswith("Input should be "):
+        return "Valor invalido para este campo. Atualize os dados e tente novamente."
     generic_server_errors = {"internal error server", "internal server error"}
     if status_code >= 500 and normalized.lower() in generic_server_errors:
         return translations["Internal Server Error"]

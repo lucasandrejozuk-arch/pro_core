@@ -120,11 +120,12 @@ def build_dashboard_content(self) -> QScrollArea:
     self.module_search_input.textChanged.connect(self._apply_current_filter)
 
     self.empty_label = QLabel("Selecione um modulo para carregar dados.")
-    self.empty_label.setObjectName("mutedText")
+    self.empty_label.setObjectName("emptyStateText")
+    self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     self.table = QTableWidget()
     self.table.setObjectName("dataTable")
-    self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+    self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
     self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
     self.table.setAlternatingRowColors(True)
@@ -193,8 +194,7 @@ def build_dashboard_content(self) -> QScrollArea:
     record_list_layout.addWidget(self.record_count_label)
     record_list_layout.addWidget(self.module_search_input)
     record_list_layout.addWidget(self.empty_label)
-    record_list_layout.addWidget(self.table)
-    record_list_layout.addStretch(1)
+    record_list_layout.addWidget(self.table, 1)
     self.record_summary_panel = QFrame()
     self.record_summary_panel.setObjectName("recordSummaryPanel")
     record_summary_layout = QVBoxLayout(self.record_summary_panel)
@@ -261,5 +261,6 @@ def build_dashboard_content(self) -> QScrollArea:
     scroll_area.setFrameShape(QFrame.Shape.NoFrame)
     scroll_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
     scroll_area.setWidget(content)
+    self.main_scroll_area = scroll_area
 
     return scroll_area

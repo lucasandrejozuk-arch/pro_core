@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from frontend.app.core.api_errors import ApiError
+
 
 class AdminSettingsApiMixin:
     def list_technicians(self, access_token: str) -> list[dict[str, Any]]:
@@ -92,7 +94,12 @@ class AdminSettingsApiMixin:
         )
 
     def delete_sector(self, access_token: str, sector_id: str) -> None:
-        self._request("DELETE", f"sectors/{sector_id}", access_token=access_token)
+        try:
+            self._request("DELETE", f"sectors/{sector_id}", access_token=access_token)
+        except ApiError as exc:
+            if exc.status_code != 405:
+                raise
+            self._request("POST", f"sectors/{sector_id}/delete", access_token=access_token)
 
     def get_settings(self, access_token: str) -> dict[str, Any]:
         return self._request("GET", "settings", access_token=access_token)

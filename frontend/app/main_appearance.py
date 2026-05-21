@@ -51,6 +51,10 @@ class ProCoreAppearanceMixin:
             "appearance/brand_subtitle",
             str(settings.get("brand_subtitle") or ""),
         )
+        self.local_settings.setValue(
+            "appearance/language",
+            str(settings.get("language") or "pt-BR"),
+        )
         self.login_window.apply_branding(settings)
 
     def _apply_cached_login_branding(self) -> None:
