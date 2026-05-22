@@ -197,6 +197,41 @@ def test_list_customers_returns_list_payload() -> None:
     assert response == [{"name": "Cliente Teste"}]
 
 
+def test_idempotent_requests_retry_after_transient_connect_error() -> None:
+    calls = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise httpx.ConnectError("offline", request=request)
+        return httpx.Response(200, json=[{"name": "Cliente Teste"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.list_customers("token")
+
+    assert calls["count"] == 2
+    assert response == [{"name": "Cliente Teste"}]
+
+
+def test_request_rejects_invalid_json_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="<html>invalid</html>")
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(ApiError) as exc_info:
+        client.list_customers("token")
+
+    assert exc_info.value.message == "Resposta invalida do backend."
+
+
 def test_create_customer_posts_payload() -> None:
     payload = {
         "name": "Cliente Teste",

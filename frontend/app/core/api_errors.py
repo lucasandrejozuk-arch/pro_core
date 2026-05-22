@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QSettings
+
 from frontend.app.core.i18n import translate_ui_text
 
 
@@ -11,7 +13,11 @@ class ApiError(Exception):
 
     @property
     def display_message(self) -> str:
-        translated = translate_ui_text(self.message, "pt-BR")
+        language = str(
+            QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR"
+        )
+        translated = translate_ui_text(self.message, language)
         if self.status_code is None:
             return translated
-        return f"Erro {self.status_code}: {translated}"
+        status_prefix = "Error" if language == "en-US" else "Erro"
+        return f"{status_prefix} {self.status_code}: {translated}"

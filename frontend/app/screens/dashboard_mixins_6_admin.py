@@ -166,10 +166,30 @@ class DashboardAdminActionsMixin:
         allowed_resources = {
             str(item) for item in (record.get("allowed_resources") or []) if str(item)
         }
+        allowed_tool_specialties = {
+            str(item).strip().lower()
+            for item in (record.get("allowed_tool_specialties") or [])
+            if str(item).strip()
+        }
+        default_tool_specialties = {
+            str(item).strip().lower()
+            for item in (record.get("default_tool_specialties") or [])
+            if str(item).strip()
+        }
         for key, checkbox in self.resource_access_checkboxes.items():
             checkbox.blockSignals(True)
             checkbox.setChecked(key in allowed_resources)
             checkbox.setEnabled(key in default_resources)
+            checkbox.blockSignals(False)
+        tool_module_enabled = bool(
+            self.resource_access_checkboxes.get("tools")
+            and self.resource_access_checkboxes["tools"].isEnabled()
+            and self.resource_access_checkboxes["tools"].isChecked()
+        )
+        for key, checkbox in self.resource_access_tool_specialty_checkboxes.items():
+            checkbox.blockSignals(True)
+            checkbox.setChecked(key in allowed_tool_specialties)
+            checkbox.setEnabled(tool_module_enabled and key in default_tool_specialties)
             checkbox.blockSignals(False)
         self.resource_access_save_button.setEnabled(bool(self.selected_user_id))
         self.resource_access_full_summary.setPlainText(self._format_resource_access_summary(record))
@@ -187,8 +207,17 @@ class DashboardAdminActionsMixin:
             for key, checkbox in self.resource_access_checkboxes.items()
             if checkbox.isEnabled() and checkbox.isChecked()
         ]
+        allowed_tool_specialties = [
+            key
+            for key, checkbox in self.resource_access_tool_specialty_checkboxes.items()
+            if checkbox.isEnabled() and checkbox.isChecked()
+        ]
         self.set_resource_access_form_status("")
-        self.user_resource_access_update_requested.emit(self.selected_user_id, allowed_resources)
+        self.user_resource_access_update_requested.emit(
+            self.selected_user_id,
+            allowed_resources,
+            allowed_tool_specialties,
+        )
 
     def _populate_password_reset_form(self, request: dict[str, Any]) -> None:
         self.selected_password_reset_request_id = str(request["id"])
@@ -293,7 +322,7 @@ class DashboardAdminActionsMixin:
         self._select_combo_value(self.settings_theme_combo, str(settings.get("theme") or "light"))
         self._select_combo_value(
             self.settings_language_combo,
-            str(settings.get("language") or "pt-BR"),
+            str(settings.get("language") or "en-US"),
         )
         self.settings_backup_enabled_checkbox.setChecked(bool(settings.get("backup_enabled", True)))
         self.settings_backup_interval_input.setText(
@@ -371,7 +400,7 @@ class DashboardAdminActionsMixin:
                 self.settings_color_palette_combo.currentData() or DEFAULT_COLOR_PALETTE
             ),
             "theme": str(self.settings_theme_combo.currentData() or "light"),
-            "language": str(self.settings_language_combo.currentData() or "pt-BR"),
+            "language": str(self.settings_language_combo.currentData() or "en-US"),
             "backup_enabled": self.settings_backup_enabled_checkbox.isChecked(),
             "backup_interval_hours": backup_interval_hours,
             "backup_storage_path": backup_storage_path,

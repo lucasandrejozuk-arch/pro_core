@@ -32,7 +32,7 @@ class DashboardMixin3:
         widget = QWidget()
         form_panel = QFrame()
         form_panel.setObjectName("toolPanel")
-        form_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        form_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -113,7 +113,7 @@ class DashboardMixin3:
         widget = QWidget()
         panel = QFrame()
         panel.setObjectName("toolPanel")
-        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         inputs: dict[str, QLineEdit] = {}
         form = QFormLayout()
         form.setSpacing(8)
@@ -255,14 +255,40 @@ class DashboardMixin3:
         return f"Autonomia estimada: {self._format_number(autonomy)} h"
 
     def _calculate_resistor_color_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        bands = int(self._required_float(inputs["bands"].text(), "faixas"))
         digit_1 = int(self._required_float(inputs["digit_1"].text(), "digito 1"))
         digit_2 = int(self._required_float(inputs["digit_2"].text(), "digito 2"))
         multiplier = self._required_float(inputs["multiplier"].text(), "multiplicador")
+        tolerance_input = inputs.get("tolerance")
+        tolerance = self._optional_float(tolerance_input.text()) if tolerance_input else None
+        if bands not in {4, 5}:
+            raise ValueError("Faixas deve ser 4 ou 5.")
         if digit_1 < 0 or digit_1 > 9 or digit_2 < 0 or digit_2 > 9:
             raise ValueError("Digitos devem ficar entre 0 e 9.")
-        return f"Resistencia: {self._format_number(((digit_1 * 10) + digit_2) * multiplier)} ohm"
+        if bands == 4:
+            resistance = ((digit_1 * 10) + digit_2) * multiplier
+        else:
+            digit_3 = int(self._required_float(inputs["digit_3"].text(), "digito 3"))
+            if digit_3 < 0 or digit_3 > 9:
+                raise ValueError("Digito 3 deve ficar entre 0 e 9.")
+            resistance = ((digit_1 * 100) + (digit_2 * 10) + digit_3) * multiplier
+
+        tolerance_text = (
+            f" | Tolerancia: {self._format_number(tolerance)}%"
+            if tolerance is not None and tolerance > 0
+            else ""
+        )
+        return f"Resistencia: {self._format_number(resistance)} ohm{tolerance_text}"
 
     def _calculate_resistor_assoc_tool(self, inputs: dict[str, QLineEdit]) -> str:
+        association_type = inputs["association_type"].text().strip().lower()
+        if association_type not in {"serie", "paralelo"}:
+            raise ValueError("Tipo deve ser 'serie' ou 'paralelo'.")
+
+        expected_count = int(self._required_float(inputs["count"].text(), "quantidade"))
+        if expected_count < 2:
+            raise ValueError("Quantidade deve ser pelo menos 2.")
+
         values = [
             self._required_float(token, "resistor")
             for token in inputs["values"].text().replace(";", ",").split(",")
@@ -270,23 +296,43 @@ class DashboardMixin3:
         ]
         if not values or any(value <= 0 for value in values):
             raise ValueError("Informe resistores positivos separados por virgula.")
-        series = sum(values)
-        parallel = 1 / sum(1 / value for value in values)
-        return (
-            f"Serie: {self._format_number(series)} ohm | "
-            f"Paralelo: {self._format_number(parallel)} ohm"
-        )
+        if len(values) != expected_count:
+            raise ValueError("Quantidade informada deve corresponder ao total de resistores.")
+
+        if association_type == "serie":
+            result = sum(values)
+            return f"Equivalente (serie): {self._format_number(result)} ohm"
+
+        result = 1 / sum(1 / value for value in values)
+        return f"Equivalente (paralelo): {self._format_number(result)} ohm"
 
     def _calculate_awg_tool(self, inputs: dict[str, QLineEdit]) -> str:
-        awg = self._required_float(inputs["awg"].text(), "AWG")
-        if awg < -5 or awg > 50:
-            raise ValueError("AWG fora da faixa -5 a 50.")
-        diameter = 0.127 * (92 ** ((36 - awg) / 39))
-        area = (math.pi / 4) * (diameter**2)
-        return (
-            f"Area: {self._format_number(area)} mm2 | "
-            f"Diametro: {self._format_number(diameter)} mm"
-        )
+        scale = inputs["scale"].text().strip().lower()
+        value = self._required_float(inputs["value"].text(), "valor")
+
+        if scale == "awg":
+            awg = value
+            if awg < -5 or awg > 50:
+                raise ValueError("AWG fora da faixa -5 a 50.")
+            diameter = 0.127 * (92 ** ((36 - awg) / 39))
+            area = (math.pi / 4) * (diameter**2)
+            return (
+                f"Area: {self._format_number(area)} mm2 | "
+                f"Diametro: {self._format_number(diameter)} mm"
+            )
+
+        if scale == "mm2":
+            area = value
+            if area <= 0:
+                raise ValueError("Area em mm2 deve ser maior que zero.")
+            diameter = math.sqrt((4 * area) / math.pi)
+            awg = 36 - (39 * (math.log(diameter / 0.127) / math.log(92)))
+            return (
+                f"AWG aproximado: {self._format_number(awg)} | "
+                f"Diametro: {self._format_number(diameter)} mm"
+            )
+
+        raise ValueError("Escala deve ser 'awg' ou 'mm2'.")
 
     def _calculate_markup_tool(self, inputs: dict[str, QLineEdit]) -> str:
         cost = self._required_float(inputs["cost"].text(), "custo")

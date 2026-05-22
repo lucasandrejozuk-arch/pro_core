@@ -490,10 +490,15 @@ def test_admin_area_shows_role_scope_and_available_modules(qtbot) -> None:
     assert admin_window.admin_area_panel.layout().alignment() & Qt.AlignmentFlag.AlignTop
     assert admin_window.admin_area_status_label.maximumHeight() == 42
     assert admin_window.admin_area_actions_panel.objectName() == "formSubPanel"
-    assert admin_window.admin_area_actions_layout.getItemPosition(0) == (0, 0, 1, 6)
+    assert admin_window.admin_area_actions_layout.getItemPosition(0) == (0, 0, 1, 12)
     assert admin_window.admin_area_actions_layout.getItemPosition(1) == (0, 6, 1, 6)
     assert admin_window.admin_area_actions_layout.getItemPosition(2) == (1, 0, 1, 6)
     assert admin_window.admin_area_actions_layout.getItemPosition(3) == (1, 6, 1, 6)
+    admin_actions_text = [
+        admin_window.admin_area_actions_layout.itemAt(index).widget().text()
+        for index in range(admin_window.admin_area_actions_layout.count())
+    ]
+    assert "Portal do cliente (navegador)" in admin_actions_text
 
     manager_window = DashboardWindow()
     qtbot.addWidget(manager_window)
@@ -508,6 +513,11 @@ def test_admin_area_shows_role_scope_and_available_modules(qtbot) -> None:
     assert "Acessos de recursos" in manager_window.admin_area_scope_label.text()
     assert "Solicitacoes de senha" in manager_window.admin_area_scope_label.text()
     assert "Logs/Auditoria" not in manager_window.admin_area_scope_label.text()
+    manager_actions_text = [
+        manager_window.admin_area_actions_layout.itemAt(index).widget().text()
+        for index in range(manager_window.admin_area_actions_layout.count())
+    ]
+    assert "Portal do cliente (navegador)" not in manager_actions_text
 
     technician_window = DashboardWindow()
     qtbot.addWidget(technician_window)

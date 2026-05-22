@@ -1,8 +1,11 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
+import os
 import sys
+import webbrowser
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -28,6 +31,7 @@ from frontend.app.screens.splash import SplashScreen
 
 class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDataMixin):
     def __init__(self) -> None:
+        self._restart_requested = False
         self._set_windows_app_id()
         self.qt_app = QApplication(sys.argv)
         self.app_icon = build_app_icon()
@@ -163,6 +167,9 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         self.dashboard_window.ui_scale_changed.connect(self.handle_ui_scale_changed)
         self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
         self.dashboard_window.backend_restart_requested.connect(self.handle_backend_restart)
+        self.dashboard_window.customer_portal_open_requested.connect(
+            self.handle_open_customer_portal
+        )
         self.dashboard_window.audit_delete_requested.connect(self.handle_audit_log_delete)
         self._sync_backend_restart_status()
         self.backend_health_timer = QTimer()
@@ -181,11 +188,16 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
             self.api_client.close()
             self.backend_process.stop()
 
+    def request_frontend_restart(self) -> None:
+        self._restart_requested = True
+        self.qt_app.quit()
+
     def show_login(self) -> None:
         self.splash.close()
         self.password_window.hide()
         self.dashboard_window.hide()
         self._refresh_login_branding()
+        self._apply_runtime_language()
         self.login_window.clear_form()
         profile = prepare_window_for_display(
             self.login_window,
@@ -228,6 +240,7 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
 
     def show_password_change(self) -> None:
         self.password_window.clear_form()
+        self._apply_runtime_language()
         prepare_window_for_display(
             self.password_window,
             preferred_size=(700, 520),
@@ -269,6 +282,7 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         )
         profile = build_display_profile(profile.width, profile.height, self._local_ui_scale())
         self.dashboard_window.apply_display_profile(profile)
+        self._apply_runtime_language()
         self.dashboard_window.showMaximized()
         self.load_module(self.active_module)
 
@@ -290,6 +304,46 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
 
     def refresh_active_module(self) -> None:
         self.load_module(self.active_module)
+
+    def handle_open_customer_portal(self) -> None:
+        if str(self.session.user.get("role") or "") != "admin":
+            self.dashboard_window._set_footer_message(
+                "Acesso ao portal do cliente disponivel apenas para administradores.",
+                "error",
+            )
+            return
+
+        parsed = urlsplit(str(self.api_client._client.base_url))
+        if not parsed.scheme or not parsed.netloc:
+            self.dashboard_window._set_footer_message(
+                "URL base do backend invalida para abrir o portal do cliente.",
+                "error",
+            )
+            return
+        path = parsed.path.rstrip("/")
+        for suffix in ("/api/v1", "/api"):
+            if path.endswith(suffix):
+                path = path[: -len(suffix)]
+                break
+        portal_url = urlunsplit((parsed.scheme, parsed.netloc, f"{path}/customer-portal", "", ""))
+        try:
+            opened = webbrowser.open(portal_url)
+        except Exception as exc:
+            self.dashboard_window._set_footer_message(
+                f"Falha ao acionar navegador para o portal do cliente: {exc}",
+                "error",
+            )
+            return
+        if opened:
+            self.dashboard_window._set_footer_message(
+                f"Portal do cliente aberto no navegador: {portal_url}",
+                "success",
+            )
+            return
+        self.dashboard_window._set_footer_message(
+            "Nao foi possivel abrir o navegador para o portal do cliente.",
+            "error",
+        )
 
     def _sync_backend_restart_status(self) -> None:
         if self.backend_process.is_managed:
@@ -389,27 +443,37 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         try:
             if module_key == "admin_area":
                 self.dashboard_window.render_admin_area()
+                self._apply_runtime_language()
                 return
             if module_key == "dashboard":
                 self.dashboard_window.set_backend_connection_status(True)
                 self.dashboard_window.render_dashboard(
                     self._build_dashboard_summary(self.session.access_token)
                 )
+                self._apply_runtime_language()
                 return
             if module_key == "settings":
                 settings = self.api_client.get_settings(self.session.access_token)
                 self.dashboard_window.set_backend_connection_status(True)
                 self.dashboard_window.render_settings(settings)
+                self._apply_runtime_language(settings.get("language"))
                 return
             if module_key == "tools":
                 tools = self.api_client.list_tools(self.session.access_token)
+                allowed_specialties = [
+                    str(item).strip().lower()
+                    for item in (self.session.user.get("tools_specialties") or [])
+                    if str(item).strip()
+                ]
                 self.dashboard_window.set_backend_connection_status(True)
-                self.dashboard_window.render_tools(tools)
+                self.dashboard_window.render_tools(tools, allowed_specialties=allowed_specialties)
+                self._apply_runtime_language()
                 return
             if module_key == "audit_logs":
                 rows = self._load_module_rows(module_key, self.session.access_token)
                 self.dashboard_window.set_backend_connection_status(True)
                 self.dashboard_window.render_rows(title, rows, columns, module_key)
+                self._apply_runtime_language()
                 return
 
             user_sectors = (
@@ -445,10 +509,15 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
             self.dashboard_window.set_service_order_dependencies(*service_order_dependencies)
 
         self.dashboard_window.render_rows(title, rows, columns, module_key)
+        self._apply_runtime_language()
 
 
 def main() -> int:
-    return ProCoreApplication().run()
+    app = ProCoreApplication()
+    exit_code = app.run()
+    if app._restart_requested:
+        os.execl(sys.executable, sys.executable, *sys.argv)
+    return exit_code
 
 
 if __name__ == "__main__":

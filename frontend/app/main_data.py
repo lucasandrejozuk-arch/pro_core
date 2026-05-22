@@ -3,9 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 
 from frontend.app.core.api_client import ApiError
+from frontend.app.core.id_system import professional_record_id
 
 
 class ProCoreDataMixin:
+    def _decorate_rows_with_display_id(self, module_key: str, rows: list[dict]) -> list[dict]:
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            row["display_id"] = professional_record_id(module_key, row)
+        return rows
+
     def _module_allowed(self, module_key: str) -> bool:
         role = str(self.session.user.get("role") or "")
         resource_access = {
@@ -54,9 +62,15 @@ class ProCoreDataMixin:
 
     def _load_module_rows(self, module_key: str, access_token: str) -> list[dict]:
         if module_key == "customers":
-            return self.api_client.list_customers(access_token)
+            return self._decorate_rows_with_display_id(
+                module_key,
+                self.api_client.list_customers(access_token),
+            )
         if module_key == "equipment":
-            return self.api_client.list_equipment(access_token)
+            return self._decorate_rows_with_display_id(
+                module_key,
+                self.api_client.list_equipment(access_token),
+            )
         if module_key == "inventory":
             rows = self.api_client.list_inventory(access_token)
             try:
@@ -73,9 +87,12 @@ class ProCoreDataMixin:
                 item_documents = documents_by_item_id.get(str(row.get("id")), [])
                 row["documents"] = item_documents
                 row["documents_count"] = len(item_documents)
-            return rows
+            return self._decorate_rows_with_display_id(module_key, rows)
         if module_key == "users":
-            return self.api_client.list_users(access_token)
+            return self._decorate_rows_with_display_id(
+                module_key,
+                self.api_client.list_users(access_token),
+            )
         if module_key == "resource_access":
             rows = self.api_client.list_user_resource_access(access_token)
             for row in rows:
@@ -84,14 +101,31 @@ class ProCoreDataMixin:
                     row["allowed_resources_text"] = ", ".join(str(item) for item in resources)
                 else:
                     row["allowed_resources_text"] = ""
-            return rows
+                specialties = row.get("allowed_tool_specialties") if isinstance(row, dict) else []
+                if isinstance(specialties, list):
+                    row["tool_specialties_text"] = ", ".join(str(item) for item in specialties)
+                else:
+                    row["tool_specialties_text"] = ""
+            return self._decorate_rows_with_display_id(module_key, rows)
         if module_key == "password_resets":
-            return self.api_client.list_password_reset_requests(access_token)
+            return self._decorate_rows_with_display_id(
+                module_key,
+                self.api_client.list_password_reset_requests(access_token),
+            )
         if module_key == "sectors":
-            return self.api_client.list_sectors(access_token)
+            return self._decorate_rows_with_display_id(
+                module_key,
+                self.api_client.list_sectors(access_token),
+            )
         if module_key == "audit_logs":
-            return self.api_client.list_audit_logs(access_token)
-        return self.api_client.list_service_orders(access_token)
+            return self._decorate_rows_with_display_id(
+                module_key,
+                self.api_client.list_audit_logs(access_token),
+            )
+        return self._decorate_rows_with_display_id(
+            module_key,
+            self.api_client.list_service_orders(access_token),
+        )
 
     def _build_dashboard_summary(self, access_token: str) -> dict:
         alerts: list[dict[str, str]] = []
@@ -227,6 +261,7 @@ class ProCoreDataMixin:
             return (
                 "Clientes",
                 [
+                    ("ID", "display_id"),
                     ("Nome", "name"),
                     ("Email", "email"),
                     ("Telefone", "phone"),
@@ -238,6 +273,7 @@ class ProCoreDataMixin:
             return (
                 "Equipamentos",
                 [
+                    ("ID", "display_id"),
                     ("Categoria", "category"),
                     ("Marca", "brand"),
                     ("Modelo", "model"),
@@ -250,6 +286,7 @@ class ProCoreDataMixin:
             return (
                 "Estoque",
                 [
+                    ("ID", "display_id"),
                     ("Submodulo", "stock_group"),
                     ("Categoria", "category"),
                     ("SKU", "sku"),
@@ -266,6 +303,7 @@ class ProCoreDataMixin:
             return (
                 "Usuarios",
                 [
+                    ("ID", "display_id"),
                     ("Nome", "full_name"),
                     ("Email", "email"),
                     ("Perfil", "role"),
@@ -279,11 +317,13 @@ class ProCoreDataMixin:
             return (
                 "Acessos de Recursos",
                 [
+                    ("ID", "display_id"),
                     ("Nome", "full_name"),
                     ("Email", "email"),
                     ("Perfil", "role"),
                     ("Setor", "sector_name"),
                     ("Recursos liberados", "allowed_resources_text"),
+                    ("Especialidades", "tool_specialties_text"),
                 ],
             )
 
@@ -291,6 +331,7 @@ class ProCoreDataMixin:
             return (
                 "Setores",
                 [
+                    ("ID", "display_id"),
                     ("Nome", "name"),
                     ("Descricao", "description"),
                     ("Criado em", "created_at"),
@@ -301,6 +342,7 @@ class ProCoreDataMixin:
             return (
                 "Solicitacoes de Senha",
                 [
+                    ("ID", "display_id"),
                     ("Solicitante", "requester_full_name"),
                     ("Email", "requester_email"),
                     ("Perfil", "requester_role"),
@@ -313,6 +355,7 @@ class ProCoreDataMixin:
             return (
                 "Logs/Auditoria",
                 [
+                    ("ID", "display_id"),
                     ("Acao", "action"),
                     ("Entidade", "entity_type"),
                     ("Resumo", "summary"),
@@ -332,6 +375,7 @@ class ProCoreDataMixin:
         return (
             "Ordens de Serviço",
             [
+                ("ID", "display_id"),
                 ("Código", "code"),
                 ("Status", "status"),
                 ("Prioridade", "priority"),

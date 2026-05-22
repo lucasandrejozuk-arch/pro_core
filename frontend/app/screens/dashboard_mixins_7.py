@@ -39,6 +39,7 @@ class DashboardMixin7:
         ]
         lines = [
             f"Submodulo: {stock_group}",
+            f"ID Profissional: {self._format_professional_id('inventory', item)}",
             f"SKU: {self._format_value(item.get('sku')) or '-'}",
             f"Nome: {self._format_value(item.get('name')) or '-'}",
             f"Categoria: {self._format_value(item.get('category')) or '-'}",
@@ -93,6 +94,7 @@ class DashboardMixin7:
             "Sim" if self._audit_action_is_sensitive(str(record.get("action") or "")) else "Nao"
         )
         lines = [
+            f"ID Profissional: {self._format_professional_id('audit_logs', record)}",
             f"Acao: {self._format_value(record.get('action')) or '-'}",
             f"Entidade: {self._format_value(record.get('entity_type')) or '-'}",
             f"ID: {self._format_value(record.get('entity_id')) or '-'}",
@@ -105,6 +107,7 @@ class DashboardMixin7:
 
     def _format_sector_summary(self, sector: dict[str, Any]) -> str:
         lines = [
+            f"ID Profissional: {self._format_professional_id('sectors', sector)}",
             f"Nome: {self._format_value(sector.get('name')) or '-'}",
             f"Descricao: {self._format_value(sector.get('description')) or '-'}",
             f"Criado em: {self._format_value(sector.get('created_at')) or '-'}",
@@ -121,6 +124,7 @@ class DashboardMixin7:
         active = "Ativo" if user.get("is_active", True) else "Inativo"
         must_change = "Sim" if user.get("must_change_password", False) else "Nao"
         lines = [
+            f"ID Profissional: {self._format_professional_id('users', user)}",
             f"Nome: {self._format_value(user.get('full_name')) or '-'}",
             f"Email: {self._format_value(user.get('email')) or '-'}",
             f"Perfil: {self._format_value(user.get('role')) or '-'}",
@@ -133,6 +137,7 @@ class DashboardMixin7:
     def _format_password_reset_summary(self, request: dict[str, Any]) -> str:
         status = self._password_reset_status_label(request.get("status"))
         lines = [
+            f"ID Profissional: {self._format_professional_id('password_resets', request)}",
             f"Solicitante: {self._format_value(request.get('requester_full_name')) or '-'}",
             f"Email: {self._format_value(request.get('requester_email')) or '-'}",
             f"Perfil: {self._format_value(request.get('requester_role')) or '-'}",
@@ -154,12 +159,20 @@ class DashboardMixin7:
             if isinstance(default_resources, list) and default_resources
             else "Nenhum"
         )
+        tool_specialties = record.get("allowed_tool_specialties")
+        specialties = (
+            ", ".join(str(item) for item in tool_specialties)
+            if isinstance(tool_specialties, list) and tool_specialties
+            else "Nenhuma"
+        )
         lines = [
+            f"ID Profissional: {self._format_professional_id('resource_access', record)}",
             f"Nome: {self._format_value(record.get('full_name')) or '-'}",
             f"Email: {self._format_value(record.get('email')) or '-'}",
             f"Perfil: {self._format_value(record.get('role')) or '-'}",
             f"Setor: {self._format_value(record.get('sector_name')) or 'Sem setor'}",
             f"Recursos liberados: {allowed}",
+            f"Especialidades de ferramentas: {specialties}",
             f"Recursos padrao do perfil: {defaults}",
         ]
         return "\n".join(lines)

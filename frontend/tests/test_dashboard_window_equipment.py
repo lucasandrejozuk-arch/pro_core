@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QTabWidget
+import pytest
+from PySide6.QtWidgets import QApplication, QLineEdit, QMessageBox, QPushButton, QTabWidget
 
 from frontend.app.screens.dashboard import DashboardWindow, EquipmentAssetDialog
 
@@ -182,7 +183,7 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
     assert not window.tools_form_panel.isHidden()
     assert not hasattr(window, "command_stage_label")
     assert "2 ferramenta" in window.tools_status_label.text()
-    assert window.tools_availability_label.text() == "2 ferramentas liberadas"
+    assert window.tools_availability_label.text() == "2 liberadas"
     assert window.tools_specialties_label.text() == "Especialidades: Eletrica"
     assert window.tools_tabs.count() == 1
     assert window.tools_form_panel.findChildren(QTabWidget)[0] is window.tools_tabs
@@ -211,8 +212,57 @@ def test_tools_module_shows_empty_operational_state(qtbot) -> None:
     assert window.tools_tabs.tabText(0) == "Aviso"
     assert "nenhuma ferramenta" in window.tools_status_label.text().lower()
     assert window.tools_status_label.property("level") == "warning"
-    assert window.tools_availability_label.text() == "0 ferramentas liberadas"
+    assert window.tools_availability_label.text() == "0 liberadas"
     assert window.tools_specialties_label.text() == "Especialidades: nenhuma"
+
+
+def test_tools_resistor_assoc_requires_count_match(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    with pytest.raises(ValueError) as exc_info:
+        window._calculate_resistor_assoc_tool(
+            {
+                "association_type": QLineEdit("paralelo"),
+                "count": QLineEdit("3"),
+                "values": QLineEdit("10,20"),
+            }
+        )
+
+    assert "Quantidade informada" in str(exc_info.value)
+
+
+def test_tools_resistor_color_supports_5_bands_and_tolerance(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    result = window._calculate_resistor_color_tool(
+        {
+            "bands": QLineEdit("5"),
+            "digit_1": QLineEdit("1"),
+            "digit_2": QLineEdit("2"),
+            "digit_3": QLineEdit("3"),
+            "multiplier": QLineEdit("10"),
+            "tolerance": QLineEdit("1"),
+        }
+    )
+
+    assert "1230" in result
+    assert "Tolerancia: 1%" in result
+
+
+def test_tools_awg_supports_mm2_to_awg_conversion(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    result = window._calculate_awg_tool(
+        {
+            "scale": QLineEdit("mm2"),
+            "value": QLineEdit("2.5"),
+        }
+    )
+
+    assert "AWG aproximado" in result
 
 
 def test_equipment_hierarchy_uses_compact_full_width_sections(qtbot) -> None:

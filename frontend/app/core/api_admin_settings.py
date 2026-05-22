@@ -20,12 +20,16 @@ class AdminSettingsApiMixin:
         access_token: str,
         user_id: str,
         allowed_resources: list[str],
+        allowed_tool_specialties: list[str] | None = None,
     ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"allowed_resources": allowed_resources}
+        if allowed_tool_specialties is not None:
+            payload["allowed_tool_specialties"] = allowed_tool_specialties
         return self._request(
             "PUT",
             f"users/{user_id}/resource-access",
             access_token=access_token,
-            json={"allowed_resources": allowed_resources},
+            json=payload,
         )
 
     def create_user(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:

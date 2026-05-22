@@ -276,6 +276,21 @@ class DashboardAdminFormsMixin:
             self.resource_access_checkboxes[key] = checkbox
             add_widget(resources_grid, checkbox, index // 2, (index % 2) * 6, 6)
 
+        self.resource_access_tool_specialty_checkboxes = {}
+        specialties_row = QHBoxLayout()
+        specialties_row.setContentsMargins(0, 0, 0, 0)
+        specialties_row.setSpacing(12)
+        for key, label in (
+            ("eletrica", "Ferramentas eletricas"),
+            ("operacional", "Ferramentas operacionais"),
+        ):
+            checkbox = QCheckBox(label)
+            checkbox.setProperty("tool_specialty_key", key)
+            checkbox.setEnabled(False)
+            self.resource_access_tool_specialty_checkboxes[key] = checkbox
+            specialties_row.addWidget(checkbox)
+        specialties_row.addStretch(1)
+
         resources_panel = QFrame()
         resources_panel.setObjectName("formSubPanel")
         resources_panel_layout = QVBoxLayout(resources_panel)
@@ -286,6 +301,8 @@ class DashboardAdminFormsMixin:
         resources_panel_layout.addWidget(resources_title)
         resources_panel_layout.addWidget(self.resource_access_target_label)
         resources_panel_layout.addLayout(resources_grid)
+        resources_panel_layout.addWidget(QLabel("Especialidades de ferramentas"))
+        resources_panel_layout.addLayout(specialties_row)
 
         details_title = QLabel("DADOS COMPLETOS")
         details_title.setObjectName("formGroupTitle")
@@ -437,7 +454,7 @@ class DashboardAdminFormsMixin:
     def _build_admin_details_panel(title: QLabel, summary: QTextEdit) -> QFrame:
         panel = QFrame()
         panel.setObjectName("adminDetailsPanel")
-        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(6)

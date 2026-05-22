@@ -79,7 +79,18 @@ class DashboardOperationalFormsMixin:
         self.inventory_step_1_panel = step_1_panel
 
         self.inventory_sku_input = QLineEdit()
-        self.inventory_sku_input.setPlaceholderText("ID interno")
+        self.inventory_sku_input.setPlaceholderText("ID gerado automaticamente")
+        self.inventory_sku_input.setReadOnly(True)
+
+        self.inventory_generate_id_button = QPushButton("Gerar ID")
+        self.inventory_generate_id_button.setObjectName("secondaryButton")
+        self.inventory_generate_id_button.clicked.connect(self._generate_inventory_sku)
+
+        sku_row = QHBoxLayout()
+        sku_row.setContentsMargins(0, 0, 0, 0)
+        sku_row.setSpacing(8)
+        sku_row.addWidget(self.inventory_sku_input, 1)
+        sku_row.addWidget(self.inventory_generate_id_button)
 
         self.inventory_name_input = QLineEdit()
         self.inventory_name_input.setPlaceholderText("Nome descritivo do item")
@@ -106,7 +117,7 @@ class DashboardOperationalFormsMixin:
 
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
-        form_layout.addRow("ID", self.inventory_sku_input)
+        form_layout.addRow("ID", sku_row)
         form_layout.addRow("Nome", self.inventory_name_input)
         form_layout.addRow("Quantidade", self.inventory_quantity_input)
         form_layout.addRow("Minimo", self.inventory_minimum_quantity_input)

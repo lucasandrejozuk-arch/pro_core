@@ -320,6 +320,15 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QTabWidget::pane {{
             padding: 8px;
         }}
+        QTabWidget#toolsTabs::pane,
+        QTabWidget#specialtyTabs::pane {{
+            background-color: {palette["surface"]};
+            border: 1px solid {palette["line"]};
+        }}
+        QTabWidget#toolsTabs QTabBar,
+        QTabWidget#specialtyTabs QTabBar {{
+            background-color: {palette["surface"]};
+        }}
         QTabBar::tab {{
             background-color: {palette["surface_alt"]};
             color: {palette["muted"]};

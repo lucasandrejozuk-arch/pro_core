@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Qt, QTimer
+from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, QSettings, Qt, QTimer
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -42,9 +42,11 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 class DashboardMixin1:
     def _current_ui_language(self) -> str:
         settings = getattr(self, "current_settings", {})
-        language = "pt-BR"
+        language = str(
+            QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR"
+        )
         if isinstance(settings, dict):
-            language = str(settings.get("language") or "pt-BR")
+            language = str(settings.get("language") or language)
         return normalize_language(language)
 
     def _configure_sidebar_button(self, button: QPushButton, icon_name: str, tooltip: str) -> None:

@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from frontend.app.core.display import detect_display_profile
 from frontend.app.core.grid import add_widget, create_grid
+from frontend.app.core.i18n import normalize_language, translate_ui_text
 
 
 class LoginBrandPanel(QFrame):
@@ -215,13 +216,19 @@ class LoginWindow(QWidget):
 
     def set_error(self, message: str) -> None:
         self.error_label.setObjectName("errorText")
-        self.error_label.setText(message)
+        language = normalize_language(
+            str(QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR")
+        )
+        self.error_label.setText(translate_ui_text(message, language))
         self.error_label.style().unpolish(self.error_label)
         self.error_label.style().polish(self.error_label)
 
     def set_info(self, message: str) -> None:
         self.error_label.setObjectName("mutedText")
-        self.error_label.setText(message)
+        language = normalize_language(
+            str(QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR")
+        )
+        self.error_label.setText(translate_ui_text(message, language))
         self.error_label.style().unpolish(self.error_label)
         self.error_label.style().polish(self.error_label)
 

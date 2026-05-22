@@ -223,9 +223,16 @@ class FakeLoginWindow:
 
 
 class FakeRestartController:
-    def __init__(self, exc: ManagedBackendError | None = None) -> None:
+    def __init__(
+        self,
+        exc: ManagedBackendError | None = None,
+        *,
+        start_exc: ManagedBackendError | None = None,
+    ) -> None:
         self.exc = exc
+        self.start_exc = start_exc
         self.restart_calls = 0
+        self.start_calls = 0
         self.apply_migrations_values: list[bool] = []
 
     def restart(self, *, apply_migrations: bool = False) -> None:
@@ -233,6 +240,11 @@ class FakeRestartController:
         self.apply_migrations_values.append(apply_migrations)
         if self.exc is not None:
             raise self.exc
+
+    def start(self) -> None:
+        self.start_calls += 1
+        if self.start_exc is not None:
+            raise self.start_exc
 
 
 class FakeApp(AdminHandlersMixin):
@@ -388,22 +400,68 @@ def test_login_backend_reconnect_handler_unavailable_sets_error(monkeypatch) -> 
         lambda *args, **kwargs: None,
     )
     controller = FakeRestartController(
-        ManagedBackendUnavailable("Reinicio seguro indisponivel: backend externo.")
+        ManagedBackendUnavailable("Reinicio seguro indisponivel: backend externo."),
+        start_exc=ManagedBackendError("Falha ao iniciar backend local."),
     )
     app = FakeApp(role="manager", backend_process=controller, token=None)
-    app._request_backend_restart_authorization = lambda *args, **kwargs: {
-        "reason": "Backend travado"
-    }
+    app._request_backend_restart_authorization = lambda *args, **kwargs: pytest.fail(
+        "authorization should not be requested when local recovery fails"
+    )
     app.backend_health_connected = False
 
     app.handle_login_backend_reconnect()
 
     assert controller.restart_calls == 1
+    assert controller.start_calls == 1
     assert controller.apply_migrations_values == [True]
     assert app.login_window.loading == [True, False]
     assert app.login_window.info_messages == [
-        "Tentando conectar/reiniciar backend. Motivo: Backend travado."
+        "Backend indisponivel. Tentando iniciar/reiniciar servidor interno."
     ]
-    assert app.login_window.error_messages == ["Reinicio seguro indisponivel: backend externo."]
+    assert app.login_window.error_messages == ["Falha ao iniciar backend local."]
+    assert app.refreshed_backend_health is True
+    assert app.synced_backend_status is True
+
+
+def test_login_backend_reconnect_recovers_offline_backend_then_registers_notice(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "frontend.app.handlers_admin.QApplication.processEvents",
+        lambda *args, **kwargs: None,
+    )
+    controller = FakeRestartController(
+        ManagedBackendUnavailable("Reinicio seguro indisponivel: backend externo.")
+    )
+    app = FakeApp(role="manager", backend_process=controller, token=None)
+    app.backend_health_connected = False
+
+    authorization_calls: list[str] = []
+
+    def _refresh_backend_health_status() -> None:
+        app.refreshed_backend_health = True
+        app.backend_health_connected = True
+
+    app.refresh_backend_health_status = _refresh_backend_health_status
+
+    def _request_backend_restart_authorization(*args, **kwargs):
+        authorization_calls.append("called")
+        return {"reason": "Manutencao programada"}
+
+    app._request_backend_restart_authorization = _request_backend_restart_authorization
+
+    app.handle_login_backend_reconnect()
+
+    assert controller.restart_calls == 1
+    assert controller.start_calls == 1
+    assert controller.apply_migrations_values == [True]
+    assert authorization_calls == ["called"]
+    assert app.login_window.loading == [True, False]
+    assert app.login_window.info_messages == [
+        "Backend indisponivel. Tentando iniciar/reiniciar servidor interno.",
+        "Backend conectado. Validando autorizacao de reinicio.",
+        "Backend conectado e aviso global registrado. Motivo: Manutencao programada.",
+    ]
+    assert app.login_window.error_messages == []
     assert app.refreshed_backend_health is True
     assert app.synced_backend_status is True

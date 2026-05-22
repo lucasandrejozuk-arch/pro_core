@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import secrets
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -40,14 +42,37 @@ def create_inventory_item(
     payload: InventoryItemCreate,
 ) -> InventoryItem:
     payload_data = payload.model_dump()
+    sku = str(payload_data.get("sku") or "").strip().upper()
+    generated_sku = not bool(sku)
+    if generated_sku:
+        sku = _generate_inventory_sku()
+    payload_data["sku"] = sku
     technical_data = payload_data.pop("technical_data", None)
     validate_inventory_category_requirements(payload_data.get("category"), technical_data)
-    item = InventoryItem(company_id=company_id, **payload_data)
-    item.technical_data = technical_data
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
+
+    attempts = 4 if generated_sku else 1
+    for _ in range(attempts):
+        item = InventoryItem(company_id=company_id, **payload_data)
+        item.technical_data = technical_data
+        db.add(item)
+        try:
+            db.commit()
+            db.refresh(item)
+            return item
+        except IntegrityError as exc:
+            db.rollback()
+            if generated_sku:
+                payload_data["sku"] = _generate_inventory_sku()
+                continue
+            raise ValueError("SKU ja cadastrado para esta empresa.") from exc
+
+    raise ValueError("Nao foi possivel gerar SKU unico para o item.")
+
+
+def _generate_inventory_sku() -> str:
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+    suffix = secrets.token_hex(2).upper()
+    return f"INV-{stamp}-{suffix}"
 
 
 def update_inventory_item(

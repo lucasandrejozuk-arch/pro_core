@@ -134,7 +134,7 @@ class DashboardFormStateMixin:
         self._select_inventory_stock_group("components")
         self.inventory_active_stock_group = self._current_inventory_stock_group()
         self._sync_inventory_categories()
-        self.inventory_sku_input.clear()
+        self._generate_inventory_sku()
         self.inventory_name_input.clear()
         if self.inventory_category_input.count() > 0:
             self.inventory_category_input.setCurrentIndex(0)
@@ -480,6 +480,9 @@ class DashboardFormStateMixin:
         for checkbox in self.resource_access_checkboxes.values():
             checkbox.setChecked(False)
             checkbox.setEnabled(False)
+        for checkbox in self.resource_access_tool_specialty_checkboxes.values():
+            checkbox.setChecked(False)
+            checkbox.setEnabled(False)
         self.resource_access_full_summary.setPlainText("Nenhuma conta selecionada.")
         self.resource_access_form_status.setText("")
         self.resource_access_save_button.setEnabled(False)
@@ -495,6 +498,13 @@ class DashboardFormStateMixin:
         self.resource_access_save_button.setEnabled(not is_loading and has_selection)
         for checkbox in self.resource_access_checkboxes.values():
             checkbox.setEnabled(not is_loading and has_selection)
+        tool_module_enabled = bool(
+            self.resource_access_checkboxes.get("tools")
+            and self.resource_access_checkboxes["tools"].isEnabled()
+            and self.resource_access_checkboxes["tools"].isChecked()
+        )
+        for checkbox in self.resource_access_tool_specialty_checkboxes.values():
+            checkbox.setEnabled(not is_loading and has_selection and tool_module_enabled)
         self.resource_access_save_button.setText("Salvando..." if is_loading else "Salvar acessos")
 
     def _set_resource_access_operational_status(self, message: str, level: str) -> None:
@@ -720,7 +730,7 @@ class DashboardFormStateMixin:
         if self.settings_theme_combo.count() > 0:
             self.settings_theme_combo.setCurrentIndex(0)
         if self.settings_language_combo.count() > 0:
-            self._select_combo_value(self.settings_language_combo, "pt-BR")
+            self._select_combo_value(self.settings_language_combo, "en-US")
         self.settings_backup_enabled_checkbox.setChecked(True)
         self.settings_backup_interval_input.setText("24")
         self.settings_backup_path_input.setText("backups")

@@ -3,11 +3,12 @@ from __future__ import annotations
 import math
 from time import monotonic
 
-from PySide6.QtWidgets import QApplication, QInputDialog, QLineEdit
+from PySide6.QtWidgets import QApplication, QInputDialog, QLineEdit, QMessageBox
 
 from frontend.app.core.api_client import ApiError
 from frontend.app.core.backend_process import ManagedBackendError, ManagedBackendUnavailable
 from frontend.app.core.display import build_display_profile
+from frontend.app.core.i18n import normalize_language, translate_ui_text
 
 
 class AdminHandlersMixin:
@@ -20,6 +21,38 @@ class AdminHandlersMixin:
 
     def _start_backend_restart_cooldown(self) -> None:
         self.backend_restart_cooldown_until = monotonic() + 3.0
+
+    def _recover_login_backend_connection(self) -> bool:
+        self.login_window.set_info(
+            "Backend indisponivel. Tentando iniciar/reiniciar servidor interno."
+        )
+        QApplication.processEvents()
+        try:
+            self.backend_process.restart(apply_migrations=True)
+        except ManagedBackendUnavailable:
+            try:
+                self.backend_process.start()
+            except ManagedBackendError as exc:
+                self.refresh_backend_health_status()
+                self._sync_backend_restart_status()
+                self.login_window.set_error(str(exc))
+                return False
+        except ManagedBackendError as exc:
+            self.refresh_backend_health_status()
+            self._sync_backend_restart_status()
+            self.login_window.set_error(str(exc))
+            return False
+
+        self.refresh_backend_health_status()
+        self._sync_backend_restart_status()
+        if self.backend_health_connected:
+            self.login_window.set_info("Backend conectado. Validando autorizacao de reinicio.")
+            return True
+
+        self.login_window.set_error(
+            "Nao foi possivel reconectar ao backend apos tentativa de inicializacao."
+        )
+        return False
 
     def _request_backend_restart_authorization(
         self,
@@ -118,45 +151,55 @@ class AdminHandlersMixin:
 
     def handle_login_backend_reconnect(self) -> None:
         operator_email = self.login_window.email_input.text().strip().lower()
-        authorization = self._request_backend_restart_authorization(
-            operator_email,
-            parent=self.login_window,
-            show_status=self.login_window.set_error,
-        )
-        if authorization is None:
-            return
-
         self.login_window.set_backend_reconnect_loading(True)
-        reason = str(authorization.get("reason") or "Reinicio solicitado")
-        self.login_window.set_info(f"Tentando conectar/reiniciar backend. Motivo: {reason}.")
-        QApplication.processEvents()
+        was_connected = bool(self.backend_health_connected)
         try:
-            self.backend_process.restart(apply_migrations=True)
-        except ManagedBackendUnavailable as exc:
+            if not was_connected and not self._recover_login_backend_connection():
+                return
+
+            authorization = self._request_backend_restart_authorization(
+                operator_email,
+                parent=self.login_window,
+                show_status=self.login_window.set_error,
+            )
+            if authorization is None:
+                return
+
+            reason = str(authorization.get("reason") or "Reinicio solicitado")
+            if not was_connected:
+                self.login_window.set_info(
+                    f"Backend conectado e aviso global registrado. Motivo: {reason}."
+                )
+                return
+
+            self.login_window.set_info(f"Tentando conectar/reiniciar backend. Motivo: {reason}.")
+            QApplication.processEvents()
+            try:
+                self.backend_process.restart(apply_migrations=True)
+            except ManagedBackendUnavailable as exc:
+                self.refresh_backend_health_status()
+                self._sync_backend_restart_status()
+                if self.backend_health_connected:
+                    self.login_window.set_info("Backend conectado.")
+                else:
+                    self.login_window.set_error(str(exc))
+                return
+            except ManagedBackendError as exc:
+                self.refresh_backend_health_status()
+                self._sync_backend_restart_status()
+                self.login_window.set_error(str(exc))
+                return
+
             self.refresh_backend_health_status()
             self._sync_backend_restart_status()
             if self.backend_health_connected:
-                self.login_window.set_info("Backend conectado.")
+                self.login_window.set_info("Backend conectado e reiniciado com sucesso.")
             else:
-                self.login_window.set_error(str(exc))
+                self.login_window.set_error(
+                    "Reinicio concluido, mas o backend ainda nao respondeu. Tente novamente em instantes."
+                )
+        finally:
             self.login_window.set_backend_reconnect_loading(False)
-            return
-        except ManagedBackendError as exc:
-            self.refresh_backend_health_status()
-            self._sync_backend_restart_status()
-            self.login_window.set_error(str(exc))
-            self.login_window.set_backend_reconnect_loading(False)
-            return
-
-        self.refresh_backend_health_status()
-        self._sync_backend_restart_status()
-        if self.backend_health_connected:
-            self.login_window.set_info("Backend conectado e reiniciado com sucesso.")
-        else:
-            self.login_window.set_error(
-                "Reinicio concluido, mas o backend ainda nao respondeu. Tente novamente em instantes."
-            )
-        self.login_window.set_backend_reconnect_loading(False)
 
     def handle_user_create(self, payload: dict) -> None:
         if not self.session.access_token:
@@ -214,7 +257,10 @@ class AdminHandlersMixin:
         self.load_module("users")
 
     def handle_user_resource_access_update(
-        self, user_id: str, allowed_resources: list[str]
+        self,
+        user_id: str,
+        allowed_resources: list[str],
+        allowed_tool_specialties: list[str],
     ) -> None:
         if not self.session.access_token:
             self.show_login()
@@ -226,6 +272,7 @@ class AdminHandlersMixin:
                 self.session.access_token,
                 user_id,
                 allowed_resources,
+                allowed_tool_specialties,
             )
         except ApiError as exc:
             self.dashboard_window.set_resource_access_form_loading(False)
@@ -313,6 +360,9 @@ class AdminHandlersMixin:
             self.show_login()
             return
 
+        previous_language = normalize_language(
+            str(self.local_settings.value("appearance/language", "pt-BR") or "pt-BR")
+        )
         self.dashboard_window.set_settings_form_loading(True)
         try:
             settings = self.api_client.update_settings(self.session.access_token, payload)
@@ -326,6 +376,36 @@ class AdminHandlersMixin:
         self._apply_local_theme()
         self.dashboard_window.render_settings(settings)
         self.dashboard_window.set_settings_form_status("Configuracoes salvas.")
+        self._apply_runtime_language(settings.get("language"))
+
+        selected_language = normalize_language(str(settings.get("language") or previous_language))
+        if selected_language == previous_language:
+            return
+
+        if self._confirm_frontend_restart_for_language(selected_language):
+            self.request_frontend_restart()
+
+    def _confirm_frontend_restart_for_language(self, language: str) -> bool:
+        title = translate_ui_text("Reinicio do sistema", language)
+        message = translate_ui_text(
+            "Idioma alterado. Para garantir 100% de cobertura da traducao em toda a interface, reinicie o frontend agora.",
+            language,
+        )
+        yes_label = translate_ui_text("Reiniciar agora", language)
+        no_label = translate_ui_text("Reiniciar depois", language)
+        answer = QMessageBox.question(
+            self.dashboard_window,
+            title,
+            message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        # Keep localized feedback in footer for both decisions.
+        if answer == QMessageBox.StandardButton.Yes:
+            self.dashboard_window._set_footer_message(yes_label, "warning")
+            return True
+        self.dashboard_window._set_footer_message(no_label, "info")
+        return False
 
     def handle_ui_scale_changed(self, scale: float) -> None:
         self.local_settings.setValue("appearance/ui_scale", str(scale))

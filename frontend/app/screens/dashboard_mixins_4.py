@@ -66,6 +66,10 @@ class DashboardMixin4:
 
         self.settings_language_combo = QComboBox()
         self.settings_language_combo.addItem("Portugues brasileiro", "pt-BR")
+        self.settings_language_combo.addItem("English (United States)", "en-US")
+        default_language_index = self.settings_language_combo.findData("en-US")
+        if default_language_index >= 0:
+            self.settings_language_combo.setCurrentIndex(default_language_index)
 
         self.settings_ui_scale_label = QLabel("100%")
         self.settings_ui_scale_label.setObjectName("mutedText")
@@ -141,8 +145,8 @@ class DashboardMixin4:
         interface_title = QLabel("INTERFACE")
         interface_title.setObjectName("formGroupTitle")
         interface_hint = QLabel(
-            "Aparencia, escala e idioma local. Ingles fica indisponivel ate a "
-            "camada completa de traducao ser ativada."
+            "Aparencia, escala e idioma local. A troca de idioma aplica os textos "
+            "dinamicos e mensagens operacionais do sistema."
         )
         interface_hint.setObjectName("mutedText")
         interface_hint.setWordWrap(True)
@@ -338,6 +342,15 @@ class DashboardMixin4:
             f"{role_name}: {len(allowed_modules)} modulo(s) administrativo(s) liberado(s).",
             "info",
         )
+        start_index = 0
+        if self.current_user_role == "admin":
+            portal_button = QPushButton("Portal do cliente (navegador)")
+            portal_button.setObjectName("adminMenuButton")
+            portal_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            portal_button.clicked.connect(self.customer_portal_open_requested.emit)
+            self.admin_area_actions_layout.addWidget(portal_button, 0, 0, 1, GRID_COLUMNS)
+            start_index = 1
+
         for index, module_key in enumerate(allowed_modules):
             button = QPushButton(self.module_labels[module_key])
             button.setObjectName("adminMenuButton")
@@ -345,8 +358,9 @@ class DashboardMixin4:
             button.clicked.connect(
                 lambda checked=False, key=module_key: self.module_selected.emit(key)
             )
-            row = index // 2
-            column = (index % 2) * 6
+            absolute_index = index + start_index
+            row = absolute_index // 2
+            column = (absolute_index % 2) * 6
             self.admin_area_actions_layout.addWidget(button, row, column, 1, 6)
 
     def _set_admin_area_status(self, message: str, level: str) -> None:

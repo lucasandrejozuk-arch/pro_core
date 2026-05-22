@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 
+from frontend.app.core.id_system import generate_entity_code
 from frontend.app.core.inventory_catalog import (
     categories_for_group,
     required_field_keys_for_category,
@@ -25,11 +26,23 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 
 
 class DashboardMixin6:
+    def _generate_inventory_sku(self) -> None:
+        if self.selected_inventory_item_id:
+            return
+        prefix_by_group = {
+            "components": "CMP",
+            "tools": "TLS",
+            "software": "SFT",
+        }
+        group_prefix = prefix_by_group.get(self._current_inventory_stock_group(), "INV")
+        self.inventory_sku_input.setText(generate_entity_code(group_prefix))
+
     def _initialize_inventory_wizard(self) -> None:
         self.inventory_wizard_step = 0
         self.inventory_active_stock_group = "components"
         self.selected_inventory_document_path = None
         self._sync_inventory_categories()
+        self._generate_inventory_sku()
         self._set_inventory_wizard_step(0)
 
     def _set_inventory_wizard_step(self, step_index: int) -> None:
@@ -85,6 +98,8 @@ class DashboardMixin6:
     def _handle_inventory_stock_group_changed(self, _index: int) -> None:
         self.inventory_active_stock_group = self._current_inventory_stock_group()
         self._sync_inventory_categories()
+        if not self.selected_inventory_item_id:
+            self._generate_inventory_sku()
         if self.active_module_key == "inventory":
             self._populate_current_table(self._filtered_rows())
 
@@ -232,6 +247,9 @@ class DashboardMixin6:
         unit_cost = self._decimal_text(self.inventory_unit_cost_input, "Custo unitario")
         if quantity is None or minimum_quantity is None or unit_cost is None:
             return
+
+        if not self.selected_inventory_item_id and not self.inventory_sku_input.text().strip():
+            self._generate_inventory_sku()
 
         payload = {
             "sku": self._optional_text(self.inventory_sku_input),
