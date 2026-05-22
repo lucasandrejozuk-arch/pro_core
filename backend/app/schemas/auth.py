@@ -32,6 +32,7 @@ class TokenUser(BaseModel):
     must_change_password: bool
     permissions: list[str] = []
     resource_access: list[str] = []
+    tools_specialties: list[str] = []
 
 
 class TokenResponse(BaseModel):

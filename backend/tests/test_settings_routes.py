@@ -30,6 +30,8 @@ def test_admin_can_read_and_update_system_settings(
     assert settings["color_palette"] == "blue"
     assert settings["primary_color"] == "#25636f"
     assert settings["language"] == "pt-BR"
+    assert settings["login_cover_preset"] == "original"
+    assert settings["login_cover_image_data_url"] is None
     assert settings["backup_interval_hours"] == 24
     assert settings["backup_storage_path"] == "backups"
 
@@ -47,6 +49,7 @@ def test_admin_can_read_and_update_system_settings(
             "color_palette": "amber",
             "theme": "dark",
             "language": "en-US",
+            "login_cover_preset": "precision_grid",
             "backup_enabled": False,
             "backup_interval_hours": 12,
             "backup_storage_path": "D:/pro-core/backups",
@@ -61,6 +64,8 @@ def test_admin_can_read_and_update_system_settings(
     assert updated_settings["primary_color"] == "#f2b84b"
     assert updated_settings["theme"] == "dark"
     assert updated_settings["language"] == "en-US"
+    assert updated_settings["login_cover_preset"] == "precision_grid"
+    assert updated_settings["login_cover_image_data_url"] is None
     assert updated_settings["backup_enabled"] is False
     assert updated_settings["backup_interval_hours"] == 12
     assert updated_settings["backup_storage_path"] == "D:/pro-core/backups"
@@ -97,6 +102,8 @@ def test_authenticated_users_can_read_appearance_settings(
     assert body["color_palette"] == "blue"
     assert body["primary_color"] == "#25636f"
     assert body["language"] == "pt-BR"
+    assert body["login_cover_preset"] == "original"
+    assert body["login_cover_image_data_url"] is None
 
 
 def test_login_appearance_is_public_and_uses_admin_branding(
@@ -117,6 +124,49 @@ def test_login_appearance_is_public_and_uses_admin_branding(
     assert body["color_palette"] == "blue"
     assert body["theme"] == "light"
     assert body["language"] == "pt-BR"
+    assert body["login_cover_preset"] == "original"
+    assert body["login_cover_image_data_url"] is None
+
+
+def test_admin_can_store_custom_login_cover(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    image_data_url = (
+        "data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhg"
+        "GAWjR9awAAAABJRU5ErkJggg=="
+    )
+
+    response = client.patch(
+        "/api/v1/settings",
+        headers=auth_headers,
+        json={
+            "login_cover_preset": "custom",
+            "login_cover_image_data_url": image_data_url,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["login_cover_preset"] == "custom"
+    assert body["login_cover_image_data_url"] == image_data_url
+
+
+def test_settings_reject_invalid_login_cover_payload(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.patch(
+        "/api/v1/settings",
+        headers=auth_headers,
+        json={
+            "login_cover_preset": "custom",
+            "login_cover_image_data_url": "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_settings_reject_invalid_color_palette(

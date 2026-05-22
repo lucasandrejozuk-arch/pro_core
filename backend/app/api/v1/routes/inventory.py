@@ -40,7 +40,16 @@ def create_inventory_record(
     current_user: User = Depends(inventory_user),
     db: Session = Depends(get_db),
 ) -> InventoryItemResponse:
-    return create_inventory_item(db, current_user.company_id, payload)
+    try:
+        return create_inventory_item(db, current_user.company_id, payload)
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_409_CONFLICT
+            if "SKU" in detail or "unico" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
 
 @router.get("/{item_id}", response_model=InventoryItemResponse)

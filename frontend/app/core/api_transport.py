@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import httpx
@@ -47,14 +48,7 @@ class ApiTransportMixin:
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
 
-        try:
-            response = self._client.request(method, path, headers=headers, **kwargs)
-        except httpx.ConnectError as exc:
-            raise ApiError("Nao foi possivel conectar ao backend.") from exc
-        except httpx.TimeoutException as exc:
-            raise ApiError("Tempo limite excedido ao conectar ao backend.") from exc
-        except httpx.HTTPError as exc:
-            raise ApiError(f"Falha de comunicacao com o backend: {exc}") from exc
+        response = self._request_with_redundancy(method, path, headers=headers, **kwargs)
 
         if response.is_error:
             raise ApiError(self._extract_error_message(response), response.status_code)
@@ -62,7 +56,10 @@ class ApiTransportMixin:
         if response.status_code == 204 or not response.content:
             return None
 
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ApiError("Resposta invalida do backend.", response.status_code) from exc
 
     def _download(
         self,
@@ -75,19 +72,47 @@ class ApiTransportMixin:
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
 
-        try:
-            response = self._client.request(method, path, headers=headers, **kwargs)
-        except httpx.ConnectError as exc:
-            raise ApiError("Nao foi possivel conectar ao backend.") from exc
-        except httpx.TimeoutException as exc:
-            raise ApiError("Tempo limite excedido ao conectar ao backend.") from exc
-        except httpx.HTTPError as exc:
-            raise ApiError(f"Falha de comunicacao com o backend: {exc}") from exc
+        response = self._request_with_redundancy(method, path, headers=headers, **kwargs)
 
         if response.is_error:
             raise ApiError(self._extract_error_message(response), response.status_code)
 
         return response.content
+
+    def _request_with_redundancy(
+        self,
+        method: str,
+        path: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        normalized_method = str(method or "GET").upper()
+        retries = 2 if normalized_method in {"GET", "HEAD", "OPTIONS", "DELETE"} else 0
+        attempt = 0
+
+        while True:
+            try:
+                response = self._client.request(normalized_method, path, **kwargs)
+            except httpx.ConnectError as exc:
+                if attempt < retries:
+                    attempt += 1
+                    time.sleep(0.12 * attempt)
+                    continue
+                raise ApiError("Nao foi possivel conectar ao backend.") from exc
+            except httpx.TimeoutException as exc:
+                if attempt < retries:
+                    attempt += 1
+                    time.sleep(0.12 * attempt)
+                    continue
+                raise ApiError("Tempo limite excedido ao conectar ao backend.") from exc
+            except httpx.RequestError as exc:
+                raise ApiError(f"Falha de comunicacao com o backend: {exc}") from exc
+
+            if response.status_code >= 500 and attempt < retries:
+                attempt += 1
+                time.sleep(0.12 * attempt)
+                continue
+
+            return response
 
     @staticmethod
     def _extract_error_message(response: httpx.Response) -> str:
@@ -162,7 +187,7 @@ def _looks_internal(message: str) -> bool:
         "starlette",
         "fastapi",
         "exception",
-        "file \"",
+        'file "',
         "c:\\",
     )
     return any(marker in lowered for marker in internal_markers)

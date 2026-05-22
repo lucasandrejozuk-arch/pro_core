@@ -104,13 +104,14 @@ class DashboardWindow(
     user_update_requested = Signal(str, dict)
     user_delete_requested = Signal(str)
     user_password_reset_requested = Signal(str, str)
-    user_resource_access_update_requested = Signal(str, list)
+    user_resource_access_update_requested = Signal(str, list, list)
     password_reset_resolve_requested = Signal(str, str)
     password_reset_cancel_requested = Signal(str)
     settings_update_requested = Signal(dict)
     ui_scale_changed = Signal(float)
     backup_run_requested = Signal()
     backend_restart_requested = Signal()
+    customer_portal_open_requested = Signal()
     audit_delete_requested = Signal(str)
 
     def __init__(self) -> None:

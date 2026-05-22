@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from frontend.app.core.api_client import ApiError
+from frontend.app.core.i18n import apply_language_to_widgets, normalize_language
 from frontend.app.themes.styles import DEFAULT_COLOR_PALETTE, apply_theme, build_theme_palette
 
 
@@ -17,6 +18,7 @@ class ProCoreAppearanceMixin:
         self._remember_appearance(settings)
         self._apply_local_theme()
         self.dashboard_window.apply_branding(settings)
+        self._apply_runtime_language(settings.get("language"))
 
     def _apply_local_theme(self) -> None:
         theme = str(self.local_settings.value("appearance/theme", "light") or "light")
@@ -54,14 +56,16 @@ class ProCoreAppearanceMixin:
             "appearance/language",
             str(settings.get("language") or "pt-BR"),
         )
-        self.login_window.apply_branding(settings)
+        self.login_window.apply_branding(settings, backend_connected=True)
+        self._apply_runtime_language(settings.get("language"))
 
     def _apply_cached_login_branding(self) -> None:
         self.login_window.apply_branding(
             {
                 "brand_name": self.local_settings.value("appearance/brand_name", ""),
                 "brand_subtitle": self.local_settings.value("appearance/brand_subtitle", ""),
-            }
+            },
+            backend_connected=False,
         )
 
     def _refresh_login_branding(self) -> None:
@@ -74,6 +78,18 @@ class ProCoreAppearanceMixin:
 
         self.login_window.set_backend_connection_status(True)
         self._remember_appearance(settings)
+
+    def _apply_runtime_language(self, language: str | None = None) -> None:
+        active_language = normalize_language(
+            str(language or self.local_settings.value("appearance/language", "pt-BR") or "pt-BR")
+        )
+        apply_language_to_widgets(
+            active_language,
+            getattr(self, "splash", None),
+            getattr(self, "login_window", None),
+            getattr(self, "password_window", None),
+            getattr(self, "dashboard_window", None),
+        )
 
     def _local_ui_scale(self) -> float:
         try:

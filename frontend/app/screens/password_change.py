@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QSettings, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from frontend.app.core.display import detect_display_profile
 from frontend.app.core.grid import add_widget, create_grid
+from frontend.app.core.i18n import normalize_language, translate_ui_text
 
 
 class PasswordChangeWindow(QWidget):
@@ -74,7 +75,10 @@ class PasswordChangeWindow(QWidget):
         self.submit_button.setText("Salvando..." if is_loading else "Salvar senha")
 
     def set_error(self, message: str) -> None:
-        self.error_label.setText(message)
+        language = normalize_language(
+            str(QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR")
+        )
+        self.error_label.setText(translate_ui_text(message, language))
 
     def clear_form(self) -> None:
         self.current_password_input.clear()

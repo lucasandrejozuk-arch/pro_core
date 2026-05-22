@@ -1,179 +1,16 @@
 from __future__ import annotations
 
-import subprocess
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from frontend.app.core.backend_process import (
     ManagedBackendError,
-    ManagedBackendProcess,
     ManagedBackendUnavailable,
 )
 from frontend.app.handlers_admin import AdminHandlersMixin
+from frontend.app.main_runtime import ProCoreMainRuntimeMixin
 from frontend.app.screens.dashboard import DashboardWindow
-
-
-class FakeProcess:
-    def __init__(self, *, running: bool = True, timeout_on_wait: bool = False) -> None:
-        self.running = running
-        self.timeout_on_wait = timeout_on_wait
-        self.terminated = False
-        self.killed = False
-        self.wait_timeouts: list[float | None] = []
-
-    def poll(self) -> int | None:
-        return None if self.running else 0
-
-    def terminate(self) -> None:
-        self.terminated = True
-
-    def kill(self) -> None:
-        self.killed = True
-        self.running = False
-
-    def wait(self, timeout: float | None = None) -> int:
-        self.wait_timeouts.append(timeout)
-        if self.timeout_on_wait and not self.killed:
-            raise subprocess.TimeoutExpired("uvicorn", timeout)
-        self.running = False
-        return 0
-
-
-class RecordingProcessFactory:
-    def __init__(self, *processes: FakeProcess) -> None:
-        self.processes = list(processes)
-        self.calls: list[tuple[list[str], dict[str, object]]] = []
-
-    def __call__(self, command: list[str], **kwargs: object) -> FakeProcess:
-        self.calls.append((command, kwargs))
-        return self.processes.pop(0)
-
-
-class RecordingCommandRunner:
-    def __init__(self, returncode: int = 0, stderr: str = "") -> None:
-        self.returncode = returncode
-        self.stderr = stderr
-        self.calls: list[tuple[list[str], dict[str, object]]] = []
-
-    def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        self.calls.append((command, kwargs))
-        return subprocess.CompletedProcess(command, self.returncode, "", self.stderr)
-
-
-def test_managed_backend_restart_refuses_unowned_process(tmp_path: Path) -> None:
-    factory = RecordingProcessFactory(FakeProcess())
-    controller = ManagedBackendProcess(tmp_path, process_factory=factory)
-
-    with pytest.raises(ManagedBackendUnavailable) as exc_info:
-        controller.restart()
-
-    assert "nao foi iniciado pelo app" in str(exc_info.value)
-    assert factory.calls == []
-
-
-def test_managed_backend_restart_terminates_only_owned_process(tmp_path: Path) -> None:
-    owned_process = FakeProcess()
-    replacement_process = FakeProcess()
-    factory = RecordingProcessFactory(owned_process, replacement_process)
-    controller = ManagedBackendProcess(
-        tmp_path,
-        python_executable="python-test",
-        port=8123,
-        terminate_timeout_seconds=3,
-        process_factory=factory,
-    )
-
-    controller.start()
-    controller.restart()
-
-    assert owned_process.terminated is True
-    assert owned_process.killed is False
-    assert owned_process.wait_timeouts == [3]
-    assert controller.is_running is True
-    assert len(factory.calls) == 2
-    restart_command, restart_kwargs = factory.calls[1]
-    assert restart_command == [
-        "python-test",
-        "-m",
-        "uvicorn",
-        "backend.app.main:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8123",
-    ]
-    assert restart_kwargs["cwd"] == str(tmp_path)
-
-
-def test_managed_backend_restart_kills_only_owned_process_after_timeout(tmp_path: Path) -> None:
-    stuck_process = FakeProcess(timeout_on_wait=True)
-    replacement_process = FakeProcess()
-    factory = RecordingProcessFactory(stuck_process, replacement_process)
-    controller = ManagedBackendProcess(
-        tmp_path,
-        terminate_timeout_seconds=1,
-        process_factory=factory,
-    )
-
-    controller.start()
-    controller.restart()
-
-    assert stuck_process.terminated is True
-    assert stuck_process.killed is True
-    assert stuck_process.wait_timeouts == [1, 1]
-    assert len(factory.calls) == 2
-
-
-def test_managed_backend_restart_applies_migrations_before_start(tmp_path: Path) -> None:
-    owned_process = FakeProcess()
-    replacement_process = FakeProcess()
-    factory = RecordingProcessFactory(owned_process, replacement_process)
-    runner = RecordingCommandRunner()
-    controller = ManagedBackendProcess(
-        tmp_path,
-        python_executable="python-test",
-        process_factory=factory,
-        command_runner=runner,
-    )
-
-    controller.start()
-    controller.restart(apply_migrations=True)
-
-    assert owned_process.terminated is True
-    assert len(runner.calls) == 1
-    migration_command, migration_kwargs = runner.calls[0]
-    assert migration_command == ["python-test", "-m", "alembic", "upgrade", "head"]
-    assert migration_kwargs["cwd"] == str(tmp_path)
-    assert factory.calls[1][0][2] == "uvicorn"
-    assert controller.is_running is True
-
-
-def test_managed_backend_restart_attempts_to_restore_backend_when_migration_fails(
-    tmp_path: Path,
-) -> None:
-    owned_process = FakeProcess()
-    restored_process = FakeProcess()
-    factory = RecordingProcessFactory(owned_process, restored_process)
-    runner = RecordingCommandRunner(returncode=1, stderr="migration failed")
-    controller = ManagedBackendProcess(
-        tmp_path,
-        process_factory=factory,
-        command_runner=runner,
-    )
-
-    controller.start()
-
-    with pytest.raises(ManagedBackendError) as exc_info:
-        controller.restart(apply_migrations=True)
-
-    assert "Falha ao aplicar migrations" in str(exc_info.value)
-    assert "migration failed" in str(exc_info.value)
-    assert owned_process.terminated is True
-    assert len(runner.calls) == 1
-    assert len(factory.calls) == 2
-    assert controller.is_running is True
 
 
 class FakeDashboard:
@@ -211,6 +48,7 @@ class FakeLoginWindow:
         self.info_messages: list[str] = []
         self.error_messages: list[str] = []
         self.email_input = SimpleNamespace(text=lambda: "tech@example.com")
+        self.visible = False
 
     def set_backend_reconnect_loading(self, is_loading: bool) -> None:
         self.loading.append(is_loading)
@@ -221,11 +59,21 @@ class FakeLoginWindow:
     def set_error(self, message: str) -> None:
         self.error_messages.append(message)
 
+    def isVisible(self) -> bool:
+        return self.visible
+
 
 class FakeRestartController:
-    def __init__(self, exc: ManagedBackendError | None = None) -> None:
+    def __init__(
+        self,
+        exc: ManagedBackendError | None = None,
+        *,
+        start_exc: ManagedBackendError | None = None,
+    ) -> None:
         self.exc = exc
+        self.start_exc = start_exc
         self.restart_calls = 0
+        self.start_calls = 0
         self.apply_migrations_values: list[bool] = []
 
     def restart(self, *, apply_migrations: bool = False) -> None:
@@ -233,6 +81,11 @@ class FakeRestartController:
         self.apply_migrations_values.append(apply_migrations)
         if self.exc is not None:
             raise self.exc
+
+    def start(self) -> None:
+        self.start_calls += 1
+        if self.start_exc is not None:
+            raise self.start_exc
 
 
 class FakeApp(AdminHandlersMixin):
@@ -262,6 +115,17 @@ class FakeApp(AdminHandlersMixin):
 
     def refresh_backend_health_status(self) -> None:
         self.refreshed_backend_health = True
+
+
+class FakeRuntimeApp(ProCoreMainRuntimeMixin):
+    def __init__(self, *, token: str | None = "token", response: dict | None = None) -> None:
+        self.session = SimpleNamespace(access_token=token)
+        self.api_client = SimpleNamespace(
+            poll_backend_restart_notice=lambda access_token, last_notice_id=None: response or {}
+        )
+        self._last_backend_restart_notice_id = ""
+        self.dashboard_window = SimpleNamespace(isVisible=lambda: False)
+        self.login_window = SimpleNamespace()
 
 
 def test_backend_restart_handler_blocks_non_admin_profiles() -> None:
@@ -388,22 +252,81 @@ def test_login_backend_reconnect_handler_unavailable_sets_error(monkeypatch) -> 
         lambda *args, **kwargs: None,
     )
     controller = FakeRestartController(
-        ManagedBackendUnavailable("Reinicio seguro indisponivel: backend externo.")
+        ManagedBackendUnavailable("Reinicio seguro indisponivel: backend externo."),
+        start_exc=ManagedBackendError("Falha ao iniciar backend local."),
     )
     app = FakeApp(role="manager", backend_process=controller, token=None)
-    app._request_backend_restart_authorization = lambda *args, **kwargs: {
-        "reason": "Backend travado"
-    }
+    app._request_backend_restart_authorization = lambda *args, **kwargs: pytest.fail(
+        "authorization should not be requested when local recovery fails"
+    )
     app.backend_health_connected = False
 
     app.handle_login_backend_reconnect()
 
     assert controller.restart_calls == 1
+    assert controller.start_calls == 1
     assert controller.apply_migrations_values == [True]
     assert app.login_window.loading == [True, False]
     assert app.login_window.info_messages == [
-        "Tentando conectar/reiniciar backend. Motivo: Backend travado."
+        "Backend indisponivel. Tentando iniciar/reiniciar servidor interno."
     ]
-    assert app.login_window.error_messages == ["Reinicio seguro indisponivel: backend externo."]
+    assert app.login_window.error_messages == ["Falha ao iniciar backend local."]
     assert app.refreshed_backend_health is True
     assert app.synced_backend_status is True
+
+
+def test_login_backend_reconnect_recovers_offline_backend_then_registers_notice(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "frontend.app.handlers_admin.QApplication.processEvents",
+        lambda *args, **kwargs: None,
+    )
+    controller = FakeRestartController(
+        ManagedBackendUnavailable("Reinicio seguro indisponivel: backend externo.")
+    )
+    app = FakeApp(role="manager", backend_process=controller, token=None)
+    app.backend_health_connected = False
+
+    authorization_calls: list[str] = []
+
+    def _refresh_backend_health_status() -> None:
+        app.refreshed_backend_health = True
+        app.backend_health_connected = True
+
+    app.refresh_backend_health_status = _refresh_backend_health_status
+
+    def _request_backend_restart_authorization(*args, **kwargs):
+        authorization_calls.append("called")
+        return {"reason": "Manutencao programada"}
+
+    app._request_backend_restart_authorization = _request_backend_restart_authorization
+
+    app.handle_login_backend_reconnect()
+
+    assert controller.restart_calls == 1
+    assert controller.start_calls == 1
+    assert controller.apply_migrations_values == [True]
+    assert authorization_calls == ["called"]
+    assert app.login_window.loading == [True, False]
+    assert app.login_window.info_messages == [
+        "Backend indisponivel. Tentando iniciar/reiniciar servidor interno.",
+        "Backend conectado. Validando autorizacao de reinicio.",
+        "Backend conectado e aviso global registrado. Motivo: Manutencao programada.",
+    ]
+    assert app.login_window.error_messages == []
+    assert app.refreshed_backend_health is True
+    assert app.synced_backend_status is True
+
+
+def test_prime_backend_restart_notice_cursor_skips_historical_notice() -> None:
+    app = FakeRuntimeApp(
+        response={
+            "has_notice": True,
+            "notice": {"id": "notice-42", "reason": "Manutencao programada"},
+        }
+    )
+
+    app._prime_backend_restart_notice_cursor()
+
+    assert app._last_backend_restart_notice_id == "notice-42"

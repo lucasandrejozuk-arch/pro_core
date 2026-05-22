@@ -218,6 +218,7 @@ def update_user_resource_access_record(
             current_user,
             user_id,
             payload.allowed_resources,
+            payload.allowed_tool_specialties,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc

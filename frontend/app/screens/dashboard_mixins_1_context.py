@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from frontend.app.core.i18n import apply_language_to_widgets
 from frontend.app.screens.dashboard_modules import MODULE_BY_KEY
 
 
@@ -250,6 +251,7 @@ class DashboardContextMenuMixin:
         layout.addStretch()
         layout.addWidget(close_button)
 
+        apply_language_to_widgets(self._current_ui_language(), dialog)
         dialog.exec()
 
     def _select_admin_module(self, dialog: QDialog, module_key: str) -> None:

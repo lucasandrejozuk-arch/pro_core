@@ -22,6 +22,37 @@ def test_login_window_applies_branding(qtbot) -> None:
     assert window.windowTitle() == "Pro Assist"
 
 
+def test_login_window_applies_backend_cover_only_when_connected(qtbot) -> None:
+    window = LoginWindow()
+    qtbot.addWidget(window)
+    image_data_url = (
+        "data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhg"
+        "GAWjR9awAAAABJRU5ErkJggg=="
+    )
+
+    window.apply_branding(
+        {
+            "login_cover_preset": "custom",
+            "login_cover_image_data_url": image_data_url,
+        }
+    )
+
+    assert window.brand_panel._cover_preset == "custom"
+    assert window.brand_panel._cover_pixmap is not None
+
+    window.apply_branding(
+        {
+            "login_cover_preset": "custom",
+            "login_cover_image_data_url": image_data_url,
+        },
+        backend_connected=False,
+    )
+
+    assert window.brand_panel._cover_preset == "original"
+    assert window.brand_panel._cover_pixmap is None
+
+
 def test_login_window_uses_12_column_grid(qtbot) -> None:
     window = LoginWindow()
     qtbot.addWidget(window)
@@ -48,6 +79,13 @@ def test_login_window_toggles_password_visibility(qtbot) -> None:
 
     assert window.password_input.echoMode() == QLineEdit.EchoMode.Password
     assert window.password_visibility_button.text() == "Exibir senha"
+
+
+def test_login_window_uses_dedicated_forgot_password_style(qtbot) -> None:
+    window = LoginWindow()
+    qtbot.addWidget(window)
+
+    assert window.forgot_password_button.objectName() == "forgotPasswordButton"
 
 
 def test_login_window_updates_backend_connection_status(qtbot) -> None:

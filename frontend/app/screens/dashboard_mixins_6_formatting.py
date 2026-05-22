@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from frontend.app.core.id_system import professional_record_id
+
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
     from frontend.app.screens import dashboard
@@ -10,6 +12,12 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 
 
 class DashboardFormattingMixin:
+    def _format_professional_id(self, module_key: str, record: dict[str, Any]) -> str:
+        display_id = self._format_value(record.get("display_id"))
+        if display_id:
+            return display_id
+        return professional_record_id(module_key, record)
+
     @staticmethod
     def _format_value(value: Any) -> str:
         if value is None:
@@ -151,6 +159,7 @@ class DashboardFormattingMixin:
         rejection_reason = self._format_value(service_order.get("rejection_reason"))
         lines = [
             f"Código: {self._format_value(service_order.get('code')) or '-'}",
+            f"ID Profissional: {self._format_professional_id('service_orders', service_order)}",
             f"ID Personalizado: {self._format_value(service_order.get('custom_id')) or '-'}",
             f"Empresa: {customer_name}",
             f"Técnico Responsável: {technician_name}",
@@ -187,6 +196,7 @@ class DashboardFormattingMixin:
     def _format_customer_full_summary(self, customer: dict[str, Any]) -> str:
         active = "Sim" if customer.get("is_active", True) else "Nao"
         lines = [
+            f"ID Profissional: {self._format_professional_id('customers', customer)}",
             f"Nome: {self._format_value(customer.get('name')) or '-'}",
             f"Email: {self._format_value(customer.get('email')) or '-'}",
             f"Telefone: {self._format_value(customer.get('phone')) or '-'}",
@@ -200,7 +210,7 @@ class DashboardFormattingMixin:
         boards = equipment.get("boards") or []
         components_count = sum(len(board.get("components") or []) for board in boards)
         lines = [
-            f"ID: {self._format_value(equipment.get('id')) or '-'}",
+            f"ID Profissional: {self._format_professional_id('equipment', equipment)}",
             f"Tipo: {self._format_value(equipment.get('category')) or '-'}",
             f"Marca: {self._format_value(equipment.get('brand')) or '-'}",
             f"Modelo: {self._format_value(equipment.get('model')) or '-'}",
@@ -216,7 +226,7 @@ class DashboardFormattingMixin:
     def _format_equipment_board_summary(self, board: dict[str, Any]) -> str:
         components = board.get("components") or []
         lines = [
-            f"ID: {self._format_value(board.get('id')) or '-'}",
+            f"ID Profissional: {self._format_professional_id('equipment', board)}",
             f"Nome: {self._format_value(board.get('name')) or '-'}",
             f"N especial: {self._format_value(board.get('special_number')) or '-'}",
             f"Serie: {self._format_value(board.get('serial_number')) or '-'}",
@@ -230,7 +240,7 @@ class DashboardFormattingMixin:
 
     def _format_equipment_component_summary(self, component: dict[str, Any]) -> str:
         lines = [
-            f"ID: {self._format_value(component.get('id')) or '-'}",
+            f"ID Profissional: {self._format_professional_id('equipment', component)}",
             f"Dados: {self._format_value(component.get('name')) or '-'}",
             f"Categoria: {self._format_value(component.get('category')) or '-'}",
             f"Modelo / Part Number: {self._format_value(component.get('part_number')) or '-'}",

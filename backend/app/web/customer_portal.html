@@ -3,234 +3,134 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PRO CORE - Area do Cliente</title>
+  <title>PRO CORE | Portal do Cliente</title>
   <style>
-    :root { color-scheme: light; --accent: #0969da; --accent-hover: #0550ae; --accent-soft: #ddf4ff; --button-text: #ffffff; --bg: #eaf3ff; --panel: #ffffff; --panel-soft: #f6f8fa; --line: #c8d5e5; --text: #24292f; --muted: #57606a; }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: Segoe UI, Arial, sans-serif; background: var(--bg); color: var(--text); }
-    main { max-width: 980px; margin: 0 auto; padding: 32px 18px; }
-    header { margin-bottom: 22px; }
-    h1 { margin: 0; font-size: 30px; letter-spacing: 0; }
-    p { color: var(--muted); }
-    section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
-    label { display: block; font-weight: 700; margin: 10px 0 6px; }
-    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; min-height: 42px; padding: 10px 12px; font: inherit; background: var(--panel); color: var(--text); }
-    input:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
-    textarea { min-height: 96px; resize: vertical; }
-    button, a.button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--button-text); font-weight: 800; text-decoration: none; cursor: pointer; }
-    button:hover, a.button:hover { background: var(--accent-hover); }
-    button.secondary, a.button.secondary { background: var(--panel-soft); color: var(--text); }
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .metric { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel-soft); }
-    .metric strong { display: block; margin-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; }
-    th { background: var(--panel-soft); }
-    .hidden { display: none; }
-    .status { border-left: 5px solid var(--accent); }
-    .error { color: #cf222e; font-weight: 700; }
-    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } main { padding: 20px 12px; } }
+{{CUSTOMER_PORTAL_CSS}}
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1 id="brand">PRO CORE</h1>
-      <p id="subtitle">Area do cliente para consulta e aprovacao de orcamentos.</p>
+    <header class="hero">
+      <div class="hero-bar">
+        <div class="hero-content">
+          <span class="eyebrow">Portal do cliente</span>
+          <h1 id="brand">PRO CORE</h1>
+          <p id="subtitle">Acompanhe sua ordem de servico, analise o orcamento e registre sua decisao com seguranca.</p>
+        </div>
+        <div class="portal-signal" aria-hidden="true">
+          <span></span>
+          <strong>OS</strong>
+          <small>online</small>
+        </div>
+        <button id="theme-toggle" class="secondary ghost-button" type="button" aria-label="Alternar tema" aria-pressed="false">Usar escuro</button>
+      </div>
+      <div class="trust-strip" aria-label="Recursos do portal">
+        <span>Consulta autenticada</span>
+        <span>Orcamento digital</span>
+        <span>Historico sincronizado</span>
+      </div>
     </header>
 
-    <section id="login-section">
-      <h2>Acessar ordem de servico</h2>
-      <label for="code">Codigo da OS</label>
-      <input id="code" placeholder="OS-000001" autocomplete="off">
-      <label for="email">Email cadastrado</label>
-      <input id="email" type="email" placeholder="cliente@email.com">
-      <div class="actions">
-        <button id="login-button">Entrar</button>
-      </div>
-      <p id="login-error" class="error"></p>
-    </section>
-
-    <section id="order-section" class="hidden">
-      <h2 id="order-title">Ordem de servico</h2>
-      <div class="grid">
-        <div class="metric"><strong>Cliente</strong><span id="customer"></span></div>
-        <div class="metric"><strong>Equipamento</strong><span id="equipment"></span></div>
-        <div class="metric"><strong>Status</strong><span id="status"></span></div>
-        <div class="metric"><strong>Total</strong><span id="total"></span></div>
-      </div>
-      <p class="status" id="diagnosis"></p>
-      <h3>Itens do orcamento</h3>
-      <table>
-        <thead><tr><th>Tipo</th><th>Descricao</th><th>Qtd</th><th>Valor</th></tr></thead>
-        <tbody id="items"></tbody>
-      </table>
-      <h3>Linha do tempo</h3>
-      <div id="events"></div>
-      <div class="actions">
-        <a id="pdf-link" class="button secondary" href="#">Baixar PDF</a>
-        <button id="approve-button">Aprovar</button>
-        <button id="show-reject-button" class="secondary">Reprovar</button>
+    <section class="panel" id="login-panel">
+      <div class="login-shell">
+        <div class="login-aside">
+          <span class="section-tag">Acesso seguro</span>
+          <h2>Entre para acompanhar sua OS</h2>
+          <p>Use o codigo da ordem e o email do cadastro para acessar o historico, revisar o orcamento e registrar sua decisao.</p>
+          <div class="login-highlights">
+            <article class="highlight-card">
+              <strong>Linha do tempo completa</strong>
+              <span>Diagnostico, envio do orcamento e decisao do cliente em um unico painel.</span>
+            </article>
+            <article class="highlight-card">
+              <strong>Visual padrao antes do login</strong>
+              <span>Depois do acesso, a identidade visual da empresa e aplicada automaticamente.</span>
+            </article>
+          </div>
+        </div>
+        <div class="login-form">
+          <h3>Identificacao</h3>
+          <p style="margin: 0; color: var(--muted);">Confirme os dados exatamente como enviados pela assistencia.</p>
+          <label for="code">Codigo da ordem</label>
+          <input id="code" placeholder="OS-000001" autocomplete="off">
+          <label for="email">Email do cadastro</label>
+          <input id="email" type="email" placeholder="cliente@empresa.com" autocomplete="email">
+          <div class="actions">
+            <button id="login-button">Entrar no portal</button>
+          </div>
+          <p class="message info show" id="login-hint">Dica: confirme se o codigo esta igual ao enviado pela assistencia.</p>
+          <p class="message error" id="login-error"></p>
+        </div>
       </div>
     </section>
 
-    <section id="reject-section" class="hidden">
+    <section class="panel hidden" id="order-panel">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center;">
+        <h2 id="order-title" style="margin: 0;">Ordem de servico</h2>
+        <span id="order-status-pill" class="label-pill">Status</span>
+      </div>
+
+      <div class="grid" style="margin-top: 12px;">
+        <article class="metric"><strong>ID profissional</strong><span id="order-id">-</span></article>
+        <article class="metric"><strong>Cliente</strong><span id="customer-name">-</span></article>
+        <article class="metric"><strong>Equipamento</strong><span id="equipment-name">-</span></article>
+        <article class="metric"><strong>Total orcado</strong><span id="quoted-total">R$ 0,00</span></article>
+        <article class="metric"><strong>Prioridade</strong><span id="priority-label">-</span></article>
+        <article class="metric"><strong>SLA</strong><span id="sla-due">-</span></article>
+        <article class="metric"><strong>Envio do orcamento</strong><span id="quote-sent-at">-</span></article>
+        <article class="metric"><strong>Decisao registrada</strong><span id="decision-at">-</span></article>
+      </div>
+
+      <h3>Diagnostico tecnico</h3>
+      <p id="diagnosis" style="margin: 0; color: var(--text);">-</p>
+
+      <div class="split">
+        <div>
+          <h3>Itens do orcamento</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Descricao</th>
+                <th>Qtd</th>
+                <th>Unitario</th>
+              </tr>
+            </thead>
+            <tbody id="budget-items"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Linha do tempo</h3>
+          <div class="timeline" id="timeline-events"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="refresh-button" class="secondary">Atualizar situacao</button>
+        <a id="pdf-link" class="button secondary" href="#">Baixar PDF do orcamento</a>
+        <button id="approve-button">Aprovar orcamento</button>
+        <button id="show-reject-button" class="danger">Reprovar orcamento</button>
+      </div>
+      <p class="message" id="action-feedback"></p>
+    </section>
+
+    <section class="panel hidden" id="reject-panel">
       <h2>Reprovar orcamento</h2>
-      <label for="decision-name">Seu nome</label>
-      <input id="decision-name" placeholder="Nome do responsavel">
-      <label for="reason">Motivo</label>
-      <textarea id="reason" placeholder="Informe o motivo da reprovacao"></textarea>
+      <p style="margin: 0; color: var(--muted);">Descreva o motivo para registrar no historico da ordem.</p>
+      <label for="decision-name">Nome do responsavel (opcional)</label>
+      <input id="decision-name" placeholder="Nome de quem aprovou/reprovou">
+      <label for="rejection-reason">Motivo da reprovacao</label>
+      <textarea id="rejection-reason" placeholder="Exemplo: valor acima do previsto, aguardar nova proposta..."></textarea>
       <div class="actions">
-        <button id="reject-button">Confirmar reprovacao</button>
+        <button id="confirm-reject-button" class="danger">Confirmar reprovacao</button>
         <button id="cancel-reject-button" class="secondary">Cancelar</button>
       </div>
-      <p id="action-error" class="error"></p>
+      <p class="message error" id="reject-error"></p>
     </section>
   </main>
+
   <script>
-    let token = "";
-    const api = "/api/v1/customer-portal";
-    const formatMoney = value => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
-    const headers = () => ({ "Authorization": `Bearer ${token}`, "Content-Type": "application/json" });
-    const root = document.documentElement;
-    const isHexColor = value => /^#[0-9a-fA-F]{6}$/.test(String(value || ""));
-    const hexToRgb = value => [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16));
-    const toHex = channels => `#${channels.map(channel => Math.max(0, Math.min(Math.round(channel), 255)).toString(16).padStart(2, "0")).join("")}`;
-    const mix = (first, second, secondWeight) => {
-      const firstRgb = hexToRgb(first);
-      const secondRgb = hexToRgb(second);
-      return toHex(firstRgb.map((channel, index) => channel * (1 - secondWeight) + secondRgb[index] * secondWeight));
-    };
-    const luminance = color => {
-      const channels = hexToRgb(color).map(channel => {
-        const normalized = channel / 255;
-        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-      });
-      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-    };
-    const contrastRatio = (first, second) => {
-      const lighter = Math.max(luminance(first), luminance(second));
-      const darker = Math.min(luminance(first), luminance(second));
-      return (lighter + 0.05) / (darker + 0.05);
-    };
-    const contrastText = color => contrastRatio(color, "#111827") >= 4.5 ? "#111827" : "#ffffff";
-
-    function applyPalette(primaryColor, theme = "light") {
-      const primary = isHexColor(primaryColor) ? primaryColor : "#0969da";
-      const isDark = theme === "dark";
-      const palette = isDark ? {
-        "--accent": primary,
-        "--accent-hover": mix(primary, "#ffffff", 0.14),
-        "--accent-soft": mix(primary, "#0b1220", 0.52),
-        "--button-text": contrastText(primary),
-        "--bg": mix(primary, "#05070d", 0.82),
-        "--panel": mix(primary, "#111827", 0.82),
-        "--panel-soft": mix(primary, "#1f2937", 0.80),
-        "--line": mix(primary, "#374151", 0.70),
-        "--text": "#f8fafc",
-        "--muted": mix(primary, "#cbd5e1", 0.72),
-      } : {
-        "--accent": primary,
-        "--accent-hover": mix(primary, "#000000", 0.16),
-        "--accent-soft": mix(primary, "#ffffff", 0.84),
-        "--button-text": contrastText(primary),
-        "--bg": mix(primary, "#ffffff", 0.88),
-        "--panel": mix(primary, "#ffffff", 0.96),
-        "--panel-soft": mix(primary, "#ffffff", 0.91),
-        "--line": mix(primary, "#d0d7de", 0.78),
-        "--text": "#111827",
-        "--muted": mix("#57606a", primary, 0.22),
-      };
-      Object.entries(palette).forEach(([key, value]) => root.style.setProperty(key, value));
-      root.style.setProperty("color-scheme", isDark ? "dark" : "light");
-    }
-
-    async function loadAppearance() {
-      if (!token) return;
-      try {
-        const response = await fetch(`${api}/appearance`, { headers: { "Authorization": `Bearer ${token}` } });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data.brand_name) document.getElementById("brand").textContent = data.brand_name;
-        if (data.brand_subtitle) document.getElementById("subtitle").textContent = data.brand_subtitle;
-        applyPalette(data.primary_color, data.theme);
-      } catch {}
-    }
-
-    function render(order) {
-      document.getElementById("login-section").classList.add("hidden");
-      document.getElementById("order-section").classList.remove("hidden");
-      document.getElementById("order-title").textContent = `Ordem ${order.code}`;
-      document.getElementById("customer").textContent = order.customer_name;
-      document.getElementById("equipment").textContent = order.equipment;
-      document.getElementById("status").textContent = order.status;
-      document.getElementById("total").textContent = formatMoney(order.quoted_total);
-      document.getElementById("diagnosis").textContent = `Diagnostico: ${order.technical_diagnosis || "-"}`;
-      document.getElementById("items").innerHTML = order.budget_items.map(item => `<tr><td>${item.item_type}</td><td>${item.description}</td><td>${item.quantity}</td><td>${formatMoney(item.unit_price)}</td></tr>`).join("");
-      document.getElementById("events").innerHTML = order.events.map(event => `<p><strong>${event.event_type}</strong>: ${event.message}</p>`).join("");
-      document.getElementById("pdf-link").onclick = event => { event.preventDefault(); downloadPdf(); };
-      const awaiting = order.status === "pending_approval";
-      document.getElementById("approve-button").disabled = !awaiting;
-      document.getElementById("show-reject-button").disabled = !awaiting;
-    }
-
-    async function login() {
-      document.getElementById("login-error").textContent = "";
-      const response = await fetch(`${api}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service_order_code: document.getElementById("code").value, email: document.getElementById("email").value })
-      });
-      if (!response.ok) {
-        document.getElementById("login-error").textContent = "Nao foi possivel acessar a OS com os dados informados.";
-        return;
-      }
-      const data = await response.json();
-      token = data.access_token;
-      render(data.service_order);
-      await loadAppearance();
-    }
-
-    async function refreshOrder() {
-      const response = await fetch(`${api}/service-order`, { headers: headers() });
-      if (response.ok) render(await response.json());
-    }
-
-    async function approve() {
-      const response = await fetch(`${api}/approve`, { method: "POST", headers: headers(), body: JSON.stringify({ decision_name: document.getElementById("decision-name").value || null }) });
-      if (response.ok) render(await response.json());
-    }
-
-    async function reject() {
-      document.getElementById("action-error").textContent = "";
-      const response = await fetch(`${api}/reject`, { method: "POST", headers: headers(), body: JSON.stringify({ decision_name: document.getElementById("decision-name").value || null, rejection_reason: document.getElementById("reason").value }) });
-      if (!response.ok) {
-        document.getElementById("action-error").textContent = "Informe o motivo da reprovacao.";
-        return;
-      }
-      document.getElementById("reject-section").classList.add("hidden");
-      render(await response.json());
-    }
-
-    async function downloadPdf() {
-      const response = await fetch(`${api}/quote.pdf`, { headers: { "Authorization": `Bearer ${token}` } });
-      if (!response.ok) return;
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "orcamento.pdf";
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById("login-button").onclick = login;
-    document.getElementById("approve-button").onclick = approve;
-    document.getElementById("show-reject-button").onclick = () => document.getElementById("reject-section").classList.remove("hidden");
-    document.getElementById("cancel-reject-button").onclick = () => document.getElementById("reject-section").classList.add("hidden");
-    document.getElementById("reject-button").onclick = reject;
-    loadAppearance();
+{{CUSTOMER_PORTAL_JS}}
   </script>
 </body>
 </html>

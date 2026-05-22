@@ -37,7 +37,7 @@ from backend.app.services.backend_restart_control import (
     set_backend_restart_allowed_emails,
 )
 from backend.app.services.password_resets import create_password_reset_request
-from backend.app.services.resource_access import get_user_resource_access
+from backend.app.services.resource_access import get_user_resource_access, get_user_tool_specialties
 from backend.app.services.users import authenticate_user, change_user_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -88,6 +88,7 @@ def login(request: Request, payload: LoginRequest, db: DatabaseSession) -> Token
     token_user = TokenUser.model_validate(user)
     token_user.permissions = permissions_for_role(user.role)
     token_user.resource_access = get_user_resource_access(db, user)
+    token_user.tools_specialties = get_user_tool_specialties(db, user)
 
     return TokenResponse(
         access_token=access_token,
@@ -129,6 +130,7 @@ def me(current_user: CurrentUser, db: DatabaseSession) -> UserProfileResponse:
     profile = UserProfileResponse.model_validate(current_user)
     profile.permissions = permissions_for_role(current_user.role)
     profile.resource_access = get_user_resource_access(db, current_user)
+    profile.tools_specialties = get_user_tool_specialties(db, current_user)
     return profile
 
 

@@ -56,16 +56,12 @@ StaffUser = Annotated[User, Depends(staff_user)]
 DbSession = Annotated[Session, Depends(get_db)]
 ExportFormat = Annotated[str, Query(alias="format", pattern="^(csv|pdf)$")]
 CsvUploadFile = Annotated[UploadFile, File(alias="file")]
-
-
 @router.get("", response_model=list[EquipmentResponse])
 def list_equipment_records(
     current_user: StaffUser,
     db: DbSession,
 ) -> list[EquipmentResponse]:
     return list_equipment(db, current_user.company_id)
-
-
 @router.get("/export")
 def export_equipment_records(
     current_user: StaffUser,
@@ -80,14 +76,11 @@ def export_equipment_records(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
     return StreamingResponse(
         BytesIO(content),
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
     )
-
-
 @router.post("/import")
 async def import_equipment_records(
     upload_file: CsvUploadFile,
@@ -102,8 +95,6 @@ async def import_equipment_records(
         return import_equipment_catalog(db, current_user.company_id, content, replace=replace)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-
 async def _read_upload_file(upload_file: UploadFile, max_bytes: int) -> bytes:
     chunks: list[bytes] = []
     total_bytes = 0
@@ -113,8 +104,6 @@ async def _read_upload_file(upload_file: UploadFile, max_bytes: int) -> bytes:
             raise ValueError(f"CSV exceeds maximum size of {max_bytes // (1024 * 1024)} MB.")
         chunks.append(chunk)
     return b"".join(chunks)
-
-
 @router.post("", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED)
 def create_equipment_record(
     payload: EquipmentCreate,
@@ -125,8 +114,6 @@ def create_equipment_record(
         return create_equipment(db, current_user.company_id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
 @router.get("/{equipment_id}", response_model=EquipmentResponse)
 def get_equipment_record(
     equipment_id: uuid.UUID,
@@ -136,10 +123,7 @@ def get_equipment_record(
     equipment = get_equipment(db, current_user.company_id, equipment_id)
     if equipment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
-
     return equipment
-
-
 @router.patch("/{equipment_id}", response_model=EquipmentResponse)
 def update_equipment_record(
     equipment_id: uuid.UUID,
@@ -150,13 +134,10 @@ def update_equipment_record(
     equipment = get_equipment(db, current_user.company_id, equipment_id)
     if equipment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
-
     try:
         return update_equipment(db, current_user.company_id, equipment, payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
 @router.delete("/{equipment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_equipment_record(
     equipment_id: uuid.UUID,
@@ -166,13 +147,10 @@ def delete_equipment_record(
     equipment = get_equipment(db, current_user.company_id, equipment_id)
     if equipment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
-
     try:
         delete_equipment(db, current_user.company_id, equipment)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-
 @router.post(
     "/{equipment_id}/boards",
     response_model=EquipmentBoardResponse,
@@ -187,10 +165,7 @@ def create_equipment_board_record(
     equipment = get_equipment(db, current_user.company_id, equipment_id)
     if equipment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
-
     return create_equipment_board(db, current_user.company_id, equipment, payload)
-
-
 @router.get("/{equipment_id}/defect-cases", response_model=list[EquipmentDefectCaseResponse])
 def list_equipment_defect_cases(
     equipment_id: uuid.UUID,
@@ -201,10 +176,7 @@ def list_equipment_defect_cases(
     equipment = get_equipment(db, current_user.company_id, equipment_id)
     if equipment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
-
     return list_defect_cases(db, current_user.company_id, equipment_id, query=query)
-
-
 @router.post(
     "/{equipment_id}/defect-cases",
     response_model=EquipmentDefectCaseResponse,
@@ -219,13 +191,10 @@ def create_equipment_defect_case(
     equipment = get_equipment(db, current_user.company_id, equipment_id)
     if equipment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found.")
-
     try:
         return create_defect_case(db, current_user.company_id, equipment, payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
 @router.patch(
     "/{equipment_id}/defect-cases/{case_id}",
     response_model=EquipmentDefectCaseResponse,
@@ -240,13 +209,10 @@ def update_equipment_defect_case(
     defect_case = get_defect_case(db, current_user.company_id, equipment_id, case_id)
     if defect_case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Defect case not found.")
-
     try:
         return update_defect_case(db, current_user.company_id, equipment_id, defect_case, payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
 @router.delete("/{equipment_id}/defect-cases/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_equipment_defect_case(
     equipment_id: uuid.UUID,
@@ -257,10 +223,7 @@ def delete_equipment_defect_case(
     defect_case = get_defect_case(db, current_user.company_id, equipment_id, case_id)
     if defect_case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Defect case not found.")
-
     delete_defect_case(db, defect_case)
-
-
 @router.patch("/{equipment_id}/boards/{board_id}", response_model=EquipmentBoardResponse)
 def update_equipment_board_record(
     equipment_id: uuid.UUID,
@@ -272,10 +235,7 @@ def update_equipment_board_record(
     board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
-
     return update_equipment_board(db, board, payload)
-
-
 @router.delete("/{equipment_id}/boards/{board_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_equipment_board_record(
     equipment_id: uuid.UUID,
@@ -286,10 +246,7 @@ def delete_equipment_board_record(
     board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
-
     delete_equipment_board(db, board)
-
-
 @router.post(
     "/{equipment_id}/boards/{board_id}/components",
     response_model=EquipmentBoardComponentResponse,
@@ -305,10 +262,7 @@ def create_board_component_record(
     board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
-
     return create_board_component(db, current_user.company_id, board, payload)
-
-
 @router.patch(
     "/{equipment_id}/boards/{board_id}/components/{component_id}",
     response_model=EquipmentBoardComponentResponse,
@@ -324,14 +278,10 @@ def update_board_component_record(
     board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
-
     component = get_board_component(db, current_user.company_id, board_id, component_id)
     if component is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Component not found.")
-
     return update_board_component(db, component, payload)
-
-
 @router.delete(
     "/{equipment_id}/boards/{board_id}/components/{component_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -346,9 +296,7 @@ def delete_board_component_record(
     board = get_equipment_board(db, current_user.company_id, equipment_id, board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found.")
-
     component = get_board_component(db, current_user.company_id, board_id, component_id)
     if component is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Component not found.")
-
     delete_board_component(db, component)

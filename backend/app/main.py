@@ -37,10 +37,17 @@ def create_app() -> FastAPI:
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Cache-Control", "no-store")
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'self'; frame-ancestors 'none'; object-src 'none'",
-        )
+        if request.url.path == "/customer-portal":
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; object-src 'none'",
+            )
+        else:
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'self'; frame-ancestors 'none'; object-src 'none'",
+            )
         if is_production:
             response.headers.setdefault(
                 "Strict-Transport-Security",
@@ -59,8 +66,18 @@ def create_app() -> FastAPI:
 
     @app.get("/customer-portal", response_class=HTMLResponse, tags=["customer-portal"])
     def customer_portal() -> HTMLResponse:
-        portal_path = Path(__file__).resolve().parent / "web" / "customer_portal.html"
-        return HTMLResponse(portal_path.read_text(encoding="utf-8"))
+        web_path = Path(__file__).resolve().parent / "web"
+        portal_html = (web_path / "customer_portal.html").read_text(encoding="utf-8")
+        portal_html = portal_html.replace(
+            "{{CUSTOMER_PORTAL_CSS}}",
+            (web_path / "customer_portal.css").read_text(encoding="utf-8"),
+        )
+        portal_theme_js = (web_path / "customer_portal_theme.js").read_text(encoding="utf-8")
+        portal_js = (web_path / "customer_portal.js").read_text(encoding="utf-8")
+        portal_html = portal_html.replace(
+            "{{CUSTOMER_PORTAL_JS}}", f"{portal_theme_js}\n{portal_js}"
+        )
+        return HTMLResponse(portal_html)
 
     app.include_router(api_router)
 

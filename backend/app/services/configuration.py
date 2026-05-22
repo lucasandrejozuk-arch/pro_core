@@ -15,12 +15,16 @@ BRAND_SUBTITLE_SETTING_KEY = "ui.brand_subtitle"
 COLOR_PALETTE_SETTING_KEY = "ui.color_palette"
 PRIMARY_COLOR_SETTING_KEY = "ui.primary_color"
 LANGUAGE_SETTING_KEY = "ui.language"
+LOGIN_COVER_PRESET_SETTING_KEY = "ui.login_cover_preset"
+LOGIN_COVER_IMAGE_SETTING_KEY = "ui.login_cover_image_data_url"
 DEFAULT_THEME = "light"
 DEFAULT_COLOR_PALETTE = "blue"
 DEFAULT_LANGUAGE = "pt-BR"
 DEFAULT_PRIMARY_COLOR = "#25636f"
 DEFAULT_LOGIN_BRAND_NAME = "PRO CORE"
 DEFAULT_LOGIN_BRAND_SUBTITLE = "Gestao completa para assistencias tecnicas"
+DEFAULT_LOGIN_COVER_PRESET = "original"
+LOGIN_COVER_PRESETS = {"original", "circuit_board", "service_bench", "precision_grid", "custom"}
 THEME_PRIMARY_COLORS = {
     "light": {
         "blue": "#25636f",
@@ -141,6 +145,22 @@ def update_system_settings(
             _palette_from_primary_color(theme_for_palette, update_data["primary_color"]),
             "Paleta de cores da identidade visual.",
         )
+    if "login_cover_preset" in update_data:
+        set_setting_value(
+            db,
+            company_id,
+            LOGIN_COVER_PRESET_SETTING_KEY,
+            update_data["login_cover_preset"] or DEFAULT_LOGIN_COVER_PRESET,
+            "Preset da capa visual da tela de login.",
+        )
+    if "login_cover_image_data_url" in update_data:
+        set_setting_value(
+            db,
+            company_id,
+            LOGIN_COVER_IMAGE_SETTING_KEY,
+            update_data["login_cover_image_data_url"] or "",
+            "Imagem PNG/JPEG anexada para a capa visual da tela de login.",
+        )
 
     db.add(company)
     db.add(backup_policy)
@@ -161,6 +181,15 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
     language = get_setting_value(db, company_id, LANGUAGE_SETTING_KEY) or DEFAULT_LANGUAGE
     if language not in {"pt-BR", "en-US"}:
         language = DEFAULT_LANGUAGE
+    login_cover_preset = (
+        get_setting_value(db, company_id, LOGIN_COVER_PRESET_SETTING_KEY)
+        or DEFAULT_LOGIN_COVER_PRESET
+    )
+    if login_cover_preset not in LOGIN_COVER_PRESETS:
+        login_cover_preset = DEFAULT_LOGIN_COVER_PRESET
+    login_cover_image_data_url = get_setting_value(db, company_id, LOGIN_COVER_IMAGE_SETTING_KEY)
+    if login_cover_preset != "custom" or not login_cover_image_data_url:
+        login_cover_image_data_url = None
 
     return {
         "brand_name": get_setting_value(db, company_id, BRAND_NAME_SETTING_KEY) or None,
@@ -169,6 +198,8 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
         "primary_color": primary_color,
         "theme": theme,
         "language": language,
+        "login_cover_preset": login_cover_preset,
+        "login_cover_image_data_url": login_cover_image_data_url,
     }
 
 
@@ -187,6 +218,8 @@ def get_login_appearance_settings(db: Session) -> dict:
             "primary_color": DEFAULT_PRIMARY_COLOR,
             "theme": DEFAULT_THEME,
             "language": DEFAULT_LANGUAGE,
+            "login_cover_preset": DEFAULT_LOGIN_COVER_PRESET,
+            "login_cover_image_data_url": None,
         }
 
     appearance = get_appearance_settings(db, company.id)

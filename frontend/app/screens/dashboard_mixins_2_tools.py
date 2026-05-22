@@ -27,7 +27,7 @@ class DashboardToolTabsMixin:
         panel = QFrame()
         panel.setObjectName("formPanel")
 
-        title = QLabel("FERRAMENTAS")
+        title = QLabel("CALCULADORAS TECNICAS")
         title.setObjectName("pageTitle")
         subtitle = QLabel("Calculadoras tecnicas e apoio operacional em fluxo rapido.")
         subtitle.setObjectName("mutedText")
@@ -38,7 +38,7 @@ class DashboardToolTabsMixin:
         self.tools_status_label.setProperty("level", "warning")
         self.tools_status_label.setWordWrap(True)
 
-        self.tools_availability_label = QLabel("0 ferramentas liberadas")
+        self.tools_availability_label = QLabel("0 liberadas")
         self.tools_availability_label.setObjectName("moduleCountBadge")
         self.tools_specialties_label = QLabel("Especialidades: -")
         self.tools_specialties_label.setObjectName("moduleActionHint")
@@ -57,6 +57,9 @@ class DashboardToolTabsMixin:
 
         self.tools_tabs = QTabWidget()
         self.tools_tabs.setObjectName("toolsTabs")
+        self.tools_tabs.setUsesScrollButtons(True)
+        self.tools_tabs.setElideMode(Qt.TextElideMode.ElideRight)
+        self.tools_tabs.setDocumentMode(True)
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -67,7 +70,11 @@ class DashboardToolTabsMixin:
         layout.addWidget(self.tools_tabs, 1)
         return panel
 
-    def render_tools(self, tools: list[dict[str, Any]]) -> None:
+    def render_tools(
+        self,
+        tools: list[dict[str, Any]],
+        allowed_specialties: list[str] | None = None,
+    ) -> None:
         self._set_active_module("tools")
         self.current_tools = list(tools)
         self.tools_tabs.clear()
@@ -79,8 +86,25 @@ class DashboardToolTabsMixin:
                 "Aviso",
             )
             return
+        allowed_specialties_set = {
+            str(item).strip().lower() for item in (allowed_specialties or []) if str(item).strip()
+        }
         tools_by_specialty = self._group_tools_by_specialty(tool_ids)
+        if allowed_specialties_set:
+            tools_by_specialty = {
+                specialty: values
+                for specialty, values in tools_by_specialty.items()
+                if specialty in allowed_specialties_set
+            }
         self._set_tools_operational_status(tools, tools_by_specialty)
+        if not tools_by_specialty:
+            self.tools_tabs.addTab(
+                self._build_tool_message(
+                    "Nenhuma especialidade de ferramentas foi liberada para esta conta."
+                ),
+                "Aviso",
+            )
+            return
         for specialty_name, specialty_tools in tools_by_specialty.items():
             tab_widget = self._build_specialty_tab(specialty_name, specialty_tools)
             self.tools_tabs.addTab(tab_widget, self._specialty_label(specialty_name))
@@ -114,7 +138,7 @@ class DashboardToolTabsMixin:
         self.tools_status_label.setProperty("level", level)
         self.tools_status_label.style().unpolish(self.tools_status_label)
         self.tools_status_label.style().polish(self.tools_status_label)
-        self.tools_availability_label.setText(f"{available_count} ferramentas liberadas")
+        self.tools_availability_label.setText(f"{available_count} liberadas")
         self.tools_specialties_label.setText(specialties_text)
 
     def _group_tools_by_specialty(
@@ -164,18 +188,33 @@ class DashboardToolTabsMixin:
                     "Codigo de Cor",
                     self._calculate_resistor_color_tool,
                     [
+                        ("Faixas (4 ou 5)", "bands"),
                         ("Digito 1", "digit_1"),
                         ("Digito 2", "digit_2"),
+                        ("Digito 3 (somente 5 faixas)", "digit_3"),
                         ("Multiplicador", "multiplier"),
+                        ("Tolerancia (%) opcional", "tolerance"),
                     ],
                 ),
                 (
                     "resistor_assoc",
                     "Assoc. Resistores",
                     self._calculate_resistor_assoc_tool,
-                    [("Resistores", "values")],
+                    [
+                        ("Tipo (serie/paralelo)", "association_type"),
+                        ("Quantidade", "count"),
+                        ("Resistores (ohm, separados por virgula)", "values"),
+                    ],
                 ),
-                ("awg", "AWG/mm2", self._calculate_awg_tool, [("AWG", "awg")]),
+                (
+                    "awg",
+                    "Secao/AWG",
+                    self._calculate_awg_tool,
+                    [
+                        ("Escala (awg/mm2)", "scale"),
+                        ("Valor", "value"),
+                    ],
+                ),
             ],
             "operacional": [
                 (
@@ -268,14 +307,9 @@ class DashboardToolTabsMixin:
         history_layout.addWidget(history_label)
         history_layout.addWidget(history_text)
 
-        workspace = QHBoxLayout()
-        workspace.setContentsMargins(0, 0, 0, 0)
-        workspace.setSpacing(10)
-        workspace.addWidget(specialty_tabs, 3)
-        workspace.addWidget(history_section, 1)
-
         layout.addWidget(context)
-        layout.addLayout(workspace, 1)
+        layout.addWidget(specialty_tabs, 1)
+        layout.addWidget(history_section, 0)
 
         return panel
 

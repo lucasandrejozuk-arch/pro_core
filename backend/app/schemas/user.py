@@ -79,10 +79,13 @@ class UserResourceAccessResponse(BaseModel):
     sector_name: str | None = None
     allowed_resources: list[str]
     default_resources: list[str]
+    allowed_tool_specialties: list[str] = []
+    default_tool_specialties: list[str] = []
 
 
 class UserResourceAccessUpdate(BaseModel):
     allowed_resources: list[str] = Field(default_factory=list, max_length=100)
+    allowed_tool_specialties: list[str] | None = Field(default=None, max_length=20)
 
     @field_validator("allowed_resources")
     @classmethod
@@ -91,6 +94,21 @@ class UserResourceAccessUpdate(BaseModel):
         seen = set()
         for item in value:
             key = str(item or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(key)
+        return normalized
+
+    @field_validator("allowed_tool_specialties")
+    @classmethod
+    def normalize_allowed_tool_specialties(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        normalized: list[str] = []
+        seen = set()
+        for item in value:
+            key = str(item or "").strip().lower()
             if not key or key in seen:
                 continue
             seen.add(key)

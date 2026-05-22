@@ -72,7 +72,7 @@ class DashboardMixin2:
         self._set_active_module(module_key)
         self.all_rows = list(rows)
         self.current_columns = list(columns)
-        self.data_title.setText("Registros")
+        self.data_title.setText(title or self.module_labels.get(module_key, "Registros"))
         self.data_description.setText(self.module_descriptions.get(module_key, ""))
         self.module_search_input.setPlaceholderText(self._module_search_placeholder(module_key))
         self._reset_pagination_for_module(module_key)
@@ -233,7 +233,9 @@ class DashboardMixin2:
         return f"BUSCAR {label.upper()}..."
 
     def render_settings(self, settings: dict[str, Any]) -> None:
-        self._set_active_module("settings")
+        previous_settings = dict(getattr(self, "current_settings", {}) or {})
+        if self.active_module_key != "settings":
+            self._set_active_module("settings")
         self.current_rows = []
         self.all_rows = []
         self.current_columns = []
@@ -241,7 +243,9 @@ class DashboardMixin2:
         self.data_description.setText(self.module_descriptions["settings"])
         self.empty_label.hide()
         self.table.hide()
-        self._populate_settings_form(settings)
+        merged_settings = dict(previous_settings)
+        merged_settings.update(settings)
+        self._populate_settings_form(merged_settings)
 
     @staticmethod
     def _build_module_card(title: str, description: str) -> QFrame:
