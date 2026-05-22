@@ -33,10 +33,10 @@ def run_database_backup(
 
     if _is_docker_container_available(POSTGRES_CONTAINER_NAME):
         _run_docker_backup(runtime_settings, file_name, target_path)
-        _validate_docker_backup(file_name)
+        _validate_docker_backup(file_name, runtime_settings)
     else:
         _run_local_backup(runtime_settings, target_path)
-        _validate_local_backup(target_path)
+        _validate_local_backup(target_path, runtime_settings)
 
     backup_policy.last_run_at = created_at
     db.add(backup_policy)
@@ -62,18 +62,22 @@ def _is_docker_container_available(container_name: str) -> bool:
     if shutil.which("docker") is None:
         return False
 
-    result = subprocess.run(
-        [
-            "docker",
-            "inspect",
-            "-f",
-            "{{.State.Running}}",
-            container_name,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                "-f",
+                "{{.State.Running}}",
+                container_name,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     return result.returncode == 0 and result.stdout.strip().lower() == "true"
 
 
@@ -95,6 +99,7 @@ def _run_docker_backup(settings: Settings, file_name: str, target_path: Path) ->
             container_path,
         ],
         "Database backup failed inside Docker.",
+        timeout_seconds=settings.pro_core_backup_command_timeout_seconds,
     )
     _run_command(
         [
@@ -104,10 +109,11 @@ def _run_docker_backup(settings: Settings, file_name: str, target_path: Path) ->
             str(target_path),
         ],
         "Could not copy backup file from Docker.",
+        timeout_seconds=settings.pro_core_backup_command_timeout_seconds,
     )
 
 
-def _validate_docker_backup(file_name: str) -> None:
+def _validate_docker_backup(file_name: str, settings: Settings) -> None:
     _run_command(
         [
             "docker",
@@ -118,6 +124,7 @@ def _validate_docker_backup(file_name: str) -> None:
             f"/tmp/{file_name}",
         ],
         "Backup validation failed inside Docker.",
+        timeout_seconds=settings.pro_core_backup_command_timeout_seconds,
     )
 
 
@@ -143,16 +150,19 @@ def _run_local_backup(settings: Settings, target_path: Path) -> None:
         ],
         "Database backup failed.",
         env={"PGPASSWORD": settings.postgres_password},
+        timeout_seconds=settings.pro_core_backup_command_timeout_seconds,
     )
 
 
-def _validate_local_backup(target_path: Path) -> None:
+def _validate_local_backup(target_path: Path, settings: Settings | None = None) -> None:
     if shutil.which("pg_restore") is None:
         raise RuntimeError("pg_restore not found. Install PostgreSQL client tools or use Docker.")
 
+    runtime_settings = settings or get_settings()
     _run_command(
         ["pg_restore", "--list", str(target_path)],
         "Backup validation failed.",
+        timeout_seconds=runtime_settings.pro_core_backup_command_timeout_seconds,
     )
 
 
@@ -160,14 +170,19 @@ def _run_command(
     command: list[str],
     error_message: str,
     env: dict[str, str] | None = None,
+    timeout_seconds: int | None = None,
 ) -> None:
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-        env=({**os.environ, **env} if env else None),
-    )
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=({**os.environ, **env} if env else None),
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"{error_message} Command timed out.") from exc
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
         raise RuntimeError(f"{error_message} {detail}".strip())

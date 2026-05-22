@@ -92,14 +92,14 @@ def test_manager_password_reset_request_is_sent_to_admin_and_resolved(
     resolve_response = client.post(
         f"/api/v1/password-reset-requests/{requests[0]['id']}/resolve",
         headers=auth_headers,
-        json={"new_password": "NovaSenha123"},
+        json={"new_password": "A1b2C3"},
     )
     assert resolve_response.status_code == 200
     assert resolve_response.json()["status"] == "resolved"
 
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": manager.email, "password": "NovaSenha123"},
+        json={"email": manager.email, "password": "A1b2C3"},
     )
     assert login_response.status_code == 200
 
@@ -145,12 +145,50 @@ def test_operator_password_reset_request_is_sent_to_sector_manager(
     resolve_response = client.post(
         f"/api/v1/password-reset-requests/{requests[0]['id']}/resolve",
         headers=manager_headers,
-        json={"new_password": "TecnicoNova123"},
+        json={"new_password": "B2c3D4"},
     )
     assert resolve_response.status_code == 200
 
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": technician.email, "password": "TecnicoNova123"},
+        json={"email": technician.email, "password": "B2c3D4"},
     )
     assert login_response.status_code == 200
+
+
+def test_password_reset_request_can_be_cancelled(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    db_session: Session,
+    company: Company,
+) -> None:
+    manager = _create_user(
+        db_session,
+        company,
+        UserRole.MANAGER,
+        "cancel.reset@example.com",
+        "Manager123",
+    )
+
+    request_response = client.post(
+        "/api/v1/auth/password-reset-requests",
+        json={"email": manager.email},
+    )
+    list_response = client.get("/api/v1/password-reset-requests", headers=auth_headers)
+
+    assert request_response.status_code == 200
+    request_id = list_response.json()[0]["id"]
+
+    cancel_response = client.post(
+        f"/api/v1/password-reset-requests/{request_id}/cancel",
+        headers=auth_headers,
+    )
+
+    assert cancel_response.status_code == 200
+    assert cancel_response.json()["status"] == "cancelled"
+    assert cancel_response.json()["resolved_by_user_id"] is not None
+
+    second_list_response = client.get("/api/v1/password-reset-requests", headers=auth_headers)
+
+    assert second_list_response.status_code == 200
+    assert second_list_response.json() == []

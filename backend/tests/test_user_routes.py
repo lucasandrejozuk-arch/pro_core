@@ -244,3 +244,64 @@ def test_manager_cannot_update_user_outside_own_sector(
     )
 
     assert response.status_code == 403
+
+
+def test_admin_can_list_and_update_resource_access(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    create_response = client.post(
+        "/api/v1/users",
+        headers=auth_headers,
+        json={
+            "full_name": "Tecnico Acesso",
+            "email": "tecnico.acesso@example.com",
+            "role": "technician",
+            "password": "Temp1234",
+        },
+    )
+    assert create_response.status_code == 201
+    created_user_id = create_response.json()["id"]
+
+    list_response = client.get("/api/v1/users/resource-access", headers=auth_headers)
+    assert list_response.status_code == 200
+    target = next(record for record in list_response.json() if record["user_id"] == created_user_id)
+    assert "service_orders" in target["default_resources"]
+
+    update_response = client.put(
+        f"/api/v1/users/{created_user_id}/resource-access",
+        headers=auth_headers,
+        json={"allowed_resources": ["dashboard", "service_orders", "tools"]},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["allowed_resources"] == [
+        "dashboard",
+        "service_orders",
+        "tools",
+    ]
+
+
+def test_manager_resource_access_scope_is_limited_to_sector_technicians(
+    client: TestClient,
+    db_session: Session,
+    company: Company,
+) -> None:
+    own_sector = _create_sector(db_session, company, "Laboratorio")
+    other_sector = _create_sector(db_session, company, "Campo")
+    manager = _create_manager(db_session, company, own_sector)
+    local_tech = _create_technician(db_session, company, "local.tech@example.com", own_sector)
+    outside_tech = _create_technician(db_session, company, "outside.tech@example.com", other_sector)
+    manager_headers = _auth_headers(client, manager.email, "Manager123")
+
+    list_response = client.get("/api/v1/users/resource-access", headers=manager_headers)
+    assert list_response.status_code == 200
+    listed_ids = {record["user_id"] for record in list_response.json()}
+    assert str(local_tech.id) in listed_ids
+    assert str(outside_tech.id) not in listed_ids
+
+    update_response = client.put(
+        f"/api/v1/users/{outside_tech.id}/resource-access",
+        headers=manager_headers,
+        json={"allowed_resources": ["dashboard"]},
+    )
+    assert update_response.status_code == 403

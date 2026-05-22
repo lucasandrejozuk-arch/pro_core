@@ -8,13 +8,21 @@ from frontend.app.core.api_client import ApiError
 class ProCoreDataMixin:
     def _module_allowed(self, module_key: str) -> bool:
         role = str(self.session.user.get("role") or "")
+        resource_access = {
+            str(item) for item in (self.session.user.get("resource_access") or []) if str(item)
+        }
+
+        if resource_access:
+            if module_key not in resource_access:
+                return False
+
         if module_key == "customers":
             return role in {"admin", "manager"}
         if module_key == "admin_area":
             return role in {"admin", "manager"}
         if module_key in {"settings", "audit_logs"}:
             return role == "admin"
-        if module_key in {"sectors", "users", "password_resets"}:
+        if module_key in {"sectors", "users", "resource_access", "password_resets"}:
             return role in {"admin", "manager"}
         return True
 
@@ -50,9 +58,33 @@ class ProCoreDataMixin:
         if module_key == "equipment":
             return self.api_client.list_equipment(access_token)
         if module_key == "inventory":
-            return self.api_client.list_inventory(access_token)
+            rows = self.api_client.list_inventory(access_token)
+            try:
+                documents = self.api_client.list_documents(access_token)
+            except ApiError:
+                documents = []
+            documents_by_item_id: dict[str, list[dict]] = {}
+            for document in documents:
+                inventory_item_id = str(document.get("inventory_item_id") or "")
+                if not inventory_item_id:
+                    continue
+                documents_by_item_id.setdefault(inventory_item_id, []).append(document)
+            for row in rows:
+                item_documents = documents_by_item_id.get(str(row.get("id")), [])
+                row["documents"] = item_documents
+                row["documents_count"] = len(item_documents)
+            return rows
         if module_key == "users":
             return self.api_client.list_users(access_token)
+        if module_key == "resource_access":
+            rows = self.api_client.list_user_resource_access(access_token)
+            for row in rows:
+                resources = row.get("allowed_resources") if isinstance(row, dict) else []
+                if isinstance(resources, list):
+                    row["allowed_resources_text"] = ", ".join(str(item) for item in resources)
+                else:
+                    row["allowed_resources_text"] = ""
+            return rows
         if module_key == "password_resets":
             return self.api_client.list_password_reset_requests(access_token)
         if module_key == "sectors":
@@ -134,8 +166,7 @@ class ProCoreDataMixin:
             alerts.append(
                 {
                     "message": (
-                        f"{len(service_orders_pending)} O.S. aguardando aprovação "
-                        "do cliente."
+                        f"{len(service_orders_pending)} O.S. aguardando aprovação " "do cliente."
                     ),
                     "level": "warning",
                 }
@@ -219,10 +250,14 @@ class ProCoreDataMixin:
             return (
                 "Estoque",
                 [
+                    ("Submodulo", "stock_group"),
+                    ("Categoria", "category"),
                     ("SKU", "sku"),
                     ("Nome", "name"),
+                    ("Localizacao", "location"),
                     ("Quantidade", "quantity"),
                     ("Minimo", "minimum_quantity"),
+                    ("Anexos", "documents_count"),
                     ("Custo", "unit_cost"),
                 ],
             )
@@ -237,6 +272,18 @@ class ProCoreDataMixin:
                     ("Setor", "sector_name"),
                     ("Ativo", "is_active"),
                     ("Troca senha", "must_change_password"),
+                ],
+            )
+
+        if module_key == "resource_access":
+            return (
+                "Acessos de Recursos",
+                [
+                    ("Nome", "full_name"),
+                    ("Email", "email"),
+                    ("Perfil", "role"),
+                    ("Setor", "sector_name"),
+                    ("Recursos liberados", "allowed_resources_text"),
                 ],
             )
 

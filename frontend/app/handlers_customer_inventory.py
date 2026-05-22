@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from PySide6.QtWidgets import QFileDialog
+
 from frontend.app.core.api_client import ApiError
 
 
@@ -87,9 +91,17 @@ class CustomerInventoryHandlersMixin:
             self.show_login()
             return
 
+        document_path = str(payload.pop("_document_path", "") or "").strip() or None
         self.dashboard_window.set_inventory_form_loading(True)
         try:
-            self.api_client.create_inventory_item(self.session.access_token, payload)
+            created_item = self.api_client.create_inventory_item(self.session.access_token, payload)
+            if document_path:
+                self.api_client.upload_document(
+                    access_token=self.session.access_token,
+                    file_path=document_path,
+                    document_type="pdf",
+                    inventory_item_id=str(created_item.get("id") or ""),
+                )
         except ApiError as exc:
             self.dashboard_window.set_inventory_form_loading(False)
             self.dashboard_window.set_inventory_form_status(exc.display_message, is_error=True)
@@ -104,9 +116,17 @@ class CustomerInventoryHandlersMixin:
             self.show_login()
             return
 
+        document_path = str(payload.pop("_document_path", "") or "").strip() or None
         self.dashboard_window.set_inventory_form_loading(True)
         try:
             self.api_client.update_inventory_item(self.session.access_token, item_id, payload)
+            if document_path:
+                self.api_client.upload_document(
+                    access_token=self.session.access_token,
+                    file_path=document_path,
+                    document_type="pdf",
+                    inventory_item_id=item_id,
+                )
         except ApiError as exc:
             self.dashboard_window.set_inventory_form_loading(False)
             self.dashboard_window.set_inventory_form_status(exc.display_message, is_error=True)
@@ -132,6 +152,39 @@ class CustomerInventoryHandlersMixin:
         self.dashboard_window.set_inventory_form_loading(False)
         self.dashboard_window.set_inventory_form_status("Item de estoque excluido.")
         self.load_module("inventory")
+
+    def handle_inventory_document_download(self, document_id: str, file_name: str) -> None:
+        if not self.session.access_token:
+            self.show_login()
+            return
+
+        target_path, _selected_filter = QFileDialog.getSaveFileName(
+            self.dashboard_window,
+            "Salvar anexo",
+            str(Path(file_name or "anexo.pdf").name),
+            "Todos os arquivos (*.*)",
+        )
+        if not target_path:
+            return
+
+        self.dashboard_window.set_inventory_form_loading(True)
+        try:
+            content = self.api_client.download_document(self.session.access_token, document_id)
+            Path(target_path).write_bytes(content)
+        except ApiError as exc:
+            self.dashboard_window.set_inventory_form_loading(False)
+            self.dashboard_window.set_inventory_form_status(exc.display_message, is_error=True)
+            return
+        except OSError:
+            self.dashboard_window.set_inventory_form_loading(False)
+            self.dashboard_window.set_inventory_form_status(
+                "Nao foi possivel salvar o arquivo no destino selecionado.",
+                is_error=True,
+            )
+            return
+
+        self.dashboard_window.set_inventory_form_loading(False)
+        self.dashboard_window.set_inventory_form_status("Anexo baixado com sucesso.")
 
     def handle_sector_create(self, payload: dict) -> None:
         if not self.session.access_token:

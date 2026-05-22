@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QTableWidget,
     QTextEdit,
     QVBoxLayout,
@@ -354,6 +355,7 @@ class DashboardRecordFormsMixin:
     ) -> QFrame:
         section = QFrame()
         section.setObjectName("equipmentSection")
+        section.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
         title_label = QLabel(title)
         title_label.setObjectName("sectionTitle")
@@ -373,6 +375,7 @@ class DashboardRecordFormsMixin:
         table_column.addWidget(search_input)
         table_column.addWidget(table)
         table_column.addLayout(actions)
+        table_column.addStretch(1)
 
         details_header = QHBoxLayout()
         details_header.setContentsMargins(0, 0, 0, 0)
@@ -382,16 +385,24 @@ class DashboardRecordFormsMixin:
         details_header.addWidget(copy_button)
 
         details_column = QVBoxLayout()
-        details_column.setContentsMargins(0, 0, 0, 0)
+        details_column.setContentsMargins(8, 8, 8, 8)
         details_column.setSpacing(6)
         details_column.addLayout(details_header)
         details_column.addWidget(summary)
+        details_column.addStretch(1)
+
+        details_panel = QFrame()
+        details_panel.setObjectName("equipmentDetailsPanel")
+        details_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        details_panel.setLayout(details_column)
+        summary.setMinimumHeight(max(150, table.minimumHeight()))
+        summary.setMaximumHeight(16777215)
 
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
         content.setSpacing(10)
         content.addLayout(table_column, 7)
-        content.addLayout(details_column, 5)
+        content.addWidget(details_panel, 5)
 
         layout = QVBoxLayout(section)
         layout.setContentsMargins(0, 0, 0, 0)

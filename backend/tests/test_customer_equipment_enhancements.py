@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from backend.app.core.config import Settings
+
 
 def test_customer_requires_email_and_formatted_phone(
     client: TestClient,
@@ -92,6 +94,26 @@ def test_equipment_supports_special_number_boards_and_components(
     loaded_equipment = get_response.json()
     assert loaded_equipment["boards"][0]["name"] == "Control Unit"
     assert loaded_equipment["boards"][0]["components"][0]["name"] == "C100"
+
+
+def test_equipment_import_rejects_csv_above_configured_limit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "backend.app.api.v1.routes.equipment.get_settings",
+        lambda: Settings(pro_core_max_upload_bytes=1024),
+    )
+
+    response = client.post(
+        "/api/v1/equipment/import",
+        headers=auth_headers,
+        files={"file": ("catalog.csv", b"x" * 2048, "text/csv")},
+    )
+
+    assert response.status_code == 409
+    assert "maximum size" in response.json()["detail"]
 
 
 def test_equipment_hierarchy_crud_without_customer(

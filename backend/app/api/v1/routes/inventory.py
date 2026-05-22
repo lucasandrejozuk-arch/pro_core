@@ -71,7 +71,10 @@ def update_inventory_record(
             status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found."
         )
 
-    return update_inventory_item(db, item, payload)
+    try:
+        return update_inventory_item(db, item, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)

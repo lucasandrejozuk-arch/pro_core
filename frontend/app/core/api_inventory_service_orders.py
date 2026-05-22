@@ -134,6 +134,13 @@ class InventoryServiceOrderApiMixin:
             access_token=access_token,
         )
 
+    def download_document(self, access_token: str, document_id: str) -> bytes:
+        return self._download(
+            "GET",
+            f"documents/{document_id}/download",
+            access_token=access_token,
+        )
+
     def download_service_order_quote(self, access_token: str, service_order_id: str) -> bytes:
         return self._download(
             "GET",
@@ -147,6 +154,7 @@ class InventoryServiceOrderApiMixin:
         service_order_id: str | None = None,
         customer_id: str | None = None,
         equipment_id: str | None = None,
+        inventory_item_id: str | None = None,
     ) -> list[dict[str, Any]]:
         params = {
             key: value
@@ -154,6 +162,7 @@ class InventoryServiceOrderApiMixin:
                 "service_order_id": service_order_id,
                 "customer_id": customer_id,
                 "equipment_id": equipment_id,
+                "inventory_item_id": inventory_item_id,
             }.items()
             if value
         }
@@ -172,6 +181,7 @@ class InventoryServiceOrderApiMixin:
         service_order_id: str | None = None,
         customer_id: str | None = None,
         equipment_id: str | None = None,
+        inventory_item_id: str | None = None,
     ) -> dict[str, Any]:
         path = Path(file_path)
         data = {
@@ -181,6 +191,7 @@ class InventoryServiceOrderApiMixin:
                 "service_order_id": service_order_id,
                 "customer_id": customer_id,
                 "equipment_id": equipment_id,
+                "inventory_item_id": inventory_item_id,
             }.items()
             if value
         }

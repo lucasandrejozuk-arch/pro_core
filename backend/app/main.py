@@ -13,17 +13,18 @@ APP_VERSION = "0.1.0"
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    is_production = settings.pro_core_env.strip().lower() in {"production", "prod"}
 
     app = FastAPI(
         title=APP_NAME,
         version=APP_VERSION,
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=None if is_production else "/docs",
+        redoc_url=None if is_production else "/redoc",
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1", "http://localhost"],
+        allow_origins=settings.pro_core_allowed_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -36,6 +37,15 @@ def create_app() -> FastAPI:
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Cache-Control", "no-store")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; frame-ancestors 'none'; object-src 'none'",
+        )
+        if is_production:
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
         return response
 
     @app.get("/health", tags=["system"])

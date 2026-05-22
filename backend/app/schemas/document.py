@@ -16,6 +16,7 @@ class DocumentAttachmentResponse(BaseModel):
     service_order_id: uuid.UUID | None
     customer_id: uuid.UUID | None
     equipment_id: uuid.UUID | None
+    inventory_item_id: uuid.UUID | None
     uploaded_by_user_id: uuid.UUID | None
     document_type: DocumentType
     file_name: str

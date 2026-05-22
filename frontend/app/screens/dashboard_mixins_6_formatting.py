@@ -63,6 +63,9 @@ class DashboardFormattingMixin:
             "inventory": "Estoque",
             "users": "Usuários",
             "audit_logs": "Logs/Auditoria",
+            "components": "Componentes",
+            "tools": "Ferramentas",
+            "software": "Softwares",
         }
         if isinstance(value, str) and value in labels:
             return labels[value]
@@ -110,6 +113,7 @@ class DashboardFormattingMixin:
             "service_orders": self._format_service_order_full_summary,
             "sectors": self._format_sector_summary,
             "users": self._format_user_summary,
+            "resource_access": self._format_resource_access_summary,
             "password_resets": self._format_password_reset_summary,
             "audit_logs": self._format_audit_summary,
         }

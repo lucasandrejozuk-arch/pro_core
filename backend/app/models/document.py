@@ -13,6 +13,7 @@ from backend.app.models.enums import DocumentType, enum_values
 if TYPE_CHECKING:
     from backend.app.models.customer import Customer
     from backend.app.models.equipment import Equipment
+    from backend.app.models.inventory import InventoryItem
     from backend.app.models.service_order import ServiceOrder
     from backend.app.models.user import User
 
@@ -44,6 +45,12 @@ class DocumentAttachment(ModelBase, Base):
         nullable=True,
         index=True,
     )
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("inventory_items.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     uploaded_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -64,6 +71,7 @@ class DocumentAttachment(ModelBase, Base):
     service_order: Mapped[ServiceOrder | None] = relationship(back_populates="documents")
     customer: Mapped[Customer | None] = relationship(back_populates="documents")
     equipment: Mapped[Equipment | None] = relationship(back_populates="documents")
+    inventory_item: Mapped[InventoryItem | None] = relationship(back_populates="documents")
     uploaded_by: Mapped[User | None] = relationship(
         back_populates="uploaded_documents",
         foreign_keys=[uploaded_by_user_id],

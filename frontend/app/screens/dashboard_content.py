@@ -173,6 +173,8 @@ def build_dashboard_content(self) -> QScrollArea:
     self.sector_form_panel.hide()
     self.user_form_panel = self._build_user_form()
     self.user_form_panel.hide()
+    self.resource_access_form_panel = self._build_resource_access_form()
+    self.resource_access_form_panel.hide()
     self.password_reset_form_panel = self._build_password_reset_form()
     self.password_reset_form_panel.hide()
     self.settings_form_panel = self._build_settings_form()
@@ -190,6 +192,7 @@ def build_dashboard_content(self) -> QScrollArea:
         self.service_order_form_panel,
         self.sector_form_panel,
         self.user_form_panel,
+        self.resource_access_form_panel,
         self.password_reset_form_panel,
         self.admin_area_panel,
         self.audit_form_panel,
@@ -272,6 +275,7 @@ def build_dashboard_content(self) -> QScrollArea:
     generic_form_layout.addWidget(self.service_order_form_panel)
     generic_form_layout.addWidget(self.sector_form_panel)
     generic_form_layout.addWidget(self.user_form_panel)
+    generic_form_layout.addWidget(self.resource_access_form_panel)
     generic_form_layout.addWidget(self.password_reset_form_panel)
     generic_form_layout.addWidget(self.audit_form_panel)
 

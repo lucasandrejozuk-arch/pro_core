@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer
+from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QFrame,
+    QGraphicsOpacityEffect,
     QLabel,
     QPushButton,
     QSizePolicy,
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from frontend.app.core.display import DisplayProfile, detect_display_profile
 from frontend.app.core.grid import span_for_items
+from frontend.app.core.i18n import normalize_language, translate_ui_text
 from frontend.app.core.icons import build_icon
 from frontend.app.themes.tokens import (
     EDITOR_DEFAULT_MAX_HEIGHT,
@@ -38,6 +40,13 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 
 
 class DashboardMixin1:
+    def _current_ui_language(self) -> str:
+        settings = getattr(self, "current_settings", {})
+        language = "pt-BR"
+        if isinstance(settings, dict):
+            language = str(settings.get("language") or "pt-BR")
+        return normalize_language(language)
+
     def _configure_sidebar_button(self, button: QPushButton, icon_name: str, tooltip: str) -> None:
         button.setText("")
         button.setToolTip(tooltip)
@@ -238,6 +247,8 @@ class DashboardMixin1:
             self.dashboard_cards["users_total"].setVisible(role_key in {"admin", "manager"})
         if "customers_total" in self.dashboard_cards:
             self.dashboard_cards["customers_total"].setVisible(role_key in {"admin", "manager"})
+        if hasattr(self, "backend_restart_button"):
+            self._sync_backend_restart_control()
         self._refresh_session_footer()
 
     def set_session_login_at(self, login_at: datetime | None) -> None:
@@ -272,13 +283,28 @@ class DashboardMixin1:
             f"* Sessao: {role} | Setor: {sector} | Login: {login_text} | Tempo: {elapsed_text}"
         )
 
-    def set_backend_connection_status(self, is_connected: bool) -> None:
-        self.backend_status_dot.setProperty("level", "success" if is_connected else "error")
+    def set_backend_connection_status(
+        self,
+        is_connected: bool,
+        message: str | None = None,
+        level: str | None = None,
+    ) -> None:
+        normalized_level = level or ("success" if is_connected else "error")
+        if normalized_level not in {"success", "warning", "error", "info"}:
+            normalized_level = "success" if is_connected else "error"
+        self.backend_status_dot.setProperty("level", normalized_level)
         self.backend_status_text.setText(
-            "Backend: conectado" if is_connected else "Backend: desconectado"
+            message or ("Backend: conectado" if is_connected else "Backend: desconectado")
         )
         self.backend_status_dot.style().unpolish(self.backend_status_dot)
         self.backend_status_dot.style().polish(self.backend_status_dot)
+
+    def set_internal_server_status(self, level: str, message: str) -> None:
+        normalized_level = level if level in {"success", "warning", "error", "info"} else "info"
+        self.internal_server_status_dot.setProperty("level", normalized_level)
+        self.internal_server_status_text.setText(message)
+        self.internal_server_status_dot.style().unpolish(self.internal_server_status_dot)
+        self.internal_server_status_dot.style().polish(self.internal_server_status_dot)
 
     def _set_footer_message(self, message: str, level: str = "info") -> None:
         if not hasattr(self, "_footer_message_timer"):
@@ -286,7 +312,8 @@ class DashboardMixin1:
             self._footer_message_timer.setSingleShot(True)
             self._footer_message_timer.timeout.connect(self._clear_footer_message)
         self._footer_message_timer.stop()
-        self.footer_message_label.setText(message)
+        translated_message = translate_ui_text(message, self._current_ui_language())
+        self.footer_message_label.setText(translated_message)
         self.footer_message_label.setProperty("level", level)
         self.footer_message_label.style().unpolish(self.footer_message_label)
         self.footer_message_label.style().polish(self.footer_message_label)
@@ -304,6 +331,26 @@ class DashboardMixin1:
         label.style().polish(label)
         if message:
             self._set_footer_message(message, "error" if is_error else "success")
+
+    def _animate_content_transition(self) -> None:
+        if not hasattr(self, "main_scroll_area"):
+            return
+        content = self.main_scroll_area.widget()
+        if content is None:
+            return
+
+        effect = content.graphicsEffect()
+        if not isinstance(effect, QGraphicsOpacityEffect):
+            effect = QGraphicsOpacityEffect(content)
+            content.setGraphicsEffect(effect)
+
+        animation = QPropertyAnimation(effect, b"opacity", self)
+        animation.setDuration(140)
+        animation.setStartValue(0.92)
+        animation.setEndValue(1.0)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.start()
+        self.content_fade_animation = animation
 
     def apply_branding(self, settings: dict[str, Any]) -> None:
         brand_name = str(

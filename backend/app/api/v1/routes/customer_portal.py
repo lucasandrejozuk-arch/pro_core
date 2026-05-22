@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from backend.app.core.config import get_settings
+from backend.app.core.rate_limit import login_rate_limiter
 from backend.app.core.security import create_access_token, decode_access_token
 from backend.app.db.session import get_db
 from backend.app.models.enums import ServiceOrderEventSource, ServiceOrderStatus
@@ -63,19 +65,41 @@ def _get_portal_service_order(
 
 @router.post("/login", response_model=CustomerPortalLoginResponse)
 def login_customer_portal(
+    request: Request,
     payload: CustomerPortalLoginRequest,
     db: Session = Depends(get_db),
 ) -> CustomerPortalLoginResponse:
+    settings = get_settings()
+    client_host = request.client.host if request.client else "unknown"
+    rate_limit_key = (
+        f"customer-portal:{client_host}:"
+        f"{payload.service_order_code.strip().lower()}:{payload.email.strip().lower()}"
+    )
+    if login_rate_limiter.is_limited(
+        key=rate_limit_key,
+        max_attempts=settings.pro_core_public_rate_limit_attempts,
+        window_seconds=settings.pro_core_public_rate_limit_window_seconds,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many portal login attempts. Try again later.",
+        )
+
     service_order = get_service_order_for_customer_portal(
         db,
         code=payload.service_order_code,
         customer_email=payload.email,
     )
     if service_order is None:
+        login_rate_limiter.record_failure(
+            key=rate_limit_key,
+            window_seconds=settings.pro_core_public_rate_limit_window_seconds,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal access."
         )
 
+    login_rate_limiter.clear(rate_limit_key)
     token = create_access_token(
         str(service_order.id),
         extra_claims={

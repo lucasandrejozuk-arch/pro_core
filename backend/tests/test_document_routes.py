@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import uuid
+
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from backend.app.core.config import Settings
+from backend.app.models.document import DocumentAttachment
 
 
 def _create_customer(client: TestClient, auth_headers: dict[str, str]) -> dict:
@@ -49,6 +55,29 @@ def _create_service_order(
             "customer_id": customer_id,
             "equipment_id": equipment_id,
             "problem_description": "Equipamento nao liga.",
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _create_inventory_item(client: TestClient, auth_headers: dict[str, str]) -> dict:
+    response = client.post(
+        "/api/v1/inventory",
+        headers=auth_headers,
+        json={
+            "sku": "INV-DOC-001",
+            "name": "Transformador 24V",
+            "stock_group": "components",
+            "category": "Transformadores",
+            "quantity": "5",
+            "minimum_quantity": "1",
+            "unit_cost": "99.90",
+            "technical_data": {
+                "primary_voltage": "220V",
+                "secondary_voltage": "24V",
+                "power": "150VA",
+            },
         },
     )
     assert response.status_code == 201
@@ -111,3 +140,97 @@ def test_upload_document_requires_target(
     )
 
     assert response.status_code == 400
+
+
+def test_upload_and_list_document_for_inventory_item(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    item = _create_inventory_item(client, auth_headers)
+
+    upload_response = client.post(
+        "/api/v1/documents",
+        headers=auth_headers,
+        data={
+            "inventory_item_id": item["id"],
+            "document_type": "pdf",
+        },
+        files={"file": ("datasheet.pdf", b"pdf-content", "application/pdf")},
+    )
+    assert upload_response.status_code == 201
+    document = upload_response.json()
+    assert document["inventory_item_id"] == item["id"]
+
+    list_response = client.get(
+        "/api/v1/documents",
+        headers=auth_headers,
+        params={"inventory_item_id": item["id"]},
+    )
+    assert list_response.status_code == 200
+    listed = list_response.json()
+    assert len(listed) == 1
+    assert listed[0]["id"] == document["id"]
+
+
+def test_upload_document_rejects_disallowed_file_type(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    customer = _create_customer(client, auth_headers)
+
+    response = client.post(
+        "/api/v1/documents",
+        headers=auth_headers,
+        data={"customer_id": customer["id"], "document_type": "other"},
+        files={"file": ("script.exe", b"conteudo", "application/octet-stream")},
+    )
+
+    assert response.status_code == 400
+    assert "not allowed" in response.json()["detail"]
+
+
+def test_upload_document_rejects_files_above_configured_limit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    customer = _create_customer(client, auth_headers)
+    monkeypatch.setattr(
+        "backend.app.services.documents.get_settings",
+        lambda: Settings(pro_core_max_upload_bytes=1024),
+    )
+
+    response = client.post(
+        "/api/v1/documents",
+        headers=auth_headers,
+        data={"customer_id": customer["id"], "document_type": "other"},
+        files={"file": ("grande.txt", b"x" * 2048, "text/plain")},
+    )
+
+    assert response.status_code == 400
+    assert "maximum size" in response.json()["detail"]
+
+
+def test_download_document_rejects_storage_path_escape(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    customer = _create_customer(client, auth_headers)
+    upload_response = client.post(
+        "/api/v1/documents",
+        headers=auth_headers,
+        data={"customer_id": customer["id"], "document_type": "other"},
+        files={"file": ("diagnostico.txt", b"conteudo", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    document_id = upload_response.json()["id"]
+    document = db_session.get(DocumentAttachment, uuid.UUID(document_id))
+    assert document is not None
+    document.storage_path = "../outside.txt"
+    db_session.add(document)
+    db_session.commit()
+
+    response = client.get(f"/api/v1/documents/{document_id}/download", headers=auth_headers)
+
+    assert response.status_code == 404

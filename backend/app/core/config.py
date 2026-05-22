@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     pro_core_bcrypt_rounds: int = Field(default=12, ge=4, le=14)
     pro_core_login_rate_limit_attempts: int = Field(default=5, ge=2, le=20)
     pro_core_login_rate_limit_window_seconds: int = Field(default=300, ge=30, le=3600)
+    pro_core_public_rate_limit_attempts: int = Field(default=5, ge=2, le=30)
+    pro_core_public_rate_limit_window_seconds: int = Field(default=300, ge=30, le=3600)
+    pro_core_allowed_cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://127.0.0.1", "http://localhost"]
+    )
 
     postgres_db: str = Field(default="pro_core")
     postgres_user: str = Field(default="pro_core")
@@ -32,7 +37,23 @@ class Settings(BaseSettings):
 
     pro_core_backup_enabled: bool = Field(default=True)
     pro_core_backup_interval_hours: int = Field(default=24)
+    pro_core_backup_command_timeout_seconds: int = Field(default=300, ge=15, le=3600)
     pro_core_storage_dir: str = Field(default="storage")
+    pro_core_max_upload_bytes: int = Field(default=25 * 1024 * 1024, ge=1024)
+    pro_core_allowed_document_extensions: set[str] = Field(
+        default_factory=lambda: {
+            ".csv",
+            ".doc",
+            ".docx",
+            ".jpg",
+            ".jpeg",
+            ".pdf",
+            ".png",
+            ".txt",
+            ".xls",
+            ".xlsx",
+        }
+    )
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":

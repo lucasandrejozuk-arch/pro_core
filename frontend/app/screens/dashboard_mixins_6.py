@@ -5,6 +5,16 @@ from typing import Any
 
 from PySide6.QtWidgets import (
     QFileDialog,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+)
+
+from frontend.app.core.inventory_catalog import (
+    categories_for_group,
+    required_field_keys_for_category,
+    technical_field_labels_for_category,
+    technical_fields_for_category,
 )
 
 
@@ -15,15 +25,188 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 
 
 class DashboardMixin6:
+    def _initialize_inventory_wizard(self) -> None:
+        self.inventory_wizard_step = 0
+        self.inventory_active_stock_group = "components"
+        self.selected_inventory_document_path = None
+        self._sync_inventory_categories()
+        self._set_inventory_wizard_step(0)
+
+    def _set_inventory_wizard_step(self, step_index: int) -> None:
+        self.inventory_wizard_step = max(0, min(step_index, 2))
+        self.inventory_step_1_panel.setVisible(self.inventory_wizard_step == 0)
+        self.inventory_step_2_panel.setVisible(self.inventory_wizard_step == 1)
+        self.inventory_step_3_panel.setVisible(self.inventory_wizard_step == 2)
+
+        step_titles = {
+            0: "ETAPA 1/3 - CATEGORIA",
+            1: "ETAPA 2/3 - DADOS TECNICOS",
+            2: "ETAPA 3/3 - CONFIGURACOES FINAIS",
+        }
+        self.inventory_step_title.setText(step_titles.get(self.inventory_wizard_step, ""))
+        self.inventory_back_button.setEnabled(self.inventory_wizard_step > 0)
+        self.inventory_next_button.setVisible(self.inventory_wizard_step < 2)
+        self.inventory_save_button.setVisible(self.inventory_wizard_step == 2)
+
+    def _go_inventory_previous_step(self) -> None:
+        self._set_inventory_wizard_step(self.inventory_wizard_step - 1)
+
+    def _go_inventory_next_step(self) -> None:
+        if self.inventory_wizard_step == 0:
+            category = str(self.inventory_category_input.currentText() or "").strip()
+            if not category:
+                self.set_inventory_form_status(
+                    "Selecione uma categoria para continuar.", is_error=True
+                )
+                return
+        self._set_inventory_wizard_step(self.inventory_wizard_step + 1)
+
+    def _current_inventory_stock_group(self) -> str:
+        index = self.inventory_group_tabs.currentIndex()
+        if index < 0 or index >= len(self.inventory_stock_group_keys):
+            return "components"
+        return self.inventory_stock_group_keys[index]
+
+    def _sync_inventory_categories(self) -> None:
+        stock_group = self._current_inventory_stock_group()
+        categories = categories_for_group(stock_group)
+        previous_category = str(self.inventory_category_input.currentText() or "").strip()
+        self.inventory_category_input.blockSignals(True)
+        self.inventory_category_input.clear()
+        for category in categories:
+            self.inventory_category_input.addItem(category)
+        self.inventory_category_input.blockSignals(False)
+        if previous_category in categories:
+            self.inventory_category_input.setCurrentText(previous_category)
+        self._rebuild_inventory_dynamic_fields(
+            str(self.inventory_category_input.currentText() or "")
+        )
+
+    def _handle_inventory_stock_group_changed(self, _index: int) -> None:
+        self.inventory_active_stock_group = self._current_inventory_stock_group()
+        self._sync_inventory_categories()
+        if self.active_module_key == "inventory":
+            self._populate_current_table(self._filtered_rows())
+
+    def _handle_inventory_category_changed(self, _index: int) -> None:
+        category = str(self.inventory_category_input.currentText() or "").strip()
+        self._rebuild_inventory_dynamic_fields(category)
+
+    def _clear_inventory_dynamic_fields(self) -> None:
+        while self.inventory_dynamic_specs_layout.count():
+            item = self.inventory_dynamic_specs_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.inventory_dynamic_fields = []
+
+    def _rebuild_inventory_dynamic_fields(self, category: str) -> None:
+        self._clear_inventory_dynamic_fields()
+        for key, label in technical_fields_for_category(category):
+            line_edit = QLineEdit()
+            line_edit.setPlaceholderText(f"Informe {label.lower()}")
+            self.inventory_dynamic_specs_layout.addRow(f"{label}", line_edit)
+            self.inventory_dynamic_fields.append((key, line_edit))
+
+    def _current_inventory_technical_data(self) -> dict[str, str]:
+        return {
+            key: field.text().strip()
+            for key, field in self.inventory_dynamic_fields
+            if field.text().strip()
+        }
+
+    def _populate_inventory_dynamic_data(self, technical_data: dict[str, Any] | None) -> None:
+        source = technical_data or {}
+        for key, field in self.inventory_dynamic_fields:
+            value = source.get(key)
+            field.setText(str(value or ""))
+
+    def _select_inventory_stock_group(self, stock_group: str) -> None:
+        target = stock_group or "components"
+        for index, key in enumerate(self.inventory_stock_group_keys):
+            if key == target:
+                self.inventory_group_tabs.setCurrentIndex(index)
+                self.inventory_active_stock_group = key
+                return
+
+    def _select_inventory_document(self) -> None:
+        file_path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar datasheet",
+            "",
+            "PDF (*.pdf)",
+        )
+        if not file_path:
+            return
+        self.selected_inventory_document_path = file_path
+        self.inventory_document_path_input.setText(file_path)
+
+    def _remove_inventory_document(self) -> None:
+        self.selected_inventory_document_path = None
+        self.inventory_document_path_input.clear()
+
+    def _clear_inventory_document_buttons(self) -> None:
+        while self.inventory_documents_buttons_layout.count():
+            item = self.inventory_documents_buttons_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def _render_inventory_document_buttons(self, documents: list[dict[str, Any]]) -> None:
+        self._clear_inventory_document_buttons()
+        if not documents:
+            self.inventory_documents_buttons_layout.addWidget(
+                QLabel("Nenhum anexo disponivel para download.")
+            )
+            return
+
+        for index, document in enumerate(documents, start=1):
+            document_id = str(document.get("id") or "")
+            file_name = str(document.get("file_name") or f"anexo_{index}")
+            button = QPushButton(f"Baixar {file_name}")
+            button.setObjectName("secondaryButton")
+            if document_id:
+                button.clicked.connect(
+                    lambda _checked=False, doc_id=document_id, name=file_name: self.inventory_document_download_requested.emit(
+                        doc_id, name
+                    )
+                )
+            else:
+                button.setEnabled(False)
+                button.setText(f"Baixar {file_name} (indisponivel)")
+            self.inventory_documents_buttons_layout.addWidget(button)
+
+        if self.inventory_documents_buttons_layout.count() == 0:
+            self.inventory_documents_buttons_layout.addWidget(
+                QLabel("Nenhum anexo disponivel para download.")
+            )
+
     def _populate_inventory_form(self, item: dict[str, Any]) -> None:
         self.selected_inventory_item_id = str(item["id"])
+        self._select_inventory_stock_group(str(item.get("stock_group") or "components"))
+        self.inventory_active_stock_group = self._current_inventory_stock_group()
+        self._sync_inventory_categories()
+        self.inventory_category_input.setCurrentText(str(item.get("category") or ""))
         self.inventory_sku_input.setText(str(item.get("sku") or ""))
         self.inventory_name_input.setText(str(item.get("name") or ""))
-        self.inventory_category_input.setText(str(item.get("category") or ""))
         self.inventory_quantity_input.setText(str(item.get("quantity") or "0"))
         self.inventory_minimum_quantity_input.setText(str(item.get("minimum_quantity") or "0"))
+        self.inventory_location_input.setText(str(item.get("location") or ""))
         self.inventory_unit_cost_input.setText(str(item.get("unit_cost") or "0"))
+        self.inventory_notes_input.setPlainText(str(item.get("notes") or ""))
+        technical_data = (
+            item.get("technical_data") if isinstance(item.get("technical_data"), dict) else {}
+        )
+        self._populate_inventory_dynamic_data(technical_data)
         self.inventory_full_summary.setPlainText(self._format_inventory_full_summary(item))
+        documents = item.get("documents") if isinstance(item.get("documents"), list) else []
+        document_lines = self._format_inventory_documents(documents)
+        self.inventory_documents_summary.setPlainText(
+            "\n".join(document_lines) if document_lines else "Nenhum anexo vinculado ao item."
+        )
+        self._render_inventory_document_buttons(documents)
+        self.selected_inventory_document_path = None
+        self.inventory_document_path_input.clear()
         if self._inventory_is_low(item):
             self._set_inventory_stock_status(
                 "Estoque critico: quantidade no minimo ou abaixo.", "error"
@@ -31,6 +214,7 @@ class DashboardMixin6:
         else:
             self._set_inventory_stock_status("Estoque em nivel operacional.", "info")
         self._refresh_inventory_reorder_status(item)
+        self._set_inventory_wizard_step(1)
         self.inventory_delete_button.setEnabled(True)
         self.set_inventory_form_status("Editando item selecionado.")
 
@@ -52,11 +236,22 @@ class DashboardMixin6:
         payload = {
             "sku": self._optional_text(self.inventory_sku_input),
             "name": name,
-            "category": self._optional_text(self.inventory_category_input),
+            "category": str(self.inventory_category_input.currentText() or "").strip() or None,
+            "stock_group": self._current_inventory_stock_group(),
+            "location": self._optional_text(self.inventory_location_input),
             "quantity": quantity,
             "minimum_quantity": minimum_quantity,
             "unit_cost": unit_cost,
+            "notes": self.inventory_notes_input.toPlainText().strip() or None,
+            "technical_data": self._current_inventory_technical_data() or None,
         }
+        if not self._validate_inventory_category_specific_fields(
+            str(payload.get("category") or ""),
+            dict(payload.get("technical_data") or {}),
+        ):
+            return
+        if self.selected_inventory_document_path:
+            payload["_document_path"] = self.selected_inventory_document_path
 
         self.set_inventory_form_status("")
         if self.selected_inventory_item_id:
@@ -110,6 +305,36 @@ class DashboardMixin6:
             f"Valor atual em estoque R$ {self._format_number(stock_value)}.",
             "warning",
         )
+
+    def _inventory_row_matches_stock_group(self, row: dict[str, Any]) -> bool:
+        active_group = str(getattr(self, "inventory_active_stock_group", "components") or "")
+        row_group = str(row.get("stock_group") or "components")
+        return not active_group or row_group == active_group
+
+    def _validate_inventory_category_specific_fields(
+        self,
+        category: str,
+        technical_data: dict[str, str],
+    ) -> bool:
+        required_keys = required_field_keys_for_category(category)
+        if not required_keys:
+            return True
+        labels = technical_field_labels_for_category(category)
+        missing_labels = [
+            labels.get(key, key)
+            for key in required_keys
+            if not str(technical_data.get(key) or "").strip()
+        ]
+        if missing_labels:
+            self.set_inventory_form_status(
+                "Campos obrigatorios para categoria selecionada: "
+                + ", ".join(missing_labels)
+                + ".",
+                is_error=True,
+            )
+            self._set_inventory_wizard_step(1)
+            return False
+        return True
 
     def _populate_service_order_form(self, service_order: dict[str, Any]) -> None:
         self.selected_service_order_id = str(service_order["id"])
@@ -216,7 +441,7 @@ class DashboardMixin6:
             self._format_service_order_documents(service_order)
         )
         self._set_service_order_flow_buttons_enabled(True, str(service_order.get("status") or ""))
-        self.service_order_delete_button.setEnabled(True)
+        self.service_order_delete_button.setEnabled(self._can_delete_service_order())
         self.set_service_order_form_status("Editando ordem de servico selecionada.")
 
     def _request_service_order_save(self) -> None:
@@ -268,6 +493,12 @@ class DashboardMixin6:
     def _request_service_order_delete(self) -> None:
         if not self.selected_service_order_id:
             self.set_service_order_form_status("Selecione uma OS.", is_error=True)
+            return
+        if not self._can_delete_service_order():
+            self.set_service_order_form_status(
+                "Apenas administradores e gestores podem excluir OS.",
+                is_error=True,
+            )
             return
         if not confirm_destructive_action(
             self,

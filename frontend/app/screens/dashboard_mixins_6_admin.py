@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+import string
 from typing import Any
 
 from frontend.app.themes.styles import DEFAULT_COLOR_PALETTE
@@ -152,6 +154,42 @@ class DashboardAdminActionsMixin:
             return
         self.user_delete_requested.emit(self.selected_user_id)
 
+    def _populate_resource_access_form(self, record: dict[str, Any]) -> None:
+        self.selected_user_id = str(record.get("user_id") or "")
+        target = str(record.get("full_name") or "Conta")
+        email = str(record.get("email") or "")
+        role = self._user_role_label(record.get("role"))
+        self.resource_access_target_label.setText(f"Conta: {target} | {email} | Perfil: {role}")
+        default_resources = {
+            str(item) for item in (record.get("default_resources") or []) if str(item)
+        }
+        allowed_resources = {
+            str(item) for item in (record.get("allowed_resources") or []) if str(item)
+        }
+        for key, checkbox in self.resource_access_checkboxes.items():
+            checkbox.blockSignals(True)
+            checkbox.setChecked(key in allowed_resources)
+            checkbox.setEnabled(key in default_resources)
+            checkbox.blockSignals(False)
+        self.resource_access_save_button.setEnabled(bool(self.selected_user_id))
+        self.resource_access_full_summary.setPlainText(self._format_resource_access_summary(record))
+        self._refresh_resource_access_operational_status(record)
+        self.set_resource_access_form_status("Revise os recursos e salve para aplicar.")
+
+    def _request_resource_access_save(self) -> None:
+        if not self.selected_user_id:
+            self.set_resource_access_form_status(
+                "Selecione uma conta para salvar os acessos.", is_error=True
+            )
+            return
+        allowed_resources = [
+            key
+            for key, checkbox in self.resource_access_checkboxes.items()
+            if checkbox.isEnabled() and checkbox.isChecked()
+        ]
+        self.set_resource_access_form_status("")
+        self.user_resource_access_update_requested.emit(self.selected_user_id, allowed_resources)
+
     def _populate_password_reset_form(self, request: dict[str, Any]) -> None:
         self.selected_password_reset_request_id = str(request["id"])
         self.selected_password_reset_status = self._password_reset_status_key(request.get("status"))
@@ -163,14 +201,37 @@ class DashboardAdminActionsMixin:
             f"Solicitante: {full_name} | {email} | Perfil: {role} | Criada em: {created_at}"
         )
         self.password_reset_new_password_input.clear()
-        self.password_reset_resolve_button.setEnabled(self._password_reset_can_resolve())
+        can_resolve = self._password_reset_can_resolve()
+        self.password_reset_generate_button.setEnabled(can_resolve)
+        self.password_reset_resolve_button.setEnabled(False)
+        self.password_reset_cancel_button.setEnabled(can_resolve)
         self.password_reset_full_summary.setPlainText(self._format_password_reset_summary(request))
         self._refresh_password_reset_operational_status(request)
         self.set_password_reset_form_status(
-            "Informe uma nova senha temporaria."
-            if self._password_reset_can_resolve()
-            else "Solicitacao ja resolvida."
+            "Gere uma senha temporaria para redefinir o acesso."
+            if can_resolve
+            else "Solicitacao ja encerrada."
         )
+
+    def _generate_password_reset_temporary_password(self) -> None:
+        if not self._password_reset_can_resolve():
+            self.set_password_reset_form_status(
+                "Selecione uma solicitacao pendente.",
+                is_error=True,
+            )
+            return
+
+        alphabet = string.ascii_letters + string.digits
+        required = [
+            secrets.choice(string.ascii_lowercase),
+            secrets.choice(string.ascii_uppercase),
+            secrets.choice(string.digits),
+        ]
+        generated = required + [secrets.choice(alphabet) for _ in range(3)]
+        secrets.SystemRandom().shuffle(generated)
+        self.password_reset_new_password_input.setText("".join(generated))
+        self.password_reset_resolve_button.setEnabled(True)
+        self.set_password_reset_form_status("Senha temporaria gerada.")
 
     def _request_password_reset_resolve(self) -> None:
         if not self.selected_password_reset_request_id:
@@ -182,11 +243,12 @@ class DashboardAdminActionsMixin:
 
         new_password = self.password_reset_new_password_input.text()
         if not new_password:
-            self.set_password_reset_form_status("Informe a nova senha.", is_error=True)
+            self.set_password_reset_form_status("Gere a senha temporaria.", is_error=True)
             return
-        if not self._is_valid_password(new_password):
+        if not self._is_valid_temporary_password(new_password):
             self.set_password_reset_form_status(
-                "Senha deve ter pelo menos 8 caracteres.",
+                "Senha temporaria deve ter 6 caracteres com letras maiusculas, "
+                "minusculas e numeros.",
                 is_error=True,
             )
             return
@@ -196,6 +258,24 @@ class DashboardAdminActionsMixin:
             self.selected_password_reset_request_id,
             new_password,
         )
+
+    def _request_password_reset_cancel(self) -> None:
+        if not self.selected_password_reset_request_id:
+            self.set_password_reset_form_status(
+                "Selecione uma solicitacao.",
+                is_error=True,
+            )
+            return
+        if not self._password_reset_can_resolve():
+            self.set_password_reset_form_status("Solicitacao ja encerrada.", is_error=True)
+            return
+        if not confirm_destructive_action(
+            self,
+            "Ignorar solicitacao",
+            "Marcar a solicitacao de redefinicao de senha como ignorada?",
+        ):
+            return
+        self.password_reset_cancel_requested.emit(self.selected_password_reset_request_id)
 
     def _populate_settings_form(self, settings: dict[str, Any]) -> None:
         self.current_settings = dict(settings)
@@ -226,7 +306,6 @@ class DashboardAdminActionsMixin:
         self.settings_backup_last_run_label.setText(
             f"Ultimo backup: {last_run}" if last_run else "Ultimo backup: nunca"
         )
-        self.settings_full_summary.setPlainText(self._format_settings_summary(settings))
         self.apply_branding(settings)
         self._refresh_settings_operational_status(settings)
         self.set_settings_form_status("Configuracoes carregadas.")

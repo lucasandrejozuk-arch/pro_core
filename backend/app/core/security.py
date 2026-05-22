@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 import bcrypt
@@ -32,7 +33,23 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
+
+
+def verify_password_for_missing_user(plain_password: str) -> None:
+    settings = get_settings()
+    verify_password(plain_password, _dummy_password_hash(settings.pro_core_bcrypt_rounds))
+
+
+@lru_cache(maxsize=8)
+def _dummy_password_hash(rounds: int) -> str:
+    return bcrypt.hashpw(
+        b"pro-core-missing-user-password",
+        bcrypt.gensalt(rounds=rounds),
+    ).decode("utf-8")
 
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:

@@ -18,6 +18,7 @@ from backend.app.services.users import (
 
 PENDING_STATUS = "pending"
 RESOLVED_STATUS = "resolved"
+CANCELLED_STATUS = "cancelled"
 
 
 def create_password_reset_request(db: Session, email: str) -> PasswordResetRequest | None:
@@ -114,8 +115,28 @@ def resolve_password_reset_request(
         if requester.sector_id != current_user.sector_id:
             raise PermissionError("Password reset request is outside the current user's scope.")
 
-    reset_user_password(db, requester, new_password)
+    reset_user_password(db, requester, new_password, validate_strength=False)
     request.status = RESOLVED_STATUS
+    request.resolved_by_user_id = current_user.id
+    request.resolved_at = datetime.now(UTC)
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+def cancel_password_reset_request(
+    db: Session,
+    current_user: User,
+    request: PasswordResetRequest,
+) -> PasswordResetRequest:
+    if request.status != PENDING_STATUS:
+        raise ValueError("Password reset request is already closed.")
+
+    if not can_access_password_reset_request(current_user, request):
+        raise PermissionError("Password reset request is outside the current user's scope.")
+
+    request.status = CANCELLED_STATUS
     request.resolved_by_user_id = current_user.id
     request.resolved_at = datetime.now(UTC)
     db.add(request)

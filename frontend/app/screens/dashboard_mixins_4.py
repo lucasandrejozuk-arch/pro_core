@@ -12,13 +12,13 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSlider,
     QTabWidget,
     QVBoxLayout,
 )
 
 from frontend.app.core.grid import GRID_COLUMNS, create_grid
-from frontend.app.screens.dashboard_modules import module_stage_label
 from frontend.app.widgets import create_summary_text
 
 
@@ -66,7 +66,6 @@ class DashboardMixin4:
 
         self.settings_language_combo = QComboBox()
         self.settings_language_combo.addItem("Portugues brasileiro", "pt-BR")
-        self.settings_language_combo.addItem("English (US)", "en-US")
 
         self.settings_ui_scale_label = QLabel("100%")
         self.settings_ui_scale_label.setObjectName("mutedText")
@@ -98,6 +97,7 @@ class DashboardMixin4:
 
         company_panel = QFrame()
         company_panel.setObjectName("formSubPanel")
+        company_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         company_panel_layout = QVBoxLayout(company_panel)
         company_panel_layout.setContentsMargins(12, 12, 12, 12)
         company_panel_layout.setSpacing(8)
@@ -114,6 +114,7 @@ class DashboardMixin4:
 
         branding_panel = QFrame()
         branding_panel.setObjectName("formSubPanel")
+        branding_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         branding_panel_layout = QVBoxLayout(branding_panel)
         branding_panel_layout.setContentsMargins(12, 12, 12, 12)
         branding_panel_layout.setSpacing(8)
@@ -133,12 +134,16 @@ class DashboardMixin4:
 
         interface_panel = QFrame()
         interface_panel.setObjectName("formSubPanel")
+        interface_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         interface_panel_layout = QVBoxLayout(interface_panel)
         interface_panel_layout.setContentsMargins(12, 12, 12, 12)
         interface_panel_layout.setSpacing(8)
         interface_title = QLabel("INTERFACE")
         interface_title.setObjectName("formGroupTitle")
-        interface_hint = QLabel("Ajustes locais aplicados ao painel e janelas do operador.")
+        interface_hint = QLabel(
+            "Aparencia, escala e idioma local. Ingles fica indisponivel ate a "
+            "camada completa de traducao ser ativada."
+        )
         interface_hint.setObjectName("mutedText")
         interface_hint.setWordWrap(True)
         interface_panel_layout.addWidget(interface_title)
@@ -153,6 +158,7 @@ class DashboardMixin4:
 
         backup_panel = QFrame()
         backup_panel.setObjectName("formSubPanel")
+        backup_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         backup_panel_layout = QVBoxLayout(backup_panel)
         backup_panel_layout.setContentsMargins(12, 12, 12, 12)
         backup_panel_layout.setSpacing(8)
@@ -168,10 +174,6 @@ class DashboardMixin4:
         backup_panel_layout.addLayout(backup_layout)
         backup_panel_layout.addWidget(self.settings_backup_last_run_label)
 
-        settings_details_title = QLabel("RESUMO OPERACIONAL")
-        settings_details_title.setObjectName("formGroupTitle")
-        self.settings_full_summary = create_summary_text()
-
         self.settings_operational_status = QLabel(
             "Status: carregue configuracoes para revisar identidade e interface."
         )
@@ -179,9 +181,7 @@ class DashboardMixin4:
         self.settings_operational_status.setProperty("level", "warning")
         self.settings_operational_status.setWordWrap(True)
 
-        self.settings_backup_status = QLabel(
-            "Backup: informe intervalo e destino antes de salvar."
-        )
+        self.settings_backup_status = QLabel("Backup: informe intervalo e destino antes de salvar.")
         self.settings_backup_status.setObjectName("moduleActionHint")
         self.settings_backup_status.setWordWrap(True)
 
@@ -200,24 +200,14 @@ class DashboardMixin4:
         actions.addWidget(self.settings_run_backup_button)
         actions.addWidget(self.settings_save_button)
 
-        summary_panel = QFrame()
-        summary_panel.setObjectName("formSubPanel")
-        summary_panel_layout = QVBoxLayout(summary_panel)
-        summary_panel_layout.setContentsMargins(12, 12, 12, 12)
-        summary_panel_layout.setSpacing(8)
-        summary_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        summary_panel_layout.addWidget(settings_details_title)
-        summary_panel_layout.addWidget(self.settings_full_summary)
-
         self.settings_tabs = QTabWidget()
         self.settings_tabs.setObjectName("settingsTabs")
         self.settings_tabs.addTab(self._wrap_settings_tab(company_panel), "Empresa")
-        self.settings_tabs.addTab(self._wrap_settings_tab(branding_panel), "Aparencia")
         self.settings_tabs.addTab(
-            self._wrap_settings_tab(interface_panel, backup_panel),
-            "Interface e backup",
+            self._wrap_settings_tab(branding_panel, interface_panel),
+            "Aparencia e interface",
         )
-        self.settings_tabs.addTab(self._wrap_settings_tab(summary_panel), "Resumo")
+        self.settings_tabs.addTab(self._wrap_settings_tab(backup_panel), "Backup")
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -240,7 +230,9 @@ class DashboardMixin4:
         layout.setSpacing(8)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         for widget in widgets:
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
             layout.addWidget(widget)
+        layout.addStretch(1)
         return tab
 
     def _build_admin_area_panel(self) -> QFrame:
@@ -251,24 +243,75 @@ class DashboardMixin4:
         description = QLabel("Usuarios, setores, solicitacoes de senha e logs de auditoria.")
         description.setObjectName("mutedText")
         description.setWordWrap(True)
+
+        header = QFrame()
+        header.setObjectName("adminAreaHeader")
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(4)
+        header_layout.addWidget(title)
+        header_layout.addWidget(description)
+
         self.admin_area_status_label = QLabel(
             "Selecione uma etapa administrativa liberada para o seu perfil."
         )
         self.admin_area_status_label.setObjectName("statusBanner")
         self.admin_area_status_label.setProperty("level", "warning")
         self.admin_area_status_label.setWordWrap(True)
-        self.admin_area_scope_label = QLabel("Etapas administrativas disponiveis: carregando.")
+        self.admin_area_status_label.setMaximumHeight(42)
+        self.admin_area_scope_label = QLabel("Modulos administrativos disponiveis: carregando.")
         self.admin_area_scope_label.setObjectName("moduleActionHint")
         self.admin_area_scope_label.setWordWrap(True)
+
+        access_panel = QFrame()
+        access_panel.setObjectName("formSubPanel")
+        access_layout = QVBoxLayout(access_panel)
+        access_layout.setContentsMargins(10, 10, 10, 10)
+        access_layout.setSpacing(6)
+        access_layout.addWidget(self.admin_area_status_label)
+        access_layout.addWidget(self.admin_area_scope_label)
+
+        self.backend_restart_status_label = QLabel(self.backend_restart_message)
+        self.backend_restart_status_label.setObjectName("moduleActionHint")
+        self.backend_restart_status_label.setWordWrap(True)
+        self.backend_restart_button = QPushButton("Reiniciar backend local")
+        self.backend_restart_button.setObjectName("secondaryButton")
+        self.backend_restart_button.setToolTip(
+            "Reinicia somente o backend iniciado pelo proprio app nesta sessao."
+        )
+        self.backend_restart_button.clicked.connect(self.backend_restart_requested.emit)
+        backend_actions = QHBoxLayout()
+        backend_actions.setContentsMargins(10, 10, 10, 10)
+        backend_actions.setSpacing(8)
+        backend_actions.addWidget(self.backend_restart_status_label, 1)
+        backend_actions.addWidget(self.backend_restart_button)
+
+        backend_panel = QFrame()
+        backend_panel.setObjectName("formSubPanel")
+        backend_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        backend_panel.setLayout(backend_actions)
+
+        actions_title = QLabel("ATALHOS ADMINISTRATIVOS")
+        actions_title.setObjectName("formGroupTitle")
         self.admin_area_actions_layout = create_grid(spacing=10, margins=(0, 0, 0, 0))
+
+        self.admin_area_actions_panel = QFrame()
+        self.admin_area_actions_panel.setObjectName("formSubPanel")
+        actions_panel_layout = QVBoxLayout(self.admin_area_actions_panel)
+        actions_panel_layout.setContentsMargins(10, 10, 10, 10)
+        actions_panel_layout.setSpacing(8)
+        actions_panel_layout.addWidget(actions_title)
+        actions_panel_layout.addLayout(self.admin_area_actions_layout)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
-        layout.addWidget(title)
-        layout.addWidget(description)
-        layout.addWidget(self.admin_area_status_label)
-        layout.addWidget(self.admin_area_scope_label)
-        layout.addLayout(self.admin_area_actions_layout)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(header)
+        layout.addWidget(access_panel)
+        layout.addWidget(backend_panel)
+        layout.addWidget(self.admin_area_actions_panel)
+        self._sync_backend_restart_control()
         return panel
 
     def render_admin_area(self) -> None:
@@ -277,9 +320,11 @@ class DashboardMixin4:
         allowed_modules = [
             module_key
             for module_key in self._allowed_admin_modules()
-            if module_key in {"sectors", "users", "password_resets", "audit_logs"}
+            if module_key
+            in {"sectors", "users", "resource_access", "password_resets", "audit_logs"}
         ]
         self.admin_area_scope_label.setText(self._format_admin_area_scope(allowed_modules))
+        self._sync_backend_restart_control()
         if not allowed_modules:
             self._set_admin_area_status(
                 "Seu perfil nao possui acesso a area administrativa.", "error"
@@ -290,26 +335,19 @@ class DashboardMixin4:
             return
         role_name = "Administrador" if self.current_user_role == "admin" else "Gestor"
         self._set_admin_area_status(
-            f"{role_name}: {len(allowed_modules)} etapa(s) administrativa(s) liberada(s).",
+            f"{role_name}: {len(allowed_modules)} modulo(s) administrativo(s) liberado(s).",
             "info",
         )
         for index, module_key in enumerate(allowed_modules):
-            button = QPushButton(
-                f"{module_stage_label(module_key)} - {self.module_labels[module_key]}"
-            )
+            button = QPushButton(self.module_labels[module_key])
             button.setObjectName("adminMenuButton")
             button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setToolTip(self.module_action_hints.get(module_key, ""))
             button.clicked.connect(
                 lambda checked=False, key=module_key: self.module_selected.emit(key)
             )
-            hint = QLabel(self.module_action_hints.get(module_key, ""))
-            hint.setObjectName("moduleActionHint")
-            hint.setWordWrap(True)
-            row = (index // 2) * 2
+            row = index // 2
             column = (index % 2) * 6
             self.admin_area_actions_layout.addWidget(button, row, column, 1, 6)
-            self.admin_area_actions_layout.addWidget(hint, row + 1, column, 1, 6)
 
     def _set_admin_area_status(self, message: str, level: str) -> None:
         self.admin_area_status_label.setText(message)
@@ -319,12 +357,45 @@ class DashboardMixin4:
 
     def _format_admin_area_scope(self, allowed_modules: list[str]) -> str:
         if not allowed_modules:
-            return "Etapas administrativas disponiveis: nenhuma para o perfil atual."
-        stages = [
-            f"{module_stage_label(module_key)} {self.module_labels[module_key]}"
-            for module_key in allowed_modules
-        ]
-        return "Etapas administrativas disponiveis: " + " | ".join(stages)
+            return "Modulos administrativos disponiveis: nenhum para o perfil atual."
+        modules = [self.module_labels[module_key] for module_key in allowed_modules]
+        return "Modulos administrativos disponiveis: " + " | ".join(modules)
+
+    def set_backend_restart_available(self, is_available: bool, message: str = "") -> None:
+        self.backend_restart_available = is_available
+        if message:
+            self.backend_restart_message = message
+        elif is_available:
+            self.backend_restart_message = (
+                "Reinicio seguro disponivel: backend gerenciado pelo app."
+            )
+        else:
+            self.backend_restart_message = (
+                "Reinicio seguro indisponivel: backend atual nao foi iniciado pelo app."
+            )
+        self._sync_backend_restart_control()
+
+    def set_backend_restart_loading(self, is_loading: bool) -> None:
+        self.backend_restart_in_progress = is_loading
+        self._sync_backend_restart_control()
+
+    def _sync_backend_restart_control(self) -> None:
+        if not hasattr(self, "backend_restart_button"):
+            return
+
+        is_admin = self.current_user_role == "admin"
+        if not is_admin:
+            status = "Reinicio do backend restrito a administradores."
+        else:
+            status = self.backend_restart_message
+        can_click = (
+            is_admin and self.backend_restart_available and not self.backend_restart_in_progress
+        )
+        self.backend_restart_button.setEnabled(can_click)
+        self.backend_restart_button.setText(
+            "Reiniciando..." if self.backend_restart_in_progress else "Reiniciar backend local"
+        )
+        self.backend_restart_status_label.setText(status)
 
     def _build_audit_form(self) -> QFrame:
         panel = QFrame()

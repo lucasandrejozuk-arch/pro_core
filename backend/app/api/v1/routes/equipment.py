@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import require_roles
+from backend.app.core.config import get_settings
 from backend.app.db.session import get_db
 from backend.app.models.enums import UserRole
 from backend.app.models.user import User
@@ -97,10 +98,21 @@ async def import_equipment_records(
     if not upload_file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file required.")
     try:
-        content = await upload_file.read()
+        content = await _read_upload_file(upload_file, get_settings().pro_core_max_upload_bytes)
         return import_equipment_catalog(db, current_user.company_id, content, replace=replace)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+async def _read_upload_file(upload_file: UploadFile, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    total_bytes = 0
+    while chunk := await upload_file.read(1024 * 1024):
+        total_bytes += len(chunk)
+        if total_bytes > max_bytes:
+            raise ValueError(f"CSV exceeds maximum size of {max_bytes // (1024 * 1024)} MB.")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.post("", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED)

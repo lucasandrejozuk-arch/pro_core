@@ -7,10 +7,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from frontend.app.core.api_client import ApiClient, ApiError
+from frontend.app.core.backend_health import BackendHealthProbe
+from frontend.app.core.backend_process import ManagedBackendError, ManagedBackendProcess
 from frontend.app.core.display import build_display_profile, prepare_window_for_display
 from frontend.app.core.icons import build_app_icon
 from frontend.app.core.session import AppSession
@@ -35,6 +37,17 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
 
         settings = get_frontend_settings()
         self.api_client = ApiClient(settings.api_base_url)
+        self.backend_health_probe = BackendHealthProbe(settings.api_base_url)
+        self.backend_health_connected = False
+        self.backend_restart_cooldown_until = 0.0
+        self._last_backend_restart_notice_id = ""
+        self.backend_process = ManagedBackendProcess(PROJECT_ROOT)
+        self.backend_process_start_error = ""
+        if settings.manage_backend_process:
+            try:
+                self.backend_process.start()
+            except ManagedBackendError as exc:
+                self.backend_process_start_error = str(exc)
         self.session = AppSession()
 
         self.splash = SplashScreen()
@@ -55,6 +68,7 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         self.splash.finished.connect(self.show_login)
         self.login_window.login_requested.connect(self.handle_login)
         self.login_window.password_reset_requested.connect(self.handle_password_reset_request)
+        self.login_window.backend_reconnect_requested.connect(self.handle_login_backend_reconnect)
         self.password_window.password_change_requested.connect(self.handle_password_change)
         self.dashboard_window.logout_requested.connect(self.handle_logout)
         self.dashboard_window.exit_requested.connect(self.qt_app.quit)
@@ -95,6 +109,9 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         self.dashboard_window.inventory_create_requested.connect(self.handle_inventory_create)
         self.dashboard_window.inventory_update_requested.connect(self.handle_inventory_update)
         self.dashboard_window.inventory_delete_requested.connect(self.handle_inventory_delete)
+        self.dashboard_window.inventory_document_download_requested.connect(
+            self.handle_inventory_document_download
+        )
         self.dashboard_window.sector_create_requested.connect(self.handle_sector_create)
         self.dashboard_window.sector_update_requested.connect(self.handle_sector_update)
         self.dashboard_window.sector_delete_requested.connect(self.handle_sector_delete)
@@ -133,20 +150,36 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         self.dashboard_window.user_update_requested.connect(self.handle_user_update)
         self.dashboard_window.user_delete_requested.connect(self.handle_user_delete)
         self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
+        self.dashboard_window.user_resource_access_update_requested.connect(
+            self.handle_user_resource_access_update
+        )
         self.dashboard_window.password_reset_resolve_requested.connect(
             self.handle_password_reset_resolve
+        )
+        self.dashboard_window.password_reset_cancel_requested.connect(
+            self.handle_password_reset_cancel
         )
         self.dashboard_window.settings_update_requested.connect(self.handle_settings_update)
         self.dashboard_window.ui_scale_changed.connect(self.handle_ui_scale_changed)
         self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
+        self.dashboard_window.backend_restart_requested.connect(self.handle_backend_restart)
         self.dashboard_window.audit_delete_requested.connect(self.handle_audit_log_delete)
+        self._sync_backend_restart_status()
+        self.backend_health_timer = QTimer()
+        self.backend_health_timer.setInterval(3000)
+        self.backend_health_timer.timeout.connect(self.refresh_backend_health_status)
+        self.backend_health_timer.start()
+        self.refresh_backend_health_status()
 
     def run(self) -> int:
         self.splash.start()
         try:
             return self.qt_app.exec()
         finally:
+            self.backend_health_timer.stop()
+            self.backend_health_probe.close()
             self.api_client.close()
+            self.backend_process.stop()
 
     def show_login(self) -> None:
         self.splash.close()
@@ -258,6 +291,84 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
     def refresh_active_module(self) -> None:
         self.load_module(self.active_module)
 
+    def _sync_backend_restart_status(self) -> None:
+        if self.backend_process.is_managed:
+            if self.backend_process.is_running:
+                if self.backend_health_connected:
+                    self.dashboard_window.set_internal_server_status(
+                        "success",
+                        "Servidor interno: gerenciado",
+                    )
+                else:
+                    self.dashboard_window.set_internal_server_status(
+                        "error",
+                        "Servidor interno: sem resposta",
+                    )
+                self.dashboard_window.set_backend_restart_available(
+                    True,
+                    "Reinicio seguro disponivel: backend gerenciado pelo app.",
+                )
+                return
+            self.dashboard_window.set_internal_server_status("warning", "Servidor interno: parado")
+            self.dashboard_window.set_backend_restart_available(
+                True,
+                "Backend gerenciado pelo app esta parado; reinicio iniciara novo processo.",
+            )
+            return
+
+        if self.backend_process_start_error:
+            self.dashboard_window.set_internal_server_status("error", "Servidor interno: falhou")
+            self.dashboard_window.set_backend_restart_available(
+                False,
+                self.backend_process_start_error,
+            )
+            return
+
+        self.dashboard_window.set_internal_server_status("warning", "Servidor interno: externo")
+        self.dashboard_window.set_backend_restart_available(
+            False,
+            "Reinicio seguro indisponivel: backend atual nao foi iniciado pelo app.",
+        )
+
+    def refresh_backend_health_status(self) -> None:
+        status = self.backend_health_probe.check()
+        self.backend_health_connected = status.is_connected
+        self.login_window.set_backend_connection_status(
+            status.is_connected,
+            status.message.replace("Backend: ", "Backend "),
+        )
+        self.dashboard_window.set_backend_connection_status(status.is_connected, status.message)
+        self._sync_backend_restart_status()
+        self._poll_backend_restart_notice()
+
+    def _poll_backend_restart_notice(self) -> None:
+        if not self.session.access_token:
+            return
+        try:
+            response = self.api_client.poll_backend_restart_notice(
+                self.session.access_token,
+                last_notice_id=self._last_backend_restart_notice_id or None,
+            )
+        except ApiError:
+            return
+
+        if not bool(response.get("has_notice")):
+            return
+        notice = response.get("notice") or {}
+        notice_id = str(notice.get("id") or "").strip()
+        reason = str(notice.get("reason") or "").strip() or "Reinicio solicitado"
+        if not notice_id:
+            return
+        self._last_backend_restart_notice_id = notice_id
+
+        message = (
+            "O sistema esta sendo reiniciado. "
+            f"Motivo informado: {reason}. "
+            "Salve seu trabalho e aguarde a reconexao."
+        )
+        parent = self.dashboard_window if self.dashboard_window.isVisible() else self.login_window
+        QMessageBox.warning(parent, "Reinicio do sistema", message)
+
     def load_module(self, module_key: str) -> None:
         if not self.session.access_token:
             self.show_login()
@@ -334,6 +445,7 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
             self.dashboard_window.set_service_order_dependencies(*service_order_dependencies)
 
         self.dashboard_window.render_rows(title, rows, columns, module_key)
+
 
 def main() -> int:
     return ProCoreApplication().run()

@@ -63,3 +63,29 @@ def test_login_window_updates_backend_connection_status(qtbot) -> None:
 
     assert window.backend_status_label.text() == "Backend indisponivel."
     assert window.backend_status_label.property("level") == "error"
+
+
+def test_login_window_backend_reconnect_button_emits_signal(qtbot) -> None:
+    window = LoginWindow()
+    qtbot.addWidget(window)
+    emitted: list[bool] = []
+    window.backend_reconnect_requested.connect(lambda: emitted.append(True))
+
+    window.backend_reconnect_button.click()
+
+    assert emitted == [True]
+
+
+def test_login_window_backend_reconnect_loading_state(qtbot) -> None:
+    window = LoginWindow()
+    qtbot.addWidget(window)
+
+    window.set_backend_reconnect_loading(True)
+
+    assert window.backend_reconnect_button.isEnabled() is False
+    assert window.backend_reconnect_button.text() == "Conectando/Reiniciando..."
+
+    window.set_backend_reconnect_loading(False)
+
+    assert window.backend_reconnect_button.isEnabled() is True
+    assert window.backend_reconnect_button.text() == "Conectar/Reiniciar backend"

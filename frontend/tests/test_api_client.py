@@ -89,6 +89,60 @@ def test_request_password_reset_posts_email() -> None:
     assert response["message"] == "Solicitacao enviada."
 
 
+def test_authorize_backend_restart_posts_required_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/auth/backend-restart/authorize"
+        assert json.loads(request.content) == {
+            "operator_email": "tech@example.com",
+            "admin_email": "admin@example.com",
+            "admin_password": "secret",
+            "reason_type": "maintenance",
+            "custom_reason": None,
+        }
+        return httpx.Response(
+            200,
+            json={
+                "message": "Reinicio autorizado e aviso global registrado.",
+                "notice_id": "notice-1",
+                "reason": "Manutencao programada",
+                "created_at": "2026-05-21T00:00:00+00:00",
+            },
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.authorize_backend_restart(
+        operator_email="tech@example.com",
+        admin_email="admin@example.com",
+        admin_password="secret",
+        reason_type="maintenance",
+    )
+
+    assert response["notice_id"] == "notice-1"
+
+
+def test_poll_backend_restart_notice_sends_last_notice_id_query_param() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/auth/backend-restart/notice"
+        assert request.url.params.get("last_notice_id") == "notice-1"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json={"has_notice": False, "notice": None})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.poll_backend_restart_notice("token", last_notice_id="notice-1")
+
+    assert response["has_notice"] is False
+
+
 def test_error_response_raises_api_error_with_backend_detail() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"detail": "Invalid email or password."})

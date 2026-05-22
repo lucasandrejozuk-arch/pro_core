@@ -180,7 +180,7 @@ def test_tools_module_renders_role_filtered_calculators(qtbot) -> None:
 
     assert window.active_module_key == "tools"
     assert not window.tools_form_panel.isHidden()
-    assert window.command_stage_label.text() == "Etapa 3 de 12"
+    assert not hasattr(window, "command_stage_label")
     assert "2 ferramenta" in window.tools_status_label.text()
     assert window.tools_availability_label.text() == "2 ferramentas liberadas"
     assert window.tools_specialties_label.text() == "Especialidades: Eletrica"
@@ -243,7 +243,13 @@ def test_equipment_hierarchy_uses_compact_full_width_sections(qtbot) -> None:
 
     assert window.equipment_table.maximumHeight() <= 280
     assert window.equipment_boards_table.maximumHeight() <= 280
-    assert window.component_full_summary.maximumHeight() == 180
+    assert (
+        window.component_full_summary.maximumHeight() > window.equipment_components_table.height()
+    )
+    assert (
+        window.component_full_summary.minimumHeight()
+        >= window.equipment_components_table.minimumHeight()
+    )
 
 
 def test_ui_scale_slider_emits_live_scale(qtbot) -> None:
@@ -321,7 +327,56 @@ def test_inventory_operational_status_handles_surplus_and_missing_minimum(qtbot)
     assert "sem minimo configurado" in window.inventory_reorder_status.text().lower()
 
 
-def test_settings_populates_operational_summary(qtbot) -> None:
+def test_inventory_documents_are_listed_in_step_3(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._populate_inventory_form(
+        {
+            "id": "inventory-doc-id",
+            "name": "Transformador",
+            "category": "Transformadores",
+            "quantity": "2",
+            "minimum_quantity": "1",
+            "unit_cost": "10",
+            "documents": [
+                {"file_name": "datasheet_A.pdf", "document_type": "pdf"},
+                {"file_name": "manual_B.pdf", "document_type": "pdf"},
+            ],
+        }
+    )
+
+    listed = window.inventory_documents_summary.toPlainText()
+    assert "datasheet_A.pdf" in listed
+    assert "manual_B.pdf" in listed
+    assert window.inventory_documents_buttons_layout.count() == 2
+
+
+def test_inventory_transformer_required_fields_validation(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window._select_inventory_stock_group("components")
+    window.inventory_category_input.setCurrentText("Transformadores")
+    window.inventory_name_input.setText("Transformador teste")
+    window.inventory_quantity_input.setText("1")
+    window.inventory_minimum_quantity_input.setText("0")
+    window.inventory_unit_cost_input.setText("1")
+
+    assert (
+        window._validate_inventory_category_specific_fields(
+            "Transformadores",
+            {
+                "primary_voltage": "220V",
+                "secondary_voltage": "",
+                "power": "",
+            },
+        )
+        is False
+    )
+
+
+def test_settings_populates_operational_state(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
@@ -340,14 +395,11 @@ def test_settings_populates_operational_summary(qtbot) -> None:
         }
     )
 
-    summary = window.settings_full_summary.toPlainText()
-    assert "Empresa: PRO CORE Lab" in summary
-    assert "Nome exibido: Pro Assist" in summary
     assert window.sidebar_title.text() == "Pro Assist"
     assert window.sidebar_text.text() == "Bancada premium"
-    assert "Paleta: Verde operacional" in summary
-    assert "Tema: Escuro" in summary
-    assert "Backup automatico: Ativo" in summary
+    assert "Pro Assist" in window.settings_operational_status.text()
+    assert "Escuro" in window.settings_operational_status.text()
+    assert "backup: ativo" in window.settings_backup_status.text().lower()
 
 
 def test_admin_forms_populate_complete_summaries(qtbot) -> None:
@@ -529,6 +581,16 @@ def test_password_reset_operational_status_tracks_pending_and_resolved(qtbot) ->
     assert "Tecnico Teste" in window.password_reset_operational_status.text()
     assert "Pendente" in window.password_reset_operational_status.text()
     assert "senha temporaria" in window.password_reset_security_status.text()
+    assert window.password_reset_new_password_input.isReadOnly()
+    assert window.password_reset_generate_button.isEnabled()
+    assert window.password_reset_cancel_button.isEnabled()
+    assert not window.password_reset_resolve_button.isEnabled()
+
+    window._generate_password_reset_temporary_password()
+
+    generated_password = window.password_reset_new_password_input.text()
+    assert window._is_valid_temporary_password(generated_password)
+    assert len(generated_password) == 6
     assert window.password_reset_resolve_button.isEnabled()
 
     window._populate_password_reset_form(
@@ -544,9 +606,37 @@ def test_password_reset_operational_status_tracks_pending_and_resolved(qtbot) ->
 
     assert window.password_reset_operational_status.property("level") == "info"
     assert "Resolvida" in window.password_reset_operational_status.text()
-    assert "bloqueada" in window.password_reset_security_status.text()
+    assert "bloqueadas" in window.password_reset_security_status.text()
+    assert not window.password_reset_generate_button.isEnabled()
+    assert not window.password_reset_cancel_button.isEnabled()
     assert not window.password_reset_resolve_button.isEnabled()
     assert "Status: Resolvida" in window.password_reset_full_summary.toPlainText()
+
+
+def test_password_reset_cancel_action_emits_selected_request(qtbot, monkeypatch) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    emitted: list[str] = []
+    window.password_reset_cancel_requested.connect(emitted.append)
+    monkeypatch.setattr(
+        "frontend.app.screens.dashboard.confirm_destructive_action",
+        lambda *args, **kwargs: True,
+    )
+
+    window._populate_password_reset_form(
+        {
+            "id": "request-id",
+            "requester_full_name": "Tecnico Teste",
+            "requester_email": "tecnico@example.com",
+            "requester_role": "technician",
+            "status": "pending",
+            "created_at": "2026-05-14T10:00:00",
+        }
+    )
+
+    window._request_password_reset_cancel()
+
+    assert emitted == ["request-id"]
 
 
 def test_audit_log_selection_renders_summary(qtbot) -> None:

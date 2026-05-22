@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout, QWidget
 
-from frontend.app.screens.dashboard_modules import MODULE_STAGES
+from frontend.app.screens.dashboard_modules import MODULE_DEFINITIONS
 
 
 def build_dashboard_sidebar(self) -> None:
@@ -47,14 +47,16 @@ def build_dashboard_sidebar(self) -> None:
     sidebar_nav_layout.setSpacing(10)
 
     self.module_buttons: dict[str, QPushButton] = {}
-    self.module_icon_names = {stage.key: stage.icon_name for stage in MODULE_STAGES}
-    self.module_labels = {stage.key: stage.label for stage in MODULE_STAGES}
-    self.module_descriptions = {stage.key: stage.description for stage in MODULE_STAGES}
-    self.module_action_hints = {stage.key: stage.action_hint for stage in MODULE_STAGES}
-    self.module_stage_numbers = {stage.key: stage.stage for stage in MODULE_STAGES}
-    self.module_groups = {stage.key: stage.group for stage in MODULE_STAGES}
-    self.searchable_module_keys = {stage.key for stage in MODULE_STAGES if stage.searchable}
-    self.record_module_keys = {stage.key for stage in MODULE_STAGES if stage.record_module}
+    self.module_icon_names = {module.key: module.icon_name for module in MODULE_DEFINITIONS}
+    self.module_labels = {module.key: module.label for module in MODULE_DEFINITIONS}
+    self.module_descriptions = {module.key: module.description for module in MODULE_DEFINITIONS}
+    self.module_groups = {module.key: module.group for module in MODULE_DEFINITIONS}
+    self.searchable_module_keys = {
+        module.key for module in MODULE_DEFINITIONS if module.searchable
+    }
+    self.record_module_keys = {
+        module.key for module in MODULE_DEFINITIONS if module.record_module
+    }
     module_groups = (
         ("OPERACAO", ("dashboard", "service_orders", "tools")),
         ("CADASTROS", ("customers", "equipment", "inventory")),
@@ -127,4 +129,3 @@ def build_dashboard_sidebar(self) -> None:
     self._configure_sidebar_button(self.exit_button, "exit", "Sair")
     self.exit_button.clicked.connect(self.request_exit)
     self.sidebar_layout.addWidget(self.exit_button)
-

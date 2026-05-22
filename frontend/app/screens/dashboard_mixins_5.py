@@ -7,8 +7,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 
-from frontend.app.screens.dashboard_modules import module_stage_label
-
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
     from frontend.app.screens import dashboard
@@ -30,19 +28,10 @@ class DashboardMixin5:
                 self.module_search_input.blockSignals(True)
                 self.module_search_input.clear()
                 self.module_search_input.blockSignals(False)
-        if hasattr(self, "session_module_label"):
-            self.session_module_label.setText(
-                f"{module_stage_label(module_key)} - "
-                f"{self.module_labels.get(module_key, 'Painel Principal')}"
-            )
         if hasattr(self, "command_context_label"):
             self.command_context_label.setText(
                 self.module_labels.get(module_key, "Painel Principal")
             )
-        if hasattr(self, "command_stage_label"):
-            self.command_stage_label.setText(module_stage_label(module_key))
-        if hasattr(self, "command_hint_label"):
-            self.command_hint_label.setText(self.module_action_hints.get(module_key, ""))
         self.setWindowTitle(
             f"{self.sidebar_title.text() or 'PRO CORE'} - {self.title_label.text()}"
         )
@@ -84,11 +73,14 @@ class DashboardMixin5:
         self.service_order_form_panel.setVisible(module_key == "service_orders")
         self.sector_form_panel.setVisible(module_key == "sectors")
         self.user_form_panel.setVisible(module_key == "users")
+        self.resource_access_form_panel.setVisible(module_key == "resource_access")
         self.password_reset_form_panel.setVisible(module_key == "password_resets")
         self.settings_form_panel.setVisible(module_key == "settings")
         self.admin_area_panel.setVisible(module_key == "admin_area")
         self.audit_form_panel.setVisible(module_key == "audit_logs")
         self._sync_active_module_space(module_key)
+        if previous_module_key != module_key:
+            self._animate_content_transition()
         if module_key in self.record_module_keys:
             self._set_record_editor_open(False)
         else:
@@ -105,6 +97,8 @@ class DashboardMixin5:
             self.clear_sector_form()
         elif module_key == "users":
             self.clear_user_form()
+        elif module_key == "resource_access":
+            self.clear_resource_access_form()
         elif module_key == "password_resets":
             self.clear_password_reset_form()
         elif module_key == "settings":
@@ -123,6 +117,7 @@ class DashboardMixin5:
             "service_orders",
             "sectors",
             "users",
+            "resource_access",
             "password_resets",
             "audit_logs",
         }:
@@ -165,6 +160,10 @@ class DashboardMixin5:
 
         if self.active_module_key == "password_resets":
             self._populate_password_reset_form(selected_row)
+            return
+
+        if self.active_module_key == "resource_access":
+            self._populate_resource_access_form(selected_row)
             return
 
         if self.active_module_key == "audit_logs":

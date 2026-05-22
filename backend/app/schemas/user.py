@@ -68,3 +68,31 @@ class UserResponse(UserSummaryResponse):
     must_change_password: bool
     created_at: datetime
     updated_at: datetime
+
+
+class UserResourceAccessResponse(BaseModel):
+    user_id: uuid.UUID
+    full_name: str
+    email: str
+    role: UserRole
+    sector_id: uuid.UUID | None
+    sector_name: str | None = None
+    allowed_resources: list[str]
+    default_resources: list[str]
+
+
+class UserResourceAccessUpdate(BaseModel):
+    allowed_resources: list[str] = Field(default_factory=list, max_length=100)
+
+    @field_validator("allowed_resources")
+    @classmethod
+    def normalize_allowed_resources(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen = set()
+        for item in value:
+            key = str(item or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(key)
+        return normalized

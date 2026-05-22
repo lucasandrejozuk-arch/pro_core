@@ -96,10 +96,11 @@ def _light_stylesheet() -> str:
         QLabel#statusBanner {
             background: #ddf4ff;
             border: 1px solid #0969da;
-            border-radius: 6px;
+            border-radius: 5px;
             color: #0969da;
-            font-weight: 800;
-            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 9px;
         }
         QLabel#statusBanner[level="warning"] {
             background: #fff8c5;
@@ -161,19 +162,19 @@ def _light_stylesheet() -> str:
             font-size: 11px;
             font-weight: 700;
         }
-        QLabel#moduleStageBadge {
+        QLabel#moduleCountBadge {
             background: #ddf4ff;
             border: 1px solid #0969da;
-            border-radius: 6px;
+            border-radius: 5px;
             color: #0969da;
             font-size: 11px;
             font-weight: 800;
-            padding: 4px 8px;
+            padding: 3px 7px;
         }
         QLabel#moduleActionHint {
             color: #57606a;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 500;
         }
         QFrame#dashboardKpiCard,
         QFrame#dashboardAlertsFrame {
@@ -321,19 +322,25 @@ def _light_stylesheet() -> str:
             min-height: 40px;
             border-radius: 6px;
             margin: 2px 4px;
-            border-left: 3px solid transparent;
+            border: 1px solid transparent;
+            border-left: 4px solid transparent;
             transition: all 0.2s;
         }
         QPushButton#navButton:hover {
             background: rgba(13, 110, 253, 0.08);
             border-left-color: #0969da;
+            border-color: rgba(9, 105, 218, 0.24);
         }
         QPushButton#navButton:checked,
         QPushButton#navButton[active="true"] {
             background: rgba(13, 110, 253, 0.12);
             color: #0969da;
             font-weight: 600;
+            border: 1px solid #0969da;
             border-left-color: #0969da;
+            border-right: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
         }
         QPushButton#sidebarFooterButton {
             background: transparent;
@@ -351,8 +358,8 @@ def _light_stylesheet() -> str:
             border: 1px solid #d0d7de;
             color: #24292f;
             text-align: left;
-            min-height: 44px;
-            padding-left: 14px;
+            min-height: 38px;
+            padding-left: 12px;
         }
         QPushButton#adminMenuButton:hover {
             border-color: #0969da;

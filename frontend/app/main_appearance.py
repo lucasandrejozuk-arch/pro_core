@@ -32,8 +32,7 @@ class ProCoreAppearanceMixin:
         )
         if hasattr(self, "dashboard_window"):
             palette = build_theme_palette(theme, color_palette)
-            sidebar_icon_color = palette["text"] if theme == "light" else palette["button_text"]
-            self.dashboard_window.apply_sidebar_icon_color(sidebar_icon_color)
+            self.dashboard_window.apply_sidebar_icon_color(palette["sidebar_icon"])
             self.dashboard_window.apply_record_editor_icon_colors(
                 palette["primary"],
                 palette["button_text"],

@@ -163,6 +163,23 @@ def test_download_service_order_quote_returns_bytes() -> None:
     assert response.startswith(b"%PDF")
 
 
+def test_download_document_returns_bytes() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/documents/document-id/download"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, content=b"%PDF-1.7")
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.download_document("token", "document-id")
+
+    assert response.startswith(b"%PDF")
+
+
 def test_list_documents_sends_service_order_filter() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
@@ -179,6 +196,24 @@ def test_list_documents_sends_service_order_filter() -> None:
     response = client.list_documents("token", service_order_id="service-order-id")
 
     assert response == [{"file_name": "diagnostico.txt"}]
+
+
+def test_list_documents_sends_inventory_item_filter() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/documents"
+        assert request.url.params["inventory_item_id"] == "inventory-item-id"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[{"file_name": "datasheet.pdf"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.list_documents("token", inventory_item_id="inventory-item-id")
+
+    assert response == [{"file_name": "datasheet.pdf"}]
 
 
 def test_upload_document_posts_multipart_payload(tmp_path) -> None:
@@ -206,6 +241,34 @@ def test_upload_document_posts_multipart_payload(tmp_path) -> None:
         file_path=str(document_path),
         document_type="other",
         service_order_id="service-order-id",
+    )
+
+    assert response["id"] == "document-id"
+
+
+def test_upload_document_posts_inventory_target(tmp_path) -> None:
+    document_path = tmp_path / "datasheet.pdf"
+    document_path.write_bytes(b"%PDF-1.4")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/documents"
+        assert request.headers["Authorization"] == "Bearer token"
+        body = request.content
+        assert b"inventory-item-id" in body
+        assert b"pdf" in body
+        return httpx.Response(201, json={"id": "document-id", "file_name": "datasheet.pdf"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.upload_document(
+        access_token="token",
+        file_path=str(document_path),
+        document_type="pdf",
+        inventory_item_id="inventory-item-id",
     )
 
     assert response["id"] == "document-id"

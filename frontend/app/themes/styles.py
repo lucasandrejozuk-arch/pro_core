@@ -16,6 +16,11 @@ COLOR_PALETTE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("ruby", "Rubi executivo"),
     ("cyan", "Ciano tecnico"),
 )
+ICON_COLOR_LIBRARIES: tuple[tuple[str, str, str], ...] = (
+    ("paper", "Monocromatica clara", "#f8fafc"),
+    ("graphite", "Monocromatica escura", "#172033"),
+    ("cyan", "Monocromatica ciano", "#22d3ee"),
+)
 
 THEME_COLOR_PALETTES: dict[str, dict[str, dict[str, str]]] = {
     "light": {
@@ -235,10 +240,14 @@ def build_theme_palette(theme: str = "light", color_palette: str | None = None) 
     palette_id = resolve_color_palette(theme_key, color_palette)
     palette = dict(THEME_COLOR_PALETTES[theme_key][palette_id])
     primary = palette["primary"]
+    icon_library_id, icon_library_label, sidebar_icon = _best_icon_library(palette["sidebar"])
 
     return {
         **palette,
         "color_palette": palette_id,
+        "icon_library": icon_library_id,
+        "icon_library_label": icon_library_label,
+        "sidebar_icon": sidebar_icon,
         "button_text": _contrast_text(primary),
         "success": "#56d364" if theme_key == "dark" else "#1a7f37",
         "success_bg": "#10261a" if theme_key == "dark" else "#dafbe1",
@@ -276,6 +285,13 @@ def _nearest_palette(theme: str, color: str) -> str:
         for palette_id, palette in THEME_COLOR_PALETTES[theme].items()
     }
     return min(distances, key=distances.get)
+
+
+def _best_icon_library(background: str) -> tuple[str, str, str]:
+    return max(
+        ICON_COLOR_LIBRARIES,
+        key=lambda icon_library: _contrast_ratio(icon_library[2], background),
+    )
 
 
 def _safe_hex_color(value: str | None, fallback: str) -> str:

@@ -27,6 +27,7 @@ def list_document_records(
     service_order_id: uuid.UUID | None = Query(default=None),
     customer_id: uuid.UUID | None = Query(default=None),
     equipment_id: uuid.UUID | None = Query(default=None),
+    inventory_item_id: uuid.UUID | None = Query(default=None),
     current_user: User = Depends(staff_user),
     db: Session = Depends(get_db),
 ) -> list[DocumentAttachmentResponse]:
@@ -36,6 +37,7 @@ def list_document_records(
         service_order_id=service_order_id,
         customer_id=customer_id,
         equipment_id=equipment_id,
+        inventory_item_id=inventory_item_id,
     )
 
 
@@ -46,6 +48,7 @@ def upload_document_record(
     service_order_id: uuid.UUID | None = Form(default=None),
     customer_id: uuid.UUID | None = Form(default=None),
     equipment_id: uuid.UUID | None = Form(default=None),
+    inventory_item_id: uuid.UUID | None = Form(default=None),
     current_user: User = Depends(staff_user),
     db: Session = Depends(get_db),
 ) -> DocumentAttachmentResponse:
@@ -59,6 +62,7 @@ def upload_document_record(
             service_order_id=service_order_id,
             customer_id=customer_id,
             equipment_id=equipment_id,
+            inventory_item_id=inventory_item_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -74,7 +78,12 @@ def download_document_record(
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    document_path = resolve_document_path(document)
+    try:
+        document_path = resolve_document_path(document)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found."
+        ) from exc
     if not document_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found."

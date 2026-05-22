@@ -12,6 +12,22 @@ class AdminSettingsApiMixin:
     def list_users(self, access_token: str) -> list[dict[str, Any]]:
         return self._request_list("GET", "users", access_token=access_token)
 
+    def list_user_resource_access(self, access_token: str) -> list[dict[str, Any]]:
+        return self._request_list("GET", "users/resource-access", access_token=access_token)
+
+    def update_user_resource_access(
+        self,
+        access_token: str,
+        user_id: str,
+        allowed_resources: list[str],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PUT",
+            f"users/{user_id}/resource-access",
+            access_token=access_token,
+            json={"allowed_resources": allowed_resources},
+        )
+
     def create_user(self, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request(
             "POST",
@@ -67,6 +83,17 @@ class AdminSettingsApiMixin:
             f"password-reset-requests/{request_id}/resolve",
             access_token=access_token,
             json={"new_password": new_password},
+        )
+
+    def cancel_password_reset_request(
+        self,
+        access_token: str,
+        request_id: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"password-reset-requests/{request_id}/cancel",
+            access_token=access_token,
         )
 
     def list_sectors(self, access_token: str) -> list[dict[str, Any]]:

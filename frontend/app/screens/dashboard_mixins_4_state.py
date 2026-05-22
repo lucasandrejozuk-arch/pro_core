@@ -130,18 +130,30 @@ class DashboardFormStateMixin:
 
     def clear_inventory_form(self) -> None:
         self.selected_inventory_item_id = None
+        self.selected_inventory_document_path = None
+        self._select_inventory_stock_group("components")
+        self.inventory_active_stock_group = self._current_inventory_stock_group()
+        self._sync_inventory_categories()
         self.inventory_sku_input.clear()
         self.inventory_name_input.clear()
-        self.inventory_category_input.clear()
+        if self.inventory_category_input.count() > 0:
+            self.inventory_category_input.setCurrentIndex(0)
         self.inventory_quantity_input.setText("0")
         self.inventory_minimum_quantity_input.setText("0")
+        self.inventory_location_input.clear()
         self.inventory_unit_cost_input.setText("0")
+        self.inventory_notes_input.clear()
+        self.inventory_document_path_input.clear()
+        self.inventory_documents_summary.setPlainText("Nenhum anexo vinculado ao item.")
+        self._render_inventory_document_buttons([])
+        self._populate_inventory_dynamic_data(None)
         self.inventory_full_summary.setPlainText("Novo registro de estoque.")
         self._set_inventory_stock_status("Status: novo item.", "info")
         self._set_inventory_reorder_status(
             "Reposicao: informe quantidade, minimo e custo para calcular necessidade.",
             "warning",
         )
+        self._set_inventory_wizard_step(0)
         self.inventory_form_status.setText("Novo item de estoque.")
         self.inventory_delete_button.setEnabled(False)
         self.table.clearSelection()
@@ -153,8 +165,12 @@ class DashboardFormStateMixin:
         has_selection = bool(self.selected_inventory_item_id)
         self.inventory_save_button.setEnabled(not is_loading)
         self.inventory_new_button.setEnabled(not is_loading)
+        self.inventory_back_button.setEnabled(not is_loading and self.inventory_wizard_step > 0)
+        self.inventory_next_button.setEnabled(not is_loading and self.inventory_wizard_step < 2)
         self.inventory_delete_button.setEnabled(not is_loading and has_selection)
-        self.inventory_save_button.setText("Salvando..." if is_loading else "Salvar item")
+        self.inventory_attach_document_button.setEnabled(not is_loading)
+        self.inventory_remove_document_button.setEnabled(not is_loading)
+        self.inventory_save_button.setText("Salvando..." if is_loading else "Salvar")
 
     def _set_inventory_stock_status(self, message: str, level: str) -> None:
         self.inventory_stock_status.setText(message)
@@ -293,7 +309,7 @@ class DashboardFormStateMixin:
         self.service_order_save_button.setEnabled(not is_loading)
         self.service_order_new_button.setEnabled(not is_loading)
         self.service_order_delete_button.setEnabled(
-            not is_loading and bool(self.selected_service_order_id)
+            not is_loading and self._can_delete_service_order()
         )
         if self.selected_service_order_id:
             self._set_service_order_flow_buttons_enabled(not is_loading)
@@ -303,11 +319,17 @@ class DashboardFormStateMixin:
         self.service_order_save_button.setEnabled(not is_loading)
         self.service_order_new_button.setEnabled(not is_loading)
         self.service_order_delete_button.setEnabled(
-            not is_loading and bool(self.selected_service_order_id)
+            not is_loading and self._can_delete_service_order()
         )
         self._set_service_order_flow_buttons_enabled(
             not is_loading and bool(self.selected_service_order_id)
         )
+
+    def _can_delete_service_order(self) -> bool:
+        return bool(self.selected_service_order_id) and self.current_user_role in {
+            "admin",
+            "manager",
+        }
 
     def _set_service_order_flow_buttons_enabled(
         self,
@@ -452,6 +474,63 @@ class DashboardFormStateMixin:
         self._refresh_user_operational_status()
         self.table.clearSelection()
 
+    def clear_resource_access_form(self) -> None:
+        self.selected_user_id = None
+        self.resource_access_target_label.setText("Selecione uma conta para revisar os acessos.")
+        for checkbox in self.resource_access_checkboxes.values():
+            checkbox.setChecked(False)
+            checkbox.setEnabled(False)
+        self.resource_access_full_summary.setPlainText("Nenhuma conta selecionada.")
+        self.resource_access_form_status.setText("")
+        self.resource_access_save_button.setEnabled(False)
+        self._refresh_resource_access_operational_status()
+        self.table.clearSelection()
+
+    def set_resource_access_form_status(self, message: str, is_error: bool = False) -> None:
+        self._set_inline_status(self.resource_access_form_status, message, is_error)
+
+    def set_resource_access_form_loading(self, is_loading: bool) -> None:
+        has_selection = bool(self.selected_user_id)
+        self.resource_access_new_button.setEnabled(not is_loading)
+        self.resource_access_save_button.setEnabled(not is_loading and has_selection)
+        for checkbox in self.resource_access_checkboxes.values():
+            checkbox.setEnabled(not is_loading and has_selection)
+        self.resource_access_save_button.setText("Salvando..." if is_loading else "Salvar acessos")
+
+    def _set_resource_access_operational_status(self, message: str, level: str) -> None:
+        self.resource_access_operational_status.setText(message)
+        self.resource_access_operational_status.setProperty("level", level)
+        self.resource_access_operational_status.style().unpolish(
+            self.resource_access_operational_status
+        )
+        self.resource_access_operational_status.style().polish(
+            self.resource_access_operational_status
+        )
+
+    def _refresh_resource_access_operational_status(
+        self, record: dict[str, Any] | None = None
+    ) -> None:
+        if record is not None:
+            name = str(record.get("full_name") or "Conta")
+            role = self._user_role_label(record.get("role"))
+            self._set_resource_access_operational_status(
+                f"Conta selecionada: {name} | Perfil: {role}. Ajuste os recursos liberados.",
+                "info",
+            )
+            return
+
+        count = len(self.all_rows) if self.active_module_key == "resource_access" else 0
+        if count:
+            self._set_resource_access_operational_status(
+                f"{count} conta(s) carregada(s); selecione uma para editar acessos.",
+                "info",
+            )
+        else:
+            self._set_resource_access_operational_status(
+                "Nenhum registro de acesso carregado para o seu escopo.",
+                "warning",
+            )
+
     def set_user_form_status(self, message: str, is_error: bool = False) -> None:
         self._set_inline_status(self.user_form_status, message, is_error)
 
@@ -530,7 +609,9 @@ class DashboardFormStateMixin:
         self.selected_password_reset_status = None
         self.password_reset_requester_label.setText("Selecione uma solicitacao.")
         self.password_reset_new_password_input.clear()
+        self.password_reset_generate_button.setEnabled(False)
         self.password_reset_resolve_button.setEnabled(False)
+        self.password_reset_cancel_button.setEnabled(False)
         self.password_reset_full_summary.setPlainText("Nenhuma solicitacao selecionada.")
         self.password_reset_form_status.setText("")
         self._refresh_password_reset_operational_status()
@@ -540,11 +621,18 @@ class DashboardFormStateMixin:
         self._set_inline_status(self.password_reset_form_status, message, is_error)
 
     def set_password_reset_form_loading(self, is_loading: bool) -> None:
+        can_resolve = self._password_reset_can_resolve()
+        has_generated_password = bool(self.password_reset_new_password_input.text())
+        self.password_reset_generate_button.setEnabled(not is_loading and can_resolve)
+        self.password_reset_cancel_button.setEnabled(not is_loading and can_resolve)
         self.password_reset_resolve_button.setEnabled(
-            not is_loading and self._password_reset_can_resolve()
+            not is_loading and can_resolve and has_generated_password
         )
         self.password_reset_resolve_button.setText(
             "Redefinindo..." if is_loading else "Redefinir senha"
+        )
+        self.password_reset_cancel_button.setText(
+            "Ignorando..." if is_loading else "Ignorar solicitacao"
         )
 
     def _set_password_reset_operational_status(self, message: str, level: str) -> None:
@@ -562,9 +650,7 @@ class DashboardFormStateMixin:
     ) -> None:
         if request is not None:
             requester = str(
-                request.get("requester_full_name")
-                or request.get("requester_email")
-                or "-"
+                request.get("requester_full_name") or request.get("requester_email") or "-"
             )
             status_key = self._password_reset_status_key(request.get("status"))
             status_label = self._password_reset_status_label(status_key)
@@ -575,11 +661,11 @@ class DashboardFormStateMixin:
             )
             if status_key == "pending":
                 self.password_reset_security_status.setText(
-                    "Seguranca: informe uma senha temporaria com pelo menos 8 caracteres."
+                    "Seguranca: gere uma senha temporaria de 6 caracteres para atendimento."
                 )
             else:
                 self.password_reset_security_status.setText(
-                    "Seguranca: solicitacao ja resolvida; acao de redefinicao bloqueada."
+                    "Seguranca: solicitacao encerrada; acoes de atendimento bloqueadas."
                 )
             return
 
@@ -618,6 +704,7 @@ class DashboardFormStateMixin:
             "resolved": "Resolvida",
             "completed": "Resolvida",
             "cancelled": "Cancelada",
+            "ignored": "Ignorada",
         }.get(status_key, self._format_value(status_key) or "Pendente")
 
     def clear_settings_form(self) -> None:
@@ -638,7 +725,6 @@ class DashboardFormStateMixin:
         self.settings_backup_interval_input.setText("24")
         self.settings_backup_path_input.setText("backups")
         self.settings_backup_last_run_label.setText("Ultimo backup: nunca")
-        self.settings_full_summary.setPlainText("Configuracoes ainda nao carregadas.")
         self.settings_form_status.setText("")
         self._refresh_settings_operational_status()
 
@@ -663,9 +749,7 @@ class DashboardFormStateMixin:
         self.settings_operational_status.style().unpolish(self.settings_operational_status)
         self.settings_operational_status.style().polish(self.settings_operational_status)
 
-    def _refresh_settings_operational_status(
-        self, settings: dict[str, Any] | None = None
-    ) -> None:
+    def _refresh_settings_operational_status(self, settings: dict[str, Any] | None = None) -> None:
         active_settings = settings if settings is not None else self.current_settings
         if not active_settings:
             self._set_settings_operational_status(

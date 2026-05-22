@@ -24,6 +24,43 @@ def test_list_users_returns_list_payload() -> None:
     assert response == [{"full_name": "Admin"}]
 
 
+def test_list_user_resource_access_returns_list_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/users/resource-access"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json=[{"email": "tech@example.com"}])
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.list_user_resource_access("token")
+
+    assert response == [{"email": "tech@example.com"}]
+
+
+def test_update_user_resource_access_puts_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PUT"
+        assert request.url.path == "/api/v1/users/user-id/resource-access"
+        assert request.headers["Authorization"] == "Bearer token"
+        assert json.loads(request.content) == {"allowed_resources": ["dashboard", "tools"]}
+        return httpx.Response(
+            200, json={"user_id": "user-id", "allowed_resources": ["dashboard", "tools"]}
+        )
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.update_user_resource_access("token", "user-id", ["dashboard", "tools"])
+
+    assert response["allowed_resources"] == ["dashboard", "tools"]
+
+
 def test_create_user_posts_payload() -> None:
     payload = {
         "full_name": "Tecnico Novo",
@@ -131,6 +168,23 @@ def test_resolve_password_reset_request_posts_new_password() -> None:
     )
 
     assert response["status"] == "resolved"
+
+
+def test_cancel_password_reset_request_posts_cancel_action() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/v1/password-reset-requests/request-id/cancel"
+        assert request.headers["Authorization"] == "Bearer token"
+        return httpx.Response(200, json={"id": "request-id", "status": "cancelled"})
+
+    client = ApiClient(
+        "http://testserver/api/v1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = client.cancel_password_reset_request("token", "request-id")
+
+    assert response["status"] == "cancelled"
 
 
 def test_list_sectors_returns_list_payload() -> None:

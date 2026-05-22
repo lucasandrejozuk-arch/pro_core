@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QEvent, Qt
 
 from frontend.app.core.display import build_display_profile
 from frontend.app.core.grid import GRID_COLUMNS
@@ -221,6 +221,7 @@ def test_customer_module_is_hidden_for_technician(qtbot) -> None:
 def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
+    window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
     monkeypatch.setattr(
         "frontend.app.screens.dashboard.confirm_destructive_action",
         lambda *args, **kwargs: True,
@@ -315,6 +316,37 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
     ]
 
 
+def test_service_order_delete_is_limited_to_management_profiles(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.set_user({"full_name": "Tecnico", "email": "tecnico@example.com", "role": "technician"})
+    emitted: list[str] = []
+    window.service_order_delete_requested.connect(emitted.append)
+    window.set_service_order_dependencies(
+        customers=[{"id": "customer-id", "name": "Cliente"}],
+        equipment=[{"id": "equipment-id", "category": "Fonte"}],
+        technicians=[],
+    )
+
+    window._populate_service_order_form(
+        {
+            "id": "os-id",
+            "code": "OS-1",
+            "customer_id": "customer-id",
+            "equipment_id": "equipment-id",
+            "status": "open",
+            "problem_description": "Nao liga",
+        }
+    )
+
+    assert not window.service_order_delete_button.isEnabled()
+
+    window._request_service_order_delete()
+
+    assert emitted == []
+    assert "administradores e gestores" in window.footer_message_label.text().lower()
+
+
 def test_session_footer_shows_session_context(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
@@ -334,7 +366,7 @@ def test_session_footer_shows_session_context(qtbot) -> None:
     assert "Sessao: Administrador" in footer_text
     assert "Setor: Diretoria" in footer_text
     assert "Login: 2026-05-14 22:25:19" in footer_text
-    assert window.session_module_label.text() == "Etapa 5 de 12 - Equipamentos"
+    assert not hasattr(window, "session_module_label")
 
 
 def test_sidebar_collapse_keeps_fixed_lateral_rail_without_moving_content(qtbot) -> None:
@@ -378,27 +410,42 @@ def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
     assert dashboard_button.toolTip()
 
 
-def test_modules_show_operational_stage_context_and_actions(qtbot) -> None:
+def test_dashboard_footer_backend_status_accepts_health_probe_message(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    assert window.backend_status_text.text() == "Backend: verificando"
+    assert window.backend_status_dot.property("level") == "warning"
+
+    window.set_backend_connection_status(False, "Backend: erro 500")
+
+    assert window.backend_status_text.text() == "Backend: erro 500"
+    assert window.backend_status_dot.property("level") == "error"
+
+    window.set_backend_connection_status(False, "Backend: atualizando", level="warning")
+
+    assert window.backend_status_text.text() == "Backend: atualizando"
+    assert window.backend_status_dot.property("level") == "warning"
+
+
+def test_modules_show_current_context_without_stage_badge(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
     window.render_dashboard({})
 
-    assert window.command_stage_label.text() == "Etapa 1 de 12"
+    assert not hasattr(window, "command_stage_label")
+    assert not hasattr(window, "command_hint_label")
     assert window.command_context_label.text() == "Dashboard"
-    assert "indicadores" in window.command_hint_label.text().lower()
     assert not window.command_refresh_button.isHidden()
     assert window.command_editor_button.isHidden()
-    assert window.session_module_label.text() == "Etapa 1 de 12 - Dashboard"
+    assert not hasattr(window, "session_module_label")
 
     window.render_rows("Clientes", [], [("Nome", "name")], "customers")
 
-    assert window.command_stage_label.text() == "Etapa 4 de 12"
     assert window.command_context_label.text() == "Clientes"
-    assert "contatos" in window.command_hint_label.text().lower()
     assert not window.command_editor_button.isHidden()
     assert not window.command_clear_selection_button.isHidden()
-    assert window.session_module_label.text() == "Etapa 4 de 12 - Clientes"
 
 
 def test_sidebar_settings_admin_logout_and_exit_icons_are_distinct(qtbot) -> None:
@@ -422,13 +469,14 @@ def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
     assert window._allowed_admin_modules() == (
         "sectors",
         "users",
+        "resource_access",
         "password_resets",
         "audit_logs",
         "settings",
     )
 
 
-def test_admin_area_shows_role_scope_and_available_steps(qtbot) -> None:
+def test_admin_area_shows_role_scope_and_available_modules(qtbot) -> None:
     admin_window = DashboardWindow()
     qtbot.addWidget(admin_window)
     admin_window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
@@ -436,8 +484,16 @@ def test_admin_area_shows_role_scope_and_available_steps(qtbot) -> None:
 
     assert admin_window.admin_area_status_label.property("level") == "info"
     assert "Administrador" in admin_window.admin_area_status_label.text()
-    assert "Etapa 8" in admin_window.admin_area_scope_label.text()
-    assert "Etapa 11" in admin_window.admin_area_scope_label.text()
+    assert "Setores" in admin_window.admin_area_scope_label.text()
+    assert "Acessos de recursos" in admin_window.admin_area_scope_label.text()
+    assert "Logs/Auditoria" in admin_window.admin_area_scope_label.text()
+    assert admin_window.admin_area_panel.layout().alignment() & Qt.AlignmentFlag.AlignTop
+    assert admin_window.admin_area_status_label.maximumHeight() == 42
+    assert admin_window.admin_area_actions_panel.objectName() == "formSubPanel"
+    assert admin_window.admin_area_actions_layout.getItemPosition(0) == (0, 0, 1, 6)
+    assert admin_window.admin_area_actions_layout.getItemPosition(1) == (0, 6, 1, 6)
+    assert admin_window.admin_area_actions_layout.getItemPosition(2) == (1, 0, 1, 6)
+    assert admin_window.admin_area_actions_layout.getItemPosition(3) == (1, 6, 1, 6)
 
     manager_window = DashboardWindow()
     qtbot.addWidget(manager_window)
@@ -448,9 +504,10 @@ def test_admin_area_shows_role_scope_and_available_steps(qtbot) -> None:
 
     assert manager_window.admin_area_status_label.property("level") == "info"
     assert "Gestor" in manager_window.admin_area_status_label.text()
-    assert "Etapa 8" in manager_window.admin_area_scope_label.text()
-    assert "Etapa 10" in manager_window.admin_area_scope_label.text()
-    assert "Etapa 11" not in manager_window.admin_area_scope_label.text()
+    assert "Setores" in manager_window.admin_area_scope_label.text()
+    assert "Acessos de recursos" in manager_window.admin_area_scope_label.text()
+    assert "Solicitacoes de senha" in manager_window.admin_area_scope_label.text()
+    assert "Logs/Auditoria" not in manager_window.admin_area_scope_label.text()
 
     technician_window = DashboardWindow()
     qtbot.addWidget(technician_window)
@@ -461,7 +518,7 @@ def test_admin_area_shows_role_scope_and_available_steps(qtbot) -> None:
 
     assert technician_window.admin_area_status_label.property("level") == "error"
     assert "nao possui acesso" in technician_window.admin_area_status_label.text()
-    assert "nenhuma" in technician_window.admin_area_scope_label.text()
+    assert "nenhum" in technician_window.admin_area_scope_label.text()
 
 
 def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> None:

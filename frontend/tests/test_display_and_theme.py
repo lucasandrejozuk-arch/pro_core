@@ -3,6 +3,7 @@ from __future__ import annotations
 from frontend.app.core.display import build_display_profile
 from frontend.app.core.icons import build_app_icon, build_icon
 from frontend.app.themes.styles import build_theme_palette
+from frontend.app.themes.theme_overrides import _palette_overrides
 
 
 def test_display_profile_detects_compact_monitor() -> None:
@@ -59,6 +60,34 @@ def test_theme_palette_keeps_selection_readable() -> None:
     assert palette["selection_text"] in {"#111827", "#ffffff"}
 
 
+def test_theme_palette_selects_safe_monochrome_icon_library() -> None:
+    light_palette = build_theme_palette("light", "amber")
+    dark_palette = build_theme_palette("dark", "amber")
+
+    assert light_palette["icon_library"] == "graphite"
+    assert light_palette["sidebar_icon"] == "#172033"
+    assert dark_palette["icon_library"] == "paper"
+    assert dark_palette["sidebar_icon"] == "#f8fafc"
+
+
 def test_application_icons_are_available(qtbot) -> None:
     assert not build_icon("dashboard").isNull()
     assert not build_app_icon().isNull()
+
+
+def test_sidebar_active_navigation_uses_binder_tab_frame() -> None:
+    stylesheet = _palette_overrides(build_theme_palette("dark", "blue"))
+
+    assert "QPushButton#navButton[active=\"true\"]" in stylesheet
+    assert "border-right: 0;" in stylesheet
+    assert "border-top-right-radius: 0;" in stylesheet
+    assert "border-bottom-right-radius: 0;" in stylesheet
+
+
+def test_top_command_bar_uses_binder_tab_style() -> None:
+    stylesheet = _palette_overrides(build_theme_palette("dark", "green"))
+
+    assert "QLabel#topCommandContextTab" in stylesheet
+    assert "QPushButton#topCommandButton" in stylesheet
+    assert "border-top: 3px solid" in stylesheet
+    assert "border-bottom: 0;" in stylesheet

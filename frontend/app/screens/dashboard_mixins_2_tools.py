@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -37,18 +39,21 @@ class DashboardToolTabsMixin:
         self.tools_status_label.setWordWrap(True)
 
         self.tools_availability_label = QLabel("0 ferramentas liberadas")
-        self.tools_availability_label.setObjectName("moduleStageBadge")
+        self.tools_availability_label.setObjectName("moduleCountBadge")
         self.tools_specialties_label = QLabel("Especialidades: -")
         self.tools_specialties_label.setObjectName("moduleActionHint")
         self.tools_specialties_label.setWordWrap(True)
 
-        tools_meta_row = QFrame()
-        tools_meta_row.setObjectName("formSubPanel")
-        tools_meta_layout = QHBoxLayout(tools_meta_row)
-        tools_meta_layout.setContentsMargins(8, 6, 8, 6)
-        tools_meta_layout.setSpacing(8)
-        tools_meta_layout.addWidget(self.tools_availability_label)
-        tools_meta_layout.addWidget(self.tools_specialties_label, 1)
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.setSpacing(8)
+        header_text = QVBoxLayout()
+        header_text.setContentsMargins(0, 0, 0, 0)
+        header_text.setSpacing(2)
+        header_text.addWidget(title)
+        header_text.addWidget(subtitle)
+        header_row.addLayout(header_text, 1)
+        header_row.addWidget(self.tools_availability_label, 0, Qt.AlignmentFlag.AlignTop)
 
         self.tools_tabs = QTabWidget()
         self.tools_tabs.setObjectName("toolsTabs")
@@ -56,10 +61,9 @@ class DashboardToolTabsMixin:
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
+        layout.addLayout(header_row)
         layout.addWidget(self.tools_status_label)
-        layout.addWidget(tools_meta_row)
+        layout.addWidget(self.tools_specialties_label)
         layout.addWidget(self.tools_tabs, 1)
         return panel
 
@@ -217,6 +221,7 @@ class DashboardToolTabsMixin:
     ) -> QWidget:
         panel = QFrame()
         panel.setObjectName("formSubPanel")
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
@@ -229,12 +234,10 @@ class DashboardToolTabsMixin:
             return panel
 
         context = QLabel(
-            f"{len(specialty_tools)} ferramenta(s) de {self._specialty_label(specialty_name)} "
-            "liberada(s) para calculos rapidos."
+            f"{self._specialty_label(specialty_name)}: {len(specialty_tools)} "
+            "ferramenta(s) liberada(s)."
         )
-        context.setObjectName("statusBanner")
-        context.setProperty("level", "info")
-        context.setWordWrap(True)
+        context.setObjectName("moduleActionHint")
 
         specialty_tabs = QTabWidget()
         specialty_tabs.setObjectName("specialtyTabs")
@@ -252,14 +255,12 @@ class DashboardToolTabsMixin:
             tool_widget.parent_specialty_text = history_text
             specialty_tabs.addTab(tool_widget, tool_title)
 
-        layout.addWidget(context)
-        layout.addWidget(specialty_tabs, 1)
-
         history_section = QFrame()
         history_section.setObjectName("formSubPanel")
+        history_section.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         history_layout = QVBoxLayout(history_section)
-        history_layout.setContentsMargins(4, 4, 4, 4)
-        history_layout.setSpacing(2)
+        history_layout.setContentsMargins(8, 8, 8, 8)
+        history_layout.setSpacing(6)
 
         history_label = QLabel(f"HISTORICO - {specialty_name.upper()}")
         history_label.setObjectName("formGroupTitle")
@@ -267,7 +268,14 @@ class DashboardToolTabsMixin:
         history_layout.addWidget(history_label)
         history_layout.addWidget(history_text)
 
-        layout.addWidget(history_section, 0)
+        workspace = QHBoxLayout()
+        workspace.setContentsMargins(0, 0, 0, 0)
+        workspace.setSpacing(10)
+        workspace.addWidget(specialty_tabs, 3)
+        workspace.addWidget(history_section, 1)
+
+        layout.addWidget(context)
+        layout.addLayout(workspace, 1)
 
         return panel
 

@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
+    QTextEdit,
     QVBoxLayout,
 )
 
@@ -56,6 +58,10 @@ class DashboardAdminFormsMixin:
         sector_details_title = QLabel("DADOS COMPLETOS")
         sector_details_title.setObjectName("formGroupTitle")
         self.sector_full_summary = create_summary_text(78, 110)
+        sector_details_panel = self._build_admin_details_panel(
+            sector_details_title,
+            self.sector_full_summary,
+        )
 
         self.sector_operational_status = QLabel(
             "Status: carregue setores para revisar a estrutura operacional."
@@ -91,15 +97,17 @@ class DashboardAdminFormsMixin:
         actions.addWidget(self.sector_delete_button)
         actions.addWidget(self.sector_save_button)
 
+        content_layout = create_grid(spacing=10)
+        add_widget(content_layout, sector_fields_panel, 0, 0, 6)
+        add_widget(content_layout, sector_details_panel, 0, 6, 6)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addWidget(sector_fields_panel)
         layout.addWidget(self.sector_operational_status)
         layout.addWidget(self.sector_scope_status)
-        layout.addWidget(sector_details_title)
-        layout.addWidget(self.sector_full_summary)
+        layout.addLayout(content_layout)
         layout.addWidget(self.sector_form_status)
         layout.addLayout(actions)
 
@@ -170,13 +178,13 @@ class DashboardAdminFormsMixin:
         security_panel_layout.addWidget(security_title)
         security_panel_layout.addLayout(security_layout)
 
-        fields_layout = create_grid(spacing=8)
-        add_widget(fields_layout, identity_panel, 0, 0, 7)
-        add_widget(fields_layout, security_panel, 0, 7, 5)
-
         user_details_title = QLabel("DADOS COMPLETOS")
         user_details_title.setObjectName("formGroupTitle")
         self.user_full_summary = create_summary_text()
+        user_details_panel = self._build_admin_details_panel(
+            user_details_title,
+            self.user_full_summary,
+        )
 
         self.user_operational_status = QLabel(
             "Status: carregue usuarios para revisar contas, perfis e setores."
@@ -217,16 +225,115 @@ class DashboardAdminFormsMixin:
         actions.addWidget(self.user_reset_password_button)
         actions.addWidget(self.user_save_button)
 
+        content_layout = create_grid(spacing=10)
+        add_widget(content_layout, identity_panel, 0, 0, 4)
+        add_widget(content_layout, security_panel, 0, 4, 4)
+        add_widget(content_layout, user_details_panel, 0, 8, 4)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addLayout(fields_layout)
         layout.addWidget(self.user_operational_status)
         layout.addWidget(self.user_security_status)
-        layout.addWidget(user_details_title)
-        layout.addWidget(self.user_full_summary)
+        layout.addLayout(content_layout)
         layout.addWidget(self.user_form_status)
+        layout.addLayout(actions)
+
+        return panel
+
+    def _build_resource_access_form(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("formPanel")
+
+        title = QLabel("GERENCIAR ACESSOS DE RECURSOS")
+        title.setObjectName("sectionTitle")
+
+        self.resource_access_target_label = QLabel("Selecione uma conta para revisar os acessos.")
+        self.resource_access_target_label.setObjectName("mutedText")
+        self.resource_access_target_label.setWordWrap(True)
+
+        resource_items = [
+            ("dashboard", "Dashboard"),
+            ("service_orders", "Ordens de Servico"),
+            ("customers", "Clientes"),
+            ("equipment", "Equipamentos"),
+            ("inventory", "Estoque"),
+            ("tools", "Ferramentas"),
+            ("admin_area", "Area administrativa"),
+            ("sectors", "Setores"),
+            ("users", "Usuarios"),
+            ("resource_access", "Acessos de recursos"),
+            ("password_resets", "Solicitacoes de senha"),
+            ("audit_logs", "Logs/Auditoria"),
+            ("settings", "Configuracoes"),
+        ]
+        self.resource_access_checkboxes = {}
+        resources_grid = create_grid(spacing=8)
+        for index, (key, label) in enumerate(resource_items):
+            checkbox = QCheckBox(label)
+            checkbox.setProperty("resource_key", key)
+            self.resource_access_checkboxes[key] = checkbox
+            add_widget(resources_grid, checkbox, index // 2, (index % 2) * 6, 6)
+
+        resources_panel = QFrame()
+        resources_panel.setObjectName("formSubPanel")
+        resources_panel_layout = QVBoxLayout(resources_panel)
+        resources_panel_layout.setContentsMargins(12, 12, 12, 12)
+        resources_panel_layout.setSpacing(8)
+        resources_title = QLabel("RECURSOS LIBERADOS")
+        resources_title.setObjectName("formGroupTitle")
+        resources_panel_layout.addWidget(resources_title)
+        resources_panel_layout.addWidget(self.resource_access_target_label)
+        resources_panel_layout.addLayout(resources_grid)
+
+        details_title = QLabel("DADOS COMPLETOS")
+        details_title.setObjectName("formGroupTitle")
+        self.resource_access_full_summary = create_summary_text(78, 110)
+        details_panel = self._build_admin_details_panel(
+            details_title, self.resource_access_full_summary
+        )
+
+        self.resource_access_operational_status = QLabel(
+            "Status: carregue registros de acesso para revisar permissoes por conta."
+        )
+        self.resource_access_operational_status.setObjectName("statusBanner")
+        self.resource_access_operational_status.setProperty("level", "warning")
+        self.resource_access_operational_status.setWordWrap(True)
+
+        self.resource_access_scope_status = QLabel(
+            "Escopo: administradores gerenciam todas as contas; gestores apenas subordinados do setor."
+        )
+        self.resource_access_scope_status.setObjectName("moduleActionHint")
+        self.resource_access_scope_status.setWordWrap(True)
+
+        self.resource_access_form_status = QLabel("")
+        self.resource_access_form_status.setObjectName("mutedText")
+
+        self.resource_access_new_button = QPushButton("Limpar selecao")
+        self.resource_access_new_button.setObjectName("secondaryButton")
+        self.resource_access_new_button.clicked.connect(self.clear_resource_access_form)
+
+        self.resource_access_save_button = QPushButton("Salvar acessos")
+        self.resource_access_save_button.clicked.connect(self._request_resource_access_save)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.resource_access_new_button)
+        actions.addWidget(self.resource_access_save_button)
+
+        content_layout = create_grid(spacing=10)
+        add_widget(content_layout, resources_panel, 0, 0, 6)
+        add_widget(content_layout, details_panel, 0, 6, 6)
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+        layout.addWidget(title)
+        layout.addWidget(self.resource_access_operational_status)
+        layout.addWidget(self.resource_access_scope_status)
+        layout.addLayout(content_layout)
+        layout.addWidget(self.resource_access_form_status)
         layout.addLayout(actions)
 
         return panel
@@ -244,14 +351,28 @@ class DashboardAdminFormsMixin:
 
         self.password_reset_new_password_input = QLineEdit()
         self.password_reset_new_password_input.setPlaceholderText("Nova senha temporaria")
-        self.password_reset_new_password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_reset_new_password_input.setReadOnly(True)
+        self.password_reset_new_password_input.setToolTip(
+            "Use o botao Gerar senha para preencher a senha temporaria."
+        )
+        self.password_reset_generate_button = QPushButton("Gerar senha")
+        self.password_reset_generate_button.setObjectName("secondaryButton")
+        self.password_reset_generate_button.clicked.connect(
+            self._generate_password_reset_temporary_password
+        )
 
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
-        form_layout.addRow("Nova senha", self.password_reset_new_password_input)
+        password_row = QHBoxLayout()
+        password_row.setContentsMargins(0, 0, 0, 0)
+        password_row.setSpacing(8)
+        password_row.addWidget(self.password_reset_new_password_input, 1)
+        password_row.addWidget(self.password_reset_generate_button)
+        form_layout.addRow("Nova senha", password_row)
 
         password_reset_panel = QFrame()
         password_reset_panel.setObjectName("formSubPanel")
+        password_reset_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         password_reset_panel_layout = QVBoxLayout(password_reset_panel)
         password_reset_panel_layout.setContentsMargins(12, 12, 12, 12)
         password_reset_panel_layout.setSpacing(8)
@@ -264,6 +385,10 @@ class DashboardAdminFormsMixin:
         password_reset_details_title = QLabel("DADOS COMPLETOS")
         password_reset_details_title.setObjectName("formGroupTitle")
         self.password_reset_full_summary = create_summary_text(78, 110)
+        password_reset_details_panel = self._build_admin_details_panel(
+            password_reset_details_title,
+            self.password_reset_full_summary,
+        )
 
         self.password_reset_operational_status = QLabel(
             "Status: carregue solicitacoes para revisar recuperacoes de acesso."
@@ -283,21 +408,39 @@ class DashboardAdminFormsMixin:
 
         self.password_reset_resolve_button = QPushButton("Redefinir senha")
         self.password_reset_resolve_button.clicked.connect(self._request_password_reset_resolve)
+        self.password_reset_cancel_button = QPushButton("Ignorar solicitacao")
+        self.password_reset_cancel_button.setObjectName("secondaryButton")
+        self.password_reset_cancel_button.clicked.connect(self._request_password_reset_cancel)
 
         actions = QHBoxLayout()
         actions.addStretch()
+        actions.addWidget(self.password_reset_cancel_button)
         actions.addWidget(self.password_reset_resolve_button)
+
+        content_layout = create_grid(spacing=10)
+        add_widget(content_layout, password_reset_panel, 0, 0, 6)
+        add_widget(content_layout, password_reset_details_panel, 0, 6, 6)
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
-        layout.addWidget(password_reset_panel)
         layout.addWidget(self.password_reset_operational_status)
         layout.addWidget(self.password_reset_security_status)
-        layout.addWidget(password_reset_details_title)
-        layout.addWidget(self.password_reset_full_summary)
+        layout.addLayout(content_layout)
         layout.addWidget(self.password_reset_form_status)
         layout.addLayout(actions)
 
+        return panel
+
+    @staticmethod
+    def _build_admin_details_panel(title: QLabel, summary: QTextEdit) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("adminDetailsPanel")
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+        layout.addWidget(title)
+        layout.addWidget(summary)
         return panel

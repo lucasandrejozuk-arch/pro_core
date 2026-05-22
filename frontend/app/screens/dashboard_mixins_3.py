@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -31,8 +32,10 @@ class DashboardMixin3:
         widget = QWidget()
         form_panel = QFrame()
         form_panel.setObjectName("toolPanel")
+        form_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.addWidget(form_panel)
 
         self.ohm_target_combo = QComboBox()
@@ -73,19 +76,25 @@ class DashboardMixin3:
         panel_layout = QVBoxLayout(form_panel)
         panel_layout.setContentsMargins(10, 10, 10, 10)
         panel_layout.setSpacing(8)
+        panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         body_layout = QHBoxLayout()
         body_layout.setSpacing(10)
+        body_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         input_layout = QVBoxLayout()
         input_layout.setSpacing(8)
         input_layout.addLayout(form)
         input_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
+        input_layout.addStretch(1)
         result_layout = QVBoxLayout()
         result_layout.setSpacing(6)
-        result_layout.setContentsMargins(6, 0, 0, 0)
+        result_layout.setContentsMargins(8, 8, 8, 8)
         result_layout.addWidget(result_title)
         result_layout.addWidget(self.ohm_result)
+        result_panel = QFrame()
+        result_panel.setObjectName("toolResultPanel")
+        result_panel.setLayout(result_layout)
         body_layout.addLayout(input_layout, 3)
-        body_layout.addLayout(result_layout, 2)
+        body_layout.addWidget(result_panel, 2)
         panel_layout.addLayout(body_layout)
 
         self.ohm_target_combo.currentIndexChanged.connect(self._update_ohm_fields)
@@ -104,6 +113,7 @@ class DashboardMixin3:
         widget = QWidget()
         panel = QFrame()
         panel.setObjectName("toolPanel")
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         inputs: dict[str, QLineEdit] = {}
         form = QFormLayout()
         form.setSpacing(8)
@@ -132,23 +142,30 @@ class DashboardMixin3:
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(10, 10, 10, 10)
         panel_layout.setSpacing(8)
+        panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         body_layout = QHBoxLayout()
         body_layout.setSpacing(10)
+        body_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         input_layout = QVBoxLayout()
         input_layout.setSpacing(8)
         input_layout.addLayout(form)
         input_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
+        input_layout.addStretch(1)
         result_layout = QVBoxLayout()
         result_layout.setSpacing(6)
-        result_layout.setContentsMargins(6, 0, 0, 0)
+        result_layout.setContentsMargins(8, 8, 8, 8)
         result_layout.addWidget(result_title)
         result_layout.addWidget(result)
+        result_panel = QFrame()
+        result_panel.setObjectName("toolResultPanel")
+        result_panel.setLayout(result_layout)
         body_layout.addLayout(input_layout, 3)
-        body_layout.addLayout(result_layout, 2)
+        body_layout.addWidget(result_panel, 2)
         panel_layout.addLayout(body_layout)
 
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.addWidget(panel)
         widget.parent_specialty_text = None
         return widget

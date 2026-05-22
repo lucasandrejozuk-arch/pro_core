@@ -118,3 +118,19 @@ def test_customer_portal_rejects_invalid_access(client: TestClient) -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_customer_portal_login_rate_limits_invalid_access(client: TestClient) -> None:
+    for _ in range(5):
+        response = client.post(
+            "/api/v1/customer-portal/login",
+            json={"service_order_code": "OS-999999", "email": "cliente@example.com"},
+        )
+        assert response.status_code == 401
+
+    response = client.post(
+        "/api/v1/customer-portal/login",
+        json={"service_order_code": "OS-999999", "email": "cliente@example.com"},
+    )
+
+    assert response.status_code == 429

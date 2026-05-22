@@ -85,6 +85,7 @@ class DashboardWindow(
     inventory_create_requested = Signal(dict)
     inventory_update_requested = Signal(str, dict)
     inventory_delete_requested = Signal(str)
+    inventory_document_download_requested = Signal(str, str)
     sector_create_requested = Signal(dict)
     sector_update_requested = Signal(str, dict)
     sector_delete_requested = Signal(str)
@@ -103,10 +104,13 @@ class DashboardWindow(
     user_update_requested = Signal(str, dict)
     user_delete_requested = Signal(str)
     user_password_reset_requested = Signal(str, str)
+    user_resource_access_update_requested = Signal(str, list)
     password_reset_resolve_requested = Signal(str, str)
+    password_reset_cancel_requested = Signal(str)
     settings_update_requested = Signal(dict)
     ui_scale_changed = Signal(float)
     backup_run_requested = Signal()
+    backend_restart_requested = Signal()
     audit_delete_requested = Signal(str)
 
     def __init__(self) -> None:

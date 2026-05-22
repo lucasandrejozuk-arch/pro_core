@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from PySide6.QtCore import QPropertyAnimation
 from PySide6.QtWidgets import QDialog, QVBoxLayout
 
 
@@ -20,6 +21,7 @@ def initialize_dashboard_state(self) -> None:
     self.selected_equipment_board_id: str | None = None
     self.selected_equipment_component_id: str | None = None
     self.selected_inventory_item_id: str | None = None
+    self.selected_inventory_document_path: str | None = None
     self.selected_service_order_id: str | None = None
     self.selected_sector_id: str | None = None
     self.selected_user_id: str | None = None
@@ -47,14 +49,23 @@ def initialize_dashboard_state(self) -> None:
     self.sidebar_collapsed = False
     self.record_editor_collapsed = True
     self.record_editor_width = 720
+    self.backend_restart_available = False
+    self.backend_restart_in_progress = False
+    self.backend_restart_message = (
+        "Reinicio seguro indisponivel: backend atual nao foi iniciado pelo app."
+    )
     self.current_page = 1
     self.page_size = 10
     self.total_pages = 1
+    self.inventory_wizard_step = 0
+    self.inventory_active_stock_group = "components"
     self.admin_module_keys = (
         "sectors",
         "users",
+        "resource_access",
         "password_resets",
         "audit_logs",
     )
     self.management_module_keys = ()
     self.dashboard_grid_columns = 4
+    self.content_fade_animation: QPropertyAnimation | None = None

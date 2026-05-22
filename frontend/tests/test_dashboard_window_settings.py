@@ -24,17 +24,16 @@ def test_settings_menu_keeps_all_configuration_groups_visible(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
 
-    assert window.settings_tabs.count() == 4
-    assert [window.settings_tabs.tabText(index) for index in range(4)] == [
+    assert window.settings_tabs.count() == 3
+    assert [window.settings_tabs.tabText(index) for index in range(3)] == [
         "Empresa",
-        "Aparencia",
-        "Interface e backup",
-        "Resumo",
+        "Aparencia e interface",
+        "Backup",
     ]
     assert window.settings_company_name_input is not None
     assert window.settings_brand_name_input is not None
     assert window.settings_theme_combo.count() == 2
-    assert window.settings_language_combo.count() == 2
+    assert window.settings_language_combo.count() == 1
     assert window.settings_backup_enabled_checkbox.text() == "Backup automatico ativo"
 
 
@@ -66,7 +65,6 @@ def test_settings_operational_status_tracks_identity_interface_and_backup(qtbot)
     assert "backup: ativo" in window.settings_backup_status.text().lower()
     assert "intervalo 12h" in window.settings_backup_status.text()
     assert "D:/backups" in window.settings_backup_status.text()
-    assert "Status operacional" in window.settings_full_summary.toPlainText()
 
     window.settings_ui_scale_slider.setValue(112)
 

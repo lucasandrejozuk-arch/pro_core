@@ -5,7 +5,12 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.core.security import hash_password, validate_password_strength, verify_password
+from backend.app.core.security import (
+    hash_password,
+    validate_password_strength,
+    verify_password,
+    verify_password_for_missing_user,
+)
 from backend.app.models.enums import UserRole
 from backend.app.models.user import User
 from backend.app.schemas.user import UserCreate, UserUpdate
@@ -141,8 +146,15 @@ def _validate_user_sector(
         raise ValueError("Sector not found for this company.")
 
 
-def reset_user_password(db: Session, user: User, new_password: str) -> User:
-    validate_password_strength(new_password)
+def reset_user_password(
+    db: Session,
+    user: User,
+    new_password: str,
+    *,
+    validate_strength: bool = True,
+) -> User:
+    if validate_strength:
+        validate_password_strength(new_password)
     user.password_hash = hash_password(new_password)
     user.must_change_password = True
     db.add(user)
@@ -154,6 +166,7 @@ def reset_user_password(db: Session, user: User, new_password: str) -> User:
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = get_user_by_email(db, email)
     if user is None or not user.is_active:
+        verify_password_for_missing_user(password)
         return None
 
     if not verify_password(password, user.password_hash):

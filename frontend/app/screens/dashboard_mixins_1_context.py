@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from frontend.app.screens.dashboard_modules import MODULE_STAGE_BY_KEY, module_stage_label
+from frontend.app.screens.dashboard_modules import MODULE_BY_KEY
 
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
@@ -41,6 +41,7 @@ class DashboardContextMenuMixin:
             "service_orders",
             "sectors",
             "users",
+            "resource_access",
         }:
             new_action = QAction("Novo", self)
             new_action.triggered.connect(self._new_current_record_from_context)
@@ -175,6 +176,7 @@ class DashboardContextMenuMixin:
             "service_orders": self.clear_service_order_form,
             "sectors": self.clear_sector_form,
             "users": self.clear_user_form,
+            "resource_access": self.clear_resource_access_form,
             "password_resets": self.clear_password_reset_form,
         }
         callback = clear_callbacks.get(self.active_module_key)
@@ -183,6 +185,11 @@ class DashboardContextMenuMixin:
         self._open_record_editor()
 
     def _delete_callback_for_active_module(self) -> Callable[[], None] | None:
+        if self.active_module_key == "service_orders" and self.current_user_role not in {
+            "admin",
+            "manager",
+        }:
+            return None
         return {
             "customers": self._request_customer_delete,
             "inventory": self._request_inventory_delete,
@@ -213,6 +220,7 @@ class DashboardContextMenuMixin:
             "sectors": "Setores e estrutura operacional.",
             "users": "Usuarios, perfis e redefinicao de senha.",
             "password_resets": "Solicitacoes de recuperacao de acesso.",
+            "resource_access": "Acessos de recursos por conta e modulo.",
             "settings": "Identidade visual, empresa, tema e backup.",
             "audit_logs": "Rastreabilidade administrativa e operacional.",
         }
@@ -220,9 +228,7 @@ class DashboardContextMenuMixin:
         actions_layout = QVBoxLayout()
         actions_layout.setSpacing(8)
         for module_key in allowed_modules:
-            button = QPushButton(
-                f"{module_stage_label(module_key)} - {self.module_labels[module_key]}"
-            )
+            button = QPushButton(self.module_labels[module_key])
             button.setObjectName("adminMenuButton")
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setToolTip(descriptions[module_key])
@@ -251,23 +257,37 @@ class DashboardContextMenuMixin:
         self.module_selected.emit(module_key)
 
     def _sync_module_visibility(self) -> None:
+        user_resources = {
+            str(item) for item in (self.current_user.get("resource_access") or []) if str(item)
+        }
         for module_key, button in self.module_buttons.items():
-            stage = MODULE_STAGE_BY_KEY.get(module_key)
+            module = MODULE_BY_KEY.get(module_key)
             if module_key in self.admin_module_keys:
                 visible = False
-            elif stage is None:
+            elif module is None:
                 visible = True
-            elif stage.admin_only and not stage.manager_visible:
+            elif module.admin_only and not module.manager_visible:
                 visible = self.current_user_role == "admin"
-            elif stage.manager_visible:
+            elif module.manager_visible:
                 visible = self.current_user_role in {"admin", "manager"}
             else:
                 visible = True
+            if visible and user_resources:
+                visible = module_key in user_resources
             button.setVisible(visible)
 
     def _allowed_admin_modules(self) -> tuple[str, ...]:
+        user_resources = {
+            str(item) for item in (self.current_user.get("resource_access") or []) if str(item)
+        }
+
         if self.current_user_role == "admin":
-            return self.admin_module_keys + ("settings",)
-        if self.current_user_role == "manager":
-            return ("sectors", "users", "password_resets")
-        return ()
+            modules = self.admin_module_keys + ("settings",)
+        elif self.current_user_role == "manager":
+            modules = ("sectors", "users", "resource_access", "password_resets")
+        else:
+            return ()
+
+        if not user_resources:
+            return modules
+        return tuple(module_key for module_key in modules if module_key in user_resources)

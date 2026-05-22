@@ -89,6 +89,7 @@ class LoginBrandPanel(QFrame):
 class LoginWindow(QWidget):
     login_requested = Signal(str, str)
     password_reset_requested = Signal(str)
+    backend_reconnect_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -163,6 +164,10 @@ class LoginWindow(QWidget):
         self.forgot_password_button.setObjectName("secondaryButton")
         self.forgot_password_button.clicked.connect(self._request_password_reset)
 
+        self.backend_reconnect_button = QPushButton("Conectar/Reiniciar backend")
+        self.backend_reconnect_button.setObjectName("secondaryButton")
+        self.backend_reconnect_button.clicked.connect(self._request_backend_reconnect)
+
         form_panel = QFrame()
         form_panel.setObjectName("formPanel")
         form_layout = QVBoxLayout(form_panel)
@@ -179,6 +184,7 @@ class LoginWindow(QWidget):
         form_layout.addWidget(self.error_label)
         form_layout.addWidget(self.submit_button)
         form_layout.addWidget(self.forgot_password_button)
+        form_layout.addWidget(self.backend_reconnect_button)
         form_layout.addStretch()
 
         layout = create_grid()
@@ -191,13 +197,21 @@ class LoginWindow(QWidget):
     def set_loading(self, is_loading: bool) -> None:
         self.submit_button.setEnabled(not is_loading)
         self.forgot_password_button.setEnabled(not is_loading)
+        self.backend_reconnect_button.setEnabled(not is_loading)
         self.password_visibility_button.setEnabled(not is_loading)
         self.submit_button.setText("Entrando..." if is_loading else "Entrar")
 
     def set_password_reset_loading(self, is_loading: bool) -> None:
         self.forgot_password_button.setEnabled(not is_loading)
         self.submit_button.setEnabled(not is_loading)
+        self.backend_reconnect_button.setEnabled(not is_loading)
         self.forgot_password_button.setText("Enviando..." if is_loading else "Esqueci minha senha")
+
+    def set_backend_reconnect_loading(self, is_loading: bool) -> None:
+        self.backend_reconnect_button.setEnabled(not is_loading)
+        self.backend_reconnect_button.setText(
+            "Conectando/Reiniciando..." if is_loading else "Conectar/Reiniciar backend"
+        )
 
     def set_error(self, message: str) -> None:
         self.error_label.setObjectName("errorText")
@@ -262,6 +276,10 @@ class LoginWindow(QWidget):
 
         self.set_error("")
         self.password_reset_requested.emit(email)
+
+    def _request_backend_reconnect(self) -> None:
+        self.set_error("")
+        self.backend_reconnect_requested.emit()
 
     def _toggle_password_visibility(self, checked: bool) -> None:
         self.password_input.setEchoMode(

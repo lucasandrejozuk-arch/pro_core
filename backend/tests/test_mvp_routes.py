@@ -75,6 +75,67 @@ def test_customer_inventory_and_equipment_crud(
     assert update_response.json()["phone"] == "(11) 98888-8888"
 
 
+def test_inventory_transformer_requires_key_technical_fields(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/api/v1/inventory",
+        headers=auth_headers,
+        json={
+            "sku": "TRF-001",
+            "name": "Transformador sem dados",
+            "stock_group": "components",
+            "category": "Transformadores",
+            "quantity": "1",
+            "minimum_quantity": "1",
+            "unit_cost": "10",
+            "technical_data": {"primary_voltage": "220V"},
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_inventory_update_transformer_requires_key_technical_fields(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    create_response = client.post(
+        "/api/v1/inventory",
+        headers=auth_headers,
+        json={
+            "sku": "TRF-002",
+            "name": "Transformador valido",
+            "stock_group": "components",
+            "category": "Transformadores",
+            "quantity": "2",
+            "minimum_quantity": "1",
+            "unit_cost": "20",
+            "technical_data": {
+                "primary_voltage": "220V",
+                "secondary_voltage": "24V",
+                "power": "100VA",
+            },
+        },
+    )
+    assert create_response.status_code == 201
+    item = create_response.json()
+
+    update_response = client.patch(
+        f"/api/v1/inventory/{item['id']}",
+        headers=auth_headers,
+        json={
+            "technical_data": {
+                "primary_voltage": "220V",
+                "secondary_voltage": "24V",
+            }
+        },
+    )
+
+    assert update_response.status_code == 400
+
+
 def test_list_technicians_returns_company_technicians(
     client: TestClient,
     auth_headers: dict[str, str],

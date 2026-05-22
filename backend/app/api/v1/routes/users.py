@@ -13,9 +13,15 @@ from backend.app.models.user import User
 from backend.app.schemas.user import (
     UserCreate,
     UserPasswordReset,
+    UserResourceAccessResponse,
+    UserResourceAccessUpdate,
     UserResponse,
     UserSummaryResponse,
     UserUpdate,
+)
+from backend.app.services.resource_access import (
+    list_manageable_resource_access_users,
+    update_user_resource_access,
 )
 from backend.app.services.users import (
     create_user_account,
@@ -189,3 +195,37 @@ def list_technicians(
         )
 
     return list_users_by_role(db, current_user.company_id, UserRole.TECHNICIAN)
+
+
+@router.get("/resource-access", response_model=list[UserResourceAccessResponse])
+def list_user_resource_access_records(
+    current_user: AdminOrManagerUser,
+    db: DatabaseSession,
+) -> list[dict]:
+    return list_manageable_resource_access_users(db, current_user)
+
+
+@router.put("/{user_id}/resource-access", response_model=UserResourceAccessResponse)
+def update_user_resource_access_record(
+    user_id: uuid.UUID,
+    payload: UserResourceAccessUpdate,
+    current_user: AdminOrManagerUser,
+    db: DatabaseSession,
+) -> dict:
+    try:
+        return update_user_resource_access(
+            db,
+            current_user,
+            user_id,
+            payload.allowed_resources,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except ValueError as exc:
+        detail = str(exc)
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if detail == "User not found."
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=detail) from exc

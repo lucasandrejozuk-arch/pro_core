@@ -81,6 +81,8 @@ class DashboardMixin2:
             self._refresh_sector_operational_status()
         elif module_key == "users":
             self._refresh_user_operational_status()
+        elif module_key == "resource_access":
+            self._refresh_resource_access_operational_status()
         elif module_key == "password_resets":
             self._refresh_password_reset_operational_status()
         elif module_key == "audit_logs":
@@ -209,10 +211,15 @@ class DashboardMixin2:
         self._populate_current_table(self._filtered_rows())
 
     def _filtered_rows(self) -> list[dict[str, Any]]:
+        rows = list(self.all_rows)
+        if self.active_module_key == "inventory" and hasattr(
+            self, "_inventory_row_matches_stock_group"
+        ):
+            rows = [row for row in rows if self._inventory_row_matches_stock_group(row)]
         search_text = self.module_search_input.text().strip().lower()
         if not search_text:
-            return list(self.all_rows)
-        return [row for row in self.all_rows if self._row_matches_search(row, search_text)]
+            return rows
+        return [row for row in rows if self._row_matches_search(row, search_text)]
 
     def _row_matches_search(self, value: Any, search_text: str) -> bool:
         if isinstance(value, dict):

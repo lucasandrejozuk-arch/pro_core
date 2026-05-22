@@ -78,19 +78,19 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         QLabel#sessionFooterModule {{
             color: {palette["muted"]};
         }}
-        QLabel#moduleStageBadge {{
+        QLabel#moduleCountBadge {{
             background-color: {palette["primary_subtle"]};
             border: 1px solid {palette["primary"]};
-            border-radius: 6px;
+            border-radius: 5px;
             color: {palette["primary"]};
             font-size: 11px;
             font-weight: 800;
-            padding: 4px 8px;
+            padding: 3px 7px;
         }}
         QLabel#moduleActionHint {{
             color: {palette["muted"]};
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 500;
         }}
         QLabel#footerMessage[level="success"],
         QLabel#footerStatusDot[level="success"] {{
@@ -106,6 +106,11 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QLabel#footerMessage[level="info"] {{
             color: {palette["muted"]};
+        }}
+        QFrame#footerMessageFrame {{
+            background-color: {palette["surface_alt"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 6px;
         }}
         QLabel#emptyAlertText {{
             color: {palette["muted"]};
@@ -129,8 +134,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             background-color: {palette["status_bg"]};
             border-color: {palette["primary"]};
             color: {palette["primary"]};
-            font-weight: 600;
-            padding: 6px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 9px;
         }}
         QLabel#statusBanner[level="warning"] {{
             background-color: {palette["warning_bg"]};
@@ -214,13 +221,19 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QFrame#formSubPanel,
         QFrame#toolPanel,
+        QFrame#toolResultPanel,
         QFrame#workflowPanel,
+        QFrame#adminDetailsPanel,
         QFrame#dashboardAlertRow,
-        QFrame#equipmentSection {{
+        QFrame#equipmentSection,
+        QFrame#equipmentDetailsPanel {{
             background-color: {palette["surface_alt"]};
             border-color: {palette["line"]};
         }}
-        QFrame#toolPanel {{
+        QFrame#toolPanel,
+        QFrame#toolResultPanel,
+        QFrame#adminDetailsPanel,
+        QFrame#equipmentDetailsPanel {{
             border: 1px solid {palette["line"]};
             border-radius: 6px;
         }}
@@ -311,16 +324,25 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             background-color: {palette["surface_alt"]};
             color: {palette["muted"]};
             min-height: 28px;
-            padding: 4px 10px;
+            padding: 4px 12px;
             border: 1px solid {palette["line"]};
-            border-bottom: 2px solid {palette["line"]};
+            border-top: 3px solid transparent;
+            border-bottom: 0;
             border-top-left-radius: 4px;
             border-top-right-radius: 4px;
+            margin-right: 1px;
         }}
         QTabBar::tab:selected {{
             background-color: {palette["surface"]};
             color: {palette["text"]};
-            border-bottom-color: {palette["primary"]};
+            border-color: {palette["primary"]};
+            border-top-color: {palette["primary"]};
+            border-bottom-color: {palette["surface"]};
+        }}
+        QTabBar::tab:hover {{
+            background-color: {palette["primary_subtle"]};
+            color: {palette["text"]};
+            border-color: {palette["primary"]};
         }}
         QTabBar::tab:disabled {{
             background-color: {palette["disabled_bg"]};
@@ -444,6 +466,39 @@ def _palette_overrides(palette: dict[str, str]) -> str:
             color: {palette["danger"]};
             border: 1px solid {palette["danger"]};
         }}
+        QLabel#topCommandContextTab {{
+            background-color: {palette["surface"]};
+            border: 1px solid {palette["line"]};
+            border-top: 3px solid {palette["primary"]};
+            border-bottom: 0;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            color: {palette["text"]};
+            font-size: 11px;
+            font-weight: 800;
+            padding: 6px 12px 7px 12px;
+        }}
+        QPushButton#topCommandButton {{
+            background-color: {palette["surface_alt"]};
+            border: 1px solid {palette["line"]};
+            border-top: 3px solid transparent;
+            border-bottom: 0;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            color: {palette["text"]};
+            min-height: 28px;
+            padding: 4px 11px 6px 11px;
+        }}
+        QPushButton#topCommandButton:hover {{
+            background-color: {palette["primary_subtle"]};
+            border-color: {palette["primary"]};
+            border-top-color: {palette["primary"]};
+        }}
+        QPushButton#topCommandButton:disabled {{
+            background-color: {palette["surface_alt"]};
+            border-color: {palette["line"]};
+            color: {palette["muted"]};
+        }}
         QPushButton#recordEditorToggleButton {{
             background-color: {palette["surface_alt"]};
             border: 1px solid {palette["line"]};
@@ -473,7 +528,10 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QPushButton#navButton {{
             background-color: transparent;
-            border-radius: 6px;
+            border: 1px solid transparent;
+            border-left: 4px solid transparent;
+            border-radius: 7px;
+            margin: 1px 0 1px 4px;
             padding: 0;
             text-align: center;
             min-width: 42px;
@@ -483,14 +541,22 @@ def _palette_overrides(palette: dict[str, str]) -> str:
         }}
         QPushButton#navButton:hover {{
             background-color: rgba(56, 189, 248, 0.16);
+            border-color: {palette["primary"]};
         }}
         QPushButton#navButton[active="true"] {{
             background-color: rgba(56, 189, 248, 0.26);
+            border-color: {palette["primary"]};
+            border-left-color: {palette["primary"]};
+            border-right: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
         }}
         QPushButton#adminMenuButton {{
             background-color: {palette["surface"]};
             border-color: {palette["line"]};
             color: {palette["text"]};
+            min-height: 38px;
+            padding-left: 12px;
         }}
         QPushButton#adminMenuButton:hover {{
             background-color: {palette["primary_subtle"]};

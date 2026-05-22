@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
 )
 
+from frontend.app.core.inventory_catalog import STOCK_GROUP_OPTIONS
 from frontend.app.themes.styles import COLOR_PALETTE_OPTIONS, DEFAULT_COLOR_PALETTE
 
 
@@ -27,40 +28,60 @@ class DashboardMixin7:
         reorder_quantity = max(0.0, minimum_value - quantity_value)
         stock_value = max(0.0, quantity_value * unit_cost_value)
         status = "Critico" if self._inventory_is_low(item) else "Operacional"
+        stock_group = self._format_inventory_stock_group(item.get("stock_group"))
+        technical_data = (
+            item.get("technical_data") if isinstance(item.get("technical_data"), dict) else {}
+        )
+        technical_lines = [
+            f"- {key.replace('_', ' ').title()}: {self._format_value(value) or '-'}"
+            for key, value in technical_data.items()
+            if self._format_value(value)
+        ]
         lines = [
+            f"Submodulo: {stock_group}",
             f"SKU: {self._format_value(item.get('sku')) or '-'}",
             f"Nome: {self._format_value(item.get('name')) or '-'}",
             f"Categoria: {self._format_value(item.get('category')) or '-'}",
+            f"Localizacao: {self._format_value(item.get('location')) or '-'}",
             f"Quantidade: {quantity}",
             f"Minimo para reposicao: {minimum}",
             f"Custo unitario: {unit_cost}",
             f"Reposicao necessaria: {self._format_number(reorder_quantity)}",
             f"Valor em estoque: R$ {self._format_number(stock_value)}",
             f"Status: {status}",
+            f"Observacoes: {self._format_value(item.get('notes')) or '-'}",
         ]
+        if technical_lines:
+            lines.append("Especificacoes tecnicas:")
+            lines.extend(technical_lines)
+        document_lines = self._format_inventory_documents(item.get("documents"))
+        if document_lines:
+            lines.append("Anexos:")
+            lines.extend(document_lines)
         return "\n".join(lines)
 
-    def _format_settings_summary(self, settings: dict[str, Any]) -> str:
-        backup_enabled = "Ativo" if settings.get("backup_enabled", True) else "Inativo"
-        theme = self._format_value(settings.get("theme")) or str(settings.get("theme") or "light")
-        color_palette = self._format_color_palette(settings.get("color_palette"))
-        language = self._format_language(settings.get("language"))
-        lines = [
-            f"Empresa: {self._format_value(settings.get('company_name')) or '-'}",
-            f"Nome fantasia: {self._format_value(settings.get('trade_name')) or '-'}",
-            f"Nome exibido: {self._format_value(settings.get('brand_name')) or '-'}",
-            f"Subtitulo: {self._format_value(settings.get('brand_subtitle')) or '-'}",
-            f"Paleta: {color_palette}",
-            f"Tema: {theme}",
-            f"Idioma: {language}",
-            f"Escala da interface: {round(self.ui_scale_value * 100)}%",
-            f"Backup automatico: {backup_enabled}",
-            f"Intervalo de backup: {settings.get('backup_interval_hours') or 24} hora(s)",
-            f"Destino: {self._format_value(settings.get('backup_storage_path')) or 'backups'}",
-            f"Ultimo backup: {self._format_value(settings.get('backup_last_run_at')) or 'nunca'}",
-            "Status operacional: identidade, interface e backup revisados.",
-        ]
-        return "\n".join(lines)
+    @staticmethod
+    def _format_inventory_stock_group(value: Any) -> str:
+        stock_group = str(value or "components")
+        for key, label in STOCK_GROUP_OPTIONS:
+            if key == stock_group:
+                return label
+        return stock_group
+
+    def _format_inventory_documents(self, documents: Any) -> list[str]:
+        if not isinstance(documents, list):
+            return []
+        lines: list[str] = []
+        for document in documents[:5]:
+            if not isinstance(document, dict):
+                continue
+            file_name = self._format_value(document.get("file_name")) or "arquivo"
+            document_type = self._format_value(document.get("document_type")) or "outro"
+            lines.append(f"- {file_name} ({document_type})")
+        remaining = len(documents) - len(lines)
+        if remaining > 0:
+            lines.append(f"- +{remaining} arquivo(s)")
+        return lines
 
     def _format_audit_summary(self, record: dict[str, Any]) -> str:
         actor = (
@@ -117,6 +138,29 @@ class DashboardMixin7:
             f"Perfil: {self._format_value(request.get('requester_role')) or '-'}",
             f"Status: {status}",
             f"Criada em: {self._format_value(request.get('created_at')) or '-'}",
+        ]
+        return "\n".join(lines)
+
+    def _format_resource_access_summary(self, record: dict[str, Any]) -> str:
+        allowed_resources = record.get("allowed_resources")
+        default_resources = record.get("default_resources")
+        allowed = (
+            ", ".join(str(item) for item in allowed_resources)
+            if isinstance(allowed_resources, list) and allowed_resources
+            else "Nenhum"
+        )
+        defaults = (
+            ", ".join(str(item) for item in default_resources)
+            if isinstance(default_resources, list) and default_resources
+            else "Nenhum"
+        )
+        lines = [
+            f"Nome: {self._format_value(record.get('full_name')) or '-'}",
+            f"Email: {self._format_value(record.get('email')) or '-'}",
+            f"Perfil: {self._format_value(record.get('role')) or '-'}",
+            f"Setor: {self._format_value(record.get('sector_name')) or 'Sem setor'}",
+            f"Recursos liberados: {allowed}",
+            f"Recursos padrao do perfil: {defaults}",
         ]
         return "\n".join(lines)
 
@@ -185,6 +229,16 @@ class DashboardMixin7:
         return len(value) >= 8
 
     @staticmethod
+    def _is_valid_temporary_password(value: str) -> bool:
+        return (
+            len(value) == 6
+            and value.isalnum()
+            and any(character.islower() for character in value)
+            and any(character.isupper() for character in value)
+            and any(character.isdigit() for character in value)
+        )
+
+    @staticmethod
     def _populate_color_palette_combo(combo: QComboBox) -> None:
         combo.clear()
         for palette_id, label in COLOR_PALETTE_OPTIONS:
@@ -197,14 +251,6 @@ class DashboardMixin7:
             if palette_id == value_text:
                 return label
         return COLOR_PALETTE_OPTIONS[0][1]
-
-    @staticmethod
-    def _format_language(value: object) -> str:
-        languages = {
-            "pt-BR": "Portugues brasileiro",
-            "en-US": "English (US)",
-        }
-        return languages.get(str(value or "pt-BR"), "Portugues brasileiro")
 
     @staticmethod
     def _select_combo_value(combo: QComboBox, value: str) -> None:

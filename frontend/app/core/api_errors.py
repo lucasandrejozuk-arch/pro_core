@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from frontend.app.core.i18n import translate_ui_text
+
 
 class ApiError(Exception):
     def __init__(self, message: str, status_code: int | None = None) -> None:
@@ -9,6 +11,7 @@ class ApiError(Exception):
 
     @property
     def display_message(self) -> str:
+        translated = translate_ui_text(self.message, "pt-BR")
         if self.status_code is None:
-            return self.message
-        return f"Erro {self.status_code}: {self.message}"
+            return translated
+        return f"Erro {self.status_code}: {translated}"

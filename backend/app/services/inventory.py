@@ -10,6 +10,7 @@ from backend.app.models.inventory import InventoryItem
 from backend.app.models.service_order import ServiceOrderBudgetItem
 from backend.app.schemas.inventory import InventoryItemCreate, InventoryItemUpdate
 from backend.app.services.crud import apply_updates
+from backend.app.services.inventory_rules import validate_inventory_category_requirements
 
 
 def list_inventory_items(db: Session, company_id: uuid.UUID) -> list[InventoryItem]:
@@ -38,7 +39,11 @@ def create_inventory_item(
     company_id: uuid.UUID,
     payload: InventoryItemCreate,
 ) -> InventoryItem:
-    item = InventoryItem(company_id=company_id, **payload.model_dump())
+    payload_data = payload.model_dump()
+    technical_data = payload_data.pop("technical_data", None)
+    validate_inventory_category_requirements(payload_data.get("category"), technical_data)
+    item = InventoryItem(company_id=company_id, **payload_data)
+    item.technical_data = technical_data
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -50,7 +55,17 @@ def update_inventory_item(
     item: InventoryItem,
     payload: InventoryItemUpdate,
 ) -> InventoryItem:
+    technical_data = (
+        payload.technical_data if "technical_data" in payload.model_fields_set else None
+    )
+    target_category = payload.category if "category" in payload.model_fields_set else item.category
+    target_technical_data = item.technical_data
+    if "technical_data" in payload.model_fields_set:
+        target_technical_data = technical_data
+    validate_inventory_category_requirements(target_category, target_technical_data)
     apply_updates(item, payload)
+    if "technical_data" in payload.model_fields_set:
+        item.technical_data = technical_data
     db.add(item)
     db.commit()
     db.refresh(item)

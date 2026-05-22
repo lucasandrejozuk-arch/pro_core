@@ -1,95 +1,94 @@
 # PRO CORE
 
-PRO CORE is a desktop management platform for small and medium technical assistance companies, focused on service orders.
+PRO CORE e uma plataforma desktop completa para assistencias tecnicas que querem operar com padrao profissional, velocidade e controle. O produto foi desenhado para centralizar operacao, estoque, clientes, equipamentos, ordens de servico e administracao em uma unica experiencia.
 
-## Stack
+## O que o software entrega hoje
+
+- Fluxo operacional de ordens de servico com status, aprovacao, diagnostico, orcamento e conclusao.
+- Cadastro e historico de clientes com anexos.
+- Gestao de equipamentos, objetos vinculados e componentes.
+- Gestao de estoque com assistente em 3 etapas:
+  - Etapa 1: submodulo e categoria.
+  - Etapa 2: dados tecnicos dinamicos por categoria.
+  - Etapa 3: observacoes, anexos PDF e lista de anexos vinculados com botao de download individual por arquivo.
+- Submodulos de estoque: Componentes, Ferramentas e Softwares.
+- Validacoes tecnicas por categoria para evitar cadastro incompleto.
+- Modulo administrativo com usuarios, setores, solicitacoes de senha, auditoria e configuracoes.
+- Dashboard com indicadores operacionais e alertas.
+
+## Diferenciais de produto
+
+- Interface desktop de alta legibilidade com foco operacional.
+- Tema claro/escuro com paletas visuais configuraveis.
+- Mensageria de status no rodape com feedback contextual e destaque visual.
+- Fluxos de cadastro guiados para reduzir erro humano e retrabalho.
+- Arquitetura modular para evolucao continua sem romper o fluxo principal.
+
+## Seguranca e confiabilidade
+
+- Autenticacao com token e controle de acesso por perfil.
+- Permissoes por papeis (administrador, gestor, tecnico, cliente).
+- Troca obrigatoria de senha no primeiro acesso quando aplicavel.
+- Sanitizacao e validacao de payloads no backend com Pydantic.
+- Upload de documentos com validacao de extensao e limite de tamanho configuravel.
+- Isolamento de armazenamento de anexos por empresa.
+- Auditoria para rastreabilidade administrativa.
+- Backup operacional integrado no sistema e restauracao via script.
+
+## Performance operacional
+
+- Backend em FastAPI com respostas rapidas para uso diario.
+- Frontend em PySide6 otimizado para produtividade em desktop.
+- Filtros e listagens para reduzir tempo de localizacao de registros.
+- Feedback imediato de erros e sucesso para diminuir ciclos de tentativa.
+
+## Estilo visual e experiencia
+
+- Linguagem visual tecnica e profissional.
+- Densidade de informacao calibrada para operacao real.
+- Estados de alerta, sucesso e erro padronizados.
+- Rodape operacional com contexto de sessao, status do backend e mensagens de fluxo.
+
+## Stack atual
 
 - Backend: Python + FastAPI
-- Frontend: Qt for Python / PySide6
-- Database: PostgreSQL
-- Infrastructure: Docker Compose for local development
-- IDE: Visual Studio Code
-- Versioning: Git and GitHub
+- Frontend: Qt for Python (PySide6)
+- Banco de dados: PostgreSQL
+- Infra local: Docker Compose
+- Migracoes: Alembic
+- Testes: Pytest
 
-## MVP Scope
+## Como rodar localmente
 
-- Splash screen with functional progress bar
-- Login screen
-- Required password change on first access
-- Remembered login email and password reset request workflow
-- Dashboard
-- Service orders
-- Equipment
-- Inventory
-- Customers
-- Sectors and user management
-- Settings
-- Administrative area
-- Documents attached to service orders
+1. Criar e ativar ambiente virtual:
+	- python -m venv .venv
+	- .\.venv\Scripts\Activate.ps1
+	- python -m pip install --upgrade pip
+	- python -m pip install -e ".[dev]"
+2. Subir PostgreSQL:
+	- docker compose up -d postgres
+3. Aplicar migracoes:
+	- alembic upgrade head
+4. Criar administrador inicial:
+	- python scripts/create_initial_admin.py --company-name "Minha Assistencia" --admin-name "Administrador" --email admin@example.com --password "ChangeMe123"
+5. Iniciar backend:
+	- uvicorn backend.app.main:app --reload
+6. Iniciar frontend:
+	- python frontend/app/main.py
 
-## Local Development
+## Backup e restauracao
 
-Create a virtual environment:
+- Backup via interface em Configuracoes, acao Executar backup agora.
+- Caminho padrao de dumps: backups.
+- Caminho padrao de anexos: storage/uploads.
+- Restauracao local:
+  - python scripts/restore_database_backup.py --dump-file .\backups\pro_core_YYYYMMDD_HHMMSS.dump
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-```
+## Referencias de qualidade
 
-Start PostgreSQL:
+- Estrategia de testes: docs/testing_strategy.md
+- Analise de evolucao de design e escopo: docs/reference_design_gap_analysis.md
 
-```powershell
-docker compose up -d postgres
-```
+## Estado atual de idioma
 
-Apply database migrations:
-
-```powershell
-alembic upgrade head
-```
-
-Create the first administrator:
-
-```powershell
-python scripts/create_initial_admin.py --company-name "Minha Assistencia" --admin-name "Administrador" --email admin@example.com --password "ChangeMe123"
-```
-
-Run the backend:
-
-```powershell
-uvicorn backend.app.main:app --reload
-```
-
-Run the frontend:
-
-```powershell
-python frontend/app/main.py
-```
-
-## Database Backups
-
-Create a backup from the application in `Configuracoes` with `Executar backup agora`.
-Backup files are written to the configured backup folder, which defaults to `backups/`.
-Uploaded files are stored under `storage/uploads/`; copy that folder together with the database
-dump when moving the same installation to another computer.
-
-Restore a backup into the local Docker PostgreSQL container:
-
-```powershell
-python scripts/restore_database_backup.py --dump-file .\backups\pro_core_YYYYMMDD_HHMMSS.dump
-```
-
-Restoring uses `pg_restore --clean --if-exists`, so it replaces objects in the target database.
-
-## Quality and Evolution
-
-- Testing strategy: `docs/testing_strategy.md`
-- Reference design and feature gap analysis: `docs/reference_design_gap_analysis.md`
-
-## Project Principles
-
-- DRY: avoid duplicated business logic.
-- KISS: prefer simple, readable solutions.
-- YAGNI: build what the MVP needs now.
+- Idioma operacional ativo no produto: Portugues do Brasil (pt-BR).
