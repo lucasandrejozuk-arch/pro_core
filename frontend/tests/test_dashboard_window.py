@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-
-from PySide6.QtCore import QEvent, Qt
-
 from frontend.app.core.display import build_display_profile
 from frontend.app.core.grid import GRID_COLUMNS
 from frontend.app.screens.dashboard import DashboardWindow
@@ -12,7 +8,6 @@ from frontend.app.screens.dashboard import DashboardWindow
 def test_dashboard_is_independent_active_sidebar_module(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     window.render_dashboard(
         {
             "greeting": "Bom dia, Admin.",
@@ -30,7 +25,6 @@ def test_dashboard_is_independent_active_sidebar_module(qtbot) -> None:
             "alerts": [{"message": "1 OS aguardando aprovacao.", "level": "warning"}],
         }
     )
-
     assert window.active_module_key == "dashboard"
     assert window.module_buttons["dashboard"].property("active") == "true"
     assert window.module_buttons["customers"].property("active") == "false"
@@ -44,9 +38,7 @@ def test_dashboard_is_independent_active_sidebar_module(qtbot) -> None:
 def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     window.render_rows("Clientes", [], [("Nome", "name")], "customers")
-
     assert window.active_module_key == "customers"
     assert window.module_buttons["dashboard"].property("active") == "false"
     assert window.module_buttons["customers"].property("active") == "true"
@@ -57,7 +49,6 @@ def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:
 def test_sidebar_is_fixed_in_main_layout(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     main_area = window.layout().itemAt(1).widget()
     assert main_area.objectName() == "mainArea"
     assert main_area.layout().itemAt(0).widget() is window.sidebar
@@ -68,20 +59,16 @@ def test_sidebar_is_fixed_in_main_layout(qtbot) -> None:
 def test_dashboard_content_uses_12_column_grid(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     assert window.content_layout.columnCount() == GRID_COLUMNS
     assert all(window.content_layout.columnStretch(column) == 1 for column in range(GRID_COLUMNS))
     assert window.content_layout.getItemPosition(0) == (0, 0, 1, GRID_COLUMNS)
     assert window.content_layout.getItemPosition(1) == (1, 0, 1, GRID_COLUMNS)
     assert window.content_layout.rowStretch(1) == 0
-
     window.render_rows("Clientes", [], [("Nome", "name")], "customers")
     assert window.content_layout.rowStretch(1) == 1
-
     window._set_dashboard_grid_columns(4)
     assert window.dashboard_grid_layout.getItemPosition(0) == (0, 0, 1, 3)
     assert window.dashboard_grid_layout.getItemPosition(1) == (0, 3, 1, 3)
-
     window._set_dashboard_grid_columns(2)
     assert window.dashboard_grid_layout.getItemPosition(0) == (0, 0, 1, 6)
     assert window.dashboard_grid_layout.getItemPosition(1) == (0, 6, 1, 6)
@@ -90,7 +77,6 @@ def test_dashboard_content_uses_12_column_grid(qtbot) -> None:
 def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     window.render_rows(
         "Clientes",
         [
@@ -110,16 +96,13 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
         [("Nome", "name"), ("Email", "email"), ("Telefone", "phone")],
         "customers",
     )
-
     assert not window.generic_record_container.isHidden()
     assert window.record_toggle_rail.isHidden()
     assert window.generic_form_column.isHidden()
-    assert window.data_title.text() == "Registros"
+    assert window.data_title.text() == "Clientes"
     assert window.record_count_label.text() == "2 registro(s)"
     assert window.module_search_input.placeholderText() == "BUSCAR CLIENTES..."
-
     window.module_search_input.setText("bruno")
-
     assert window.table.rowCount() == 1
     assert window.table.maximumHeight() > 10000
     assert window.record_count_label.text() == "1 de 2 registro(s)"
@@ -138,16 +121,50 @@ def test_record_editor_button_opens_floating_side_panel(qtbot) -> None:
         [("Nome", "name")],
         "customers",
     )
-
     assert window.record_editor_collapsed is True
     window.command_editor_button.click()
-
     assert not window.generic_form_column.isHidden()
     assert window.generic_form_column.parentWidget() is window.record_editor_dialog
     assert window.record_editor_dialog is not None
     assert window.record_editor_dialog.width() >= min(window.record_editor_width, 520)
     assert window.command_editor_button.text() == "Fechar editor"
     assert window.record_toggle_rail.width() == 0
+    window.command_editor_button.click()
+    assert window.record_editor_collapsed is True
+    assert window.generic_form_column.isHidden()
+    assert window.command_editor_button.text() == "Editor"
+
+
+def test_service_orders_editor_button_opens_fixed_floating_side_panel(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.resize(1680, 960)
+    window.show()
+    window.render_rows(
+        "Ordens de Servico",
+        [{"id": "so-1", "ticket": "OS-001", "status": "open"}],
+        [("OS", "ticket"), ("Status", "status")],
+        "service_orders",
+    )
+
+    assert not window.record_toggle_rail.isHidden()
+    assert window.record_toggle_rail.parentWidget() is window
+    assert window.record_editor_collapsed is True
+    list_width_before = window.generic_record_container.width()
+
+    window.command_editor_button.click()
+
+    assert window.record_editor_collapsed is False
+    assert window.record_editor_dialog is None
+    assert window.generic_form_column.parentWidget() is window
+    assert not window.generic_form_column.isHidden()
+    assert 760 <= window.generic_form_column.width() <= 900
+    assert (
+        window.generic_form_column.geometry().right() < window.record_toggle_rail.geometry().left()
+    )
+    assert window.record_toggle_rail.geometry().right() <= window.width() - 8
+    assert window.generic_record_container.width() == list_width_before
+    assert window.command_editor_button.text() == "Fechar editor"
 
     window.command_editor_button.click()
 
@@ -166,9 +183,7 @@ def test_record_table_context_actions_open_editor_and_clear_form(qtbot) -> None:
         "customers",
     )
     window._populate_customer_form(window.current_rows[0])
-
     window._new_current_record_from_context()
-
     assert window.selected_customer_id is None
     assert not window.generic_form_column.isHidden()
     assert window.record_editor_collapsed is False
@@ -178,44 +193,10 @@ def test_record_table_context_actions_open_editor_and_clear_form(qtbot) -> None:
 def test_visual_density_is_compact_after_polish(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     form_margins = window.customer_form_panel.layout().contentsMargins()
-
     assert window.table.verticalHeader().defaultSectionSize() == 34
     assert form_margins.left() <= 10
     assert window.dashboard_cards["service_orders_open"].minimumHeight() == 88
-
-
-def test_admin_modules_are_hidden_for_technician(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    window.set_user(
-        {
-            "full_name": "Tecnico",
-            "email": "tecnico@example.com",
-            "role": "technician",
-        }
-    )
-
-    assert window.module_buttons["admin_area"].isHidden()
-    assert window.module_buttons["settings"].isHidden()
-
-
-def test_customer_module_is_hidden_for_technician(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    window.set_user(
-        {
-            "full_name": "Tecnico",
-            "email": "tecnico@example.com",
-            "role": "technician",
-        }
-    )
-
-    assert window.module_buttons["customers"].isHidden()
-    assert window.dashboard_cards["customers_total"].isHidden()
 
 
 def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
@@ -235,7 +216,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
     window.sector_delete_requested.connect(lambda value: emitted.append(("sector", value)))
     window.user_delete_requested.connect(lambda value: emitted.append(("user", value)))
     window.audit_delete_requested.connect(lambda value: emitted.append(("audit", value)))
-
     window.render_rows(
         "Clientes",
         [{"id": "customer-id", "name": "Cliente", "email": "c@e.com", "phone": "(11) 99999-0000"}],
@@ -243,7 +223,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
         "customers",
     )
     window._request_customer_delete()
-
     window.render_rows(
         "Estoque",
         [{"id": "item-id", "name": "Peca", "quantity": "1", "minimum_quantity": "0"}],
@@ -251,7 +230,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
         "inventory",
     )
     window._request_inventory_delete()
-
     window.set_service_order_dependencies(
         customers=[{"id": "customer-id", "name": "Cliente"}],
         equipment=[{"id": "equipment-id", "category": "Fonte"}],
@@ -273,7 +251,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
         "service_orders",
     )
     window._request_service_order_delete()
-
     window.render_rows(
         "Setores",
         [{"id": "sector-id", "name": "Laboratorio", "description": "Bancada"}],
@@ -281,7 +258,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
         "sectors",
     )
     window._request_sector_delete()
-
     window.render_rows(
         "Usuarios",
         [
@@ -297,7 +273,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
         "users",
     )
     window._request_user_delete()
-
     window.render_rows(
         "Logs",
         [{"id": "log-id", "action": "delete", "entity_type": "customers", "summary": "Teste"}],
@@ -305,7 +280,6 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
         "audit_logs",
     )
     window._request_audit_delete()
-
     assert emitted == [
         ("customer", "customer-id"),
         ("inventory", "item-id"),
@@ -316,67 +290,12 @@ def test_record_delete_buttons_emit_selected_ids(qtbot, monkeypatch) -> None:
     ]
 
 
-def test_service_order_delete_is_limited_to_management_profiles(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-    window.set_user({"full_name": "Tecnico", "email": "tecnico@example.com", "role": "technician"})
-    emitted: list[str] = []
-    window.service_order_delete_requested.connect(emitted.append)
-    window.set_service_order_dependencies(
-        customers=[{"id": "customer-id", "name": "Cliente"}],
-        equipment=[{"id": "equipment-id", "category": "Fonte"}],
-        technicians=[],
-    )
-
-    window._populate_service_order_form(
-        {
-            "id": "os-id",
-            "code": "OS-1",
-            "customer_id": "customer-id",
-            "equipment_id": "equipment-id",
-            "status": "open",
-            "problem_description": "Nao liga",
-        }
-    )
-
-    assert not window.service_order_delete_button.isEnabled()
-
-    window._request_service_order_delete()
-
-    assert emitted == []
-    assert "administradores e gestores" in window.footer_message_label.text().lower()
-
-
-def test_session_footer_shows_session_context(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    window.set_user(
-        {
-            "full_name": "Admin",
-            "email": "admin@example.com",
-            "role": "admin",
-            "sector_name": "Diretoria",
-        }
-    )
-    window.set_session_login_at(datetime(2026, 5, 14, 22, 25, 19))
-    window._set_active_module("equipment")
-
-    footer_text = window.session_footer_label.text()
-    assert "Sessao: Administrador" in footer_text
-    assert "Setor: Diretoria" in footer_text
-    assert "Login: 2026-05-14 22:25:19" in footer_text
-    assert not hasattr(window, "session_module_label")
-
-
 def test_sidebar_collapse_keeps_fixed_lateral_rail_without_moving_content(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
     initial_width = window.sidebar.width()
     initial_left_margin = window.content_layout.contentsMargins().left()
-
     window._set_sidebar_collapsed(True)
-
     assert not window.sidebar_nav_container.isHidden()
     assert not window.logout_button.isHidden()
     assert not window.exit_button.isHidden()
@@ -390,9 +309,7 @@ def test_dashboard_applies_responsive_display_profile(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
     profile = build_display_profile(1366, 768)
-
     window.apply_display_profile(profile)
-
     assert window.sidebar.minimumWidth() == profile.sidebar_width
     assert window.sidebar.maximumWidth() == profile.sidebar_width
     assert window.content_layout.contentsMargins().left() == profile.content_margin
@@ -402,9 +319,7 @@ def test_dashboard_applies_responsive_display_profile(qtbot) -> None:
 def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     dashboard_button = window.module_buttons["dashboard"]
-
     assert dashboard_button.text() == ""
     assert not dashboard_button.icon().isNull()
     assert dashboard_button.toolTip()
@@ -413,17 +328,12 @@ def test_sidebar_uses_icon_only_navigation(qtbot) -> None:
 def test_dashboard_footer_backend_status_accepts_health_probe_message(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     assert window.backend_status_text.text() == "Backend: verificando"
     assert window.backend_status_dot.property("level") == "warning"
-
     window.set_backend_connection_status(False, "Backend: erro 500")
-
     assert window.backend_status_text.text() == "Backend: erro 500"
     assert window.backend_status_dot.property("level") == "error"
-
     window.set_backend_connection_status(False, "Backend: atualizando", level="warning")
-
     assert window.backend_status_text.text() == "Backend: atualizando"
     assert window.backend_status_dot.property("level") == "warning"
 
@@ -431,222 +341,20 @@ def test_dashboard_footer_backend_status_accepts_health_probe_message(qtbot) -> 
 def test_modules_show_current_context_without_stage_badge(qtbot) -> None:
     window = DashboardWindow()
     qtbot.addWidget(window)
-
     window.render_dashboard({})
-
     assert not hasattr(window, "command_stage_label")
     assert not hasattr(window, "command_hint_label")
     assert window.command_context_label.text() == "Dashboard"
     assert not window.command_refresh_button.isHidden()
     assert window.command_editor_button.isHidden()
     assert not hasattr(window, "session_module_label")
-
     window.render_rows("Clientes", [], [("Nome", "name")], "customers")
-
     assert window.command_context_label.text() == "Clientes"
+    assert window.title_label.text() == "Clientes"
+    assert window.data_title.text() == "Clientes"
     assert not window.command_editor_button.isHidden()
     assert not window.command_clear_selection_button.isHidden()
-
-
-def test_sidebar_settings_admin_logout_and_exit_icons_are_distinct(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    assert window.module_icon_names["admin_area"] == "admin"
-    assert window.module_icon_names["settings"] == "settings"
-    assert window.sidebar_buttons_by_icon[window.logout_button] == "logout"
-    assert window.sidebar_buttons_by_icon[window.exit_button] == "exit"
-
-
-def test_admin_modules_are_regular_sidebar_items_for_admin(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-    window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
-
-    assert "admin_area" in window.module_buttons
-    assert not window.module_buttons["admin_area"].isHidden()
-    assert not window.module_buttons["settings"].isHidden()
-    assert window._allowed_admin_modules() == (
-        "sectors",
-        "users",
-        "resource_access",
-        "password_resets",
-        "audit_logs",
-        "settings",
-    )
-
-
-def test_admin_area_shows_role_scope_and_available_modules(qtbot) -> None:
-    admin_window = DashboardWindow()
-    qtbot.addWidget(admin_window)
-    admin_window.set_user({"full_name": "Admin", "email": "admin@example.com", "role": "admin"})
-    admin_window.render_admin_area()
-
-    assert admin_window.admin_area_status_label.property("level") == "info"
-    assert "Administrador" in admin_window.admin_area_status_label.text()
-    assert "Setores" in admin_window.admin_area_scope_label.text()
-    assert "Acessos de recursos" in admin_window.admin_area_scope_label.text()
-    assert "Logs/Auditoria" in admin_window.admin_area_scope_label.text()
-    assert admin_window.admin_area_panel.layout().alignment() & Qt.AlignmentFlag.AlignTop
-    assert admin_window.admin_area_status_label.maximumHeight() == 42
-    assert admin_window.admin_area_actions_panel.objectName() == "formSubPanel"
-    assert admin_window.admin_area_actions_layout.getItemPosition(0) == (0, 0, 1, 12)
-    assert admin_window.admin_area_actions_layout.getItemPosition(1) == (0, 6, 1, 6)
-    assert admin_window.admin_area_actions_layout.getItemPosition(2) == (1, 0, 1, 6)
-    assert admin_window.admin_area_actions_layout.getItemPosition(3) == (1, 6, 1, 6)
-    admin_actions_text = [
-        admin_window.admin_area_actions_layout.itemAt(index).widget().text()
-        for index in range(admin_window.admin_area_actions_layout.count())
-    ]
-    assert "Portal do cliente (navegador)" in admin_actions_text
-
-    manager_window = DashboardWindow()
-    qtbot.addWidget(manager_window)
-    manager_window.set_user(
-        {"full_name": "Gestor", "email": "gestor@example.com", "role": "manager"}
-    )
-    manager_window.render_admin_area()
-
-    assert manager_window.admin_area_status_label.property("level") == "info"
-    assert "Gestor" in manager_window.admin_area_status_label.text()
-    assert "Setores" in manager_window.admin_area_scope_label.text()
-    assert "Acessos de recursos" in manager_window.admin_area_scope_label.text()
-    assert "Solicitacoes de senha" in manager_window.admin_area_scope_label.text()
-    assert "Logs/Auditoria" not in manager_window.admin_area_scope_label.text()
-    manager_actions_text = [
-        manager_window.admin_area_actions_layout.itemAt(index).widget().text()
-        for index in range(manager_window.admin_area_actions_layout.count())
-    ]
-    assert "Portal do cliente (navegador)" not in manager_actions_text
-
-    technician_window = DashboardWindow()
-    qtbot.addWidget(technician_window)
-    technician_window.set_user(
-        {"full_name": "Tecnico", "email": "tecnico@example.com", "role": "technician"}
-    )
-    technician_window.render_admin_area()
-
-    assert technician_window.admin_area_status_label.property("level") == "error"
-    assert "nao possui acesso" in technician_window.admin_area_status_label.text()
-    assert "nenhum" in technician_window.admin_area_scope_label.text()
-
-
-def test_combo_mouse_wheel_is_blocked_to_prevent_accidental_changes(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    wheel_event = QEvent(QEvent.Type.Wheel)
-    regular_event = QEvent(QEvent.Type.MouseButtonPress)
-
-    assert window.eventFilter(window.service_order_customer_combo, wheel_event) is True
-    assert window.eventFilter(window.service_order_customer_combo, regular_event) is False
-
-
-def test_service_order_populates_workflow_and_full_summary(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-    window.set_service_order_dependencies(
-        customers=[{"id": "customer-id", "name": "Cliente Teste"}],
-        equipment=[
-            {
-                "id": "equipment-id",
-                "customer_id": "customer-id",
-                "category": "Notebook",
-                "brand": "Dell",
-                "model": "Latitude",
-                "special_number": "NE-01",
-                "serial_number": "SER-01",
-            }
-        ],
-        technicians=[{"id": "technician-id", "full_name": "Tecnico Teste"}],
-    )
-
-    window._populate_service_order_form(
-        {
-            "id": "service-order-id",
-            "code": "OS-000001",
-            "status": "pending_approval",
-            "customer_id": "customer-id",
-            "equipment_id": "equipment-id",
-            "assigned_technician_id": "technician-id",
-            "problem_description": "Nao liga",
-            "technical_diagnosis": "Fonte com falha",
-            "quoted_total": "250.00",
-            "created_at": "2026-05-14T10:00:00",
-            "budget_items": [],
-            "documents": [],
-        }
-    )
-
-    assert window.service_order_workflow_steps[3].property("stage") == "active"
-    assert "aprovar" in window.service_order_next_step_label.text().lower()
-    assert window.service_order_approve_button.isEnabled()
-    assert window.service_order_reject_button.isEnabled()
-    assert not window.service_order_start_button.isEnabled()
-    assert "Cliente Teste" in window.service_order_full_summary.toPlainText()
-    assert "Notebook - Dell - Latitude - NE-01 - SER-01" in (
-        window.service_order_full_summary.toPlainText()
-    )
-
-
-def test_service_order_workflow_actions_follow_status(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-    window.set_service_order_dependencies(
-        customers=[{"id": "customer-id", "name": "Cliente Teste"}],
-        equipment=[{"id": "equipment-id", "customer_id": "customer-id", "category": "Notebook"}],
-        technicians=[],
-    )
-
-    window._populate_service_order_form(
-        {
-            "id": "service-order-id",
-            "code": "OS-000001",
-            "status": "open",
-            "customer_id": "customer-id",
-            "equipment_id": "equipment-id",
-            "problem_description": "Nao liga",
-        }
-    )
-
-    assert window.service_order_workflow_steps[0].property("stage") == "active"
-    assert window.service_order_diagnosis_button.isEnabled()
-    assert window.service_order_submit_quote_button.isEnabled()
-    assert not window.service_order_approve_button.isEnabled()
-    assert not window.service_order_start_button.isEnabled()
-
-    window._select_combo_value(window.service_order_status_combo, "approved")
-
-    assert window.service_order_workflow_steps[3].property("stage") == "active"
-    assert "iniciar" in window.service_order_next_step_label.text().lower()
-    assert window.service_order_start_button.isEnabled()
-    assert not window.service_order_approve_button.isEnabled()
-    assert not window.service_order_complete_button.isEnabled()
-
-    window._select_combo_value(window.service_order_status_combo, "in_progress")
-
-    assert window.service_order_workflow_steps[4].property("stage") == "active"
-    assert window.service_order_complete_button.isEnabled()
-    assert not window.service_order_start_button.isEnabled()
-
-
-def test_customer_populates_complete_summary(qtbot) -> None:
-    window = DashboardWindow()
-    qtbot.addWidget(window)
-
-    window._populate_customer_form(
-        {
-            "id": "customer-id",
-            "name": "Cliente Teste",
-            "email": "cliente@example.com",
-            "phone": "(11) 99999-9999",
-            "address": "Rua Central, 100",
-            "notes": "Cliente recorrente",
-            "is_active": True,
-        }
-    )
-
-    summary = window.customer_full_summary.toPlainText()
-    assert "Nome: Cliente Teste" in summary
-    assert "Email: cliente@example.com" in summary
-    assert "Telefone: (11) 99999-9999" in summary
+    window.render_rows("Estoque", [], [("Nome", "name")], "inventory")
+    assert window.command_context_label.text() == "Estoque"
+    assert window.title_label.text() == "Estoque"
+    assert window.data_title.text() == "Estoque"

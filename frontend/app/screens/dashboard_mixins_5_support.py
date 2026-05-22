@@ -8,6 +8,10 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
 )
 
+from frontend.app.screens.dashboard_mixins_5_equipment_fields import (
+    DashboardEquipmentFieldsMixin,
+)
+
 
 def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
     from frontend.app.screens import dashboard
@@ -15,7 +19,7 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
     return bool(dashboard.confirm_destructive_action(*args, **kwargs))
 
 
-class DashboardEquipmentSupportMixin:
+class DashboardEquipmentSupportMixin(DashboardEquipmentFieldsMixin):
     def _update_equipment_action_state(self) -> None:
         has_equipment = bool(self.selected_equipment_id)
         has_board = bool(self.selected_equipment_board_id)
@@ -52,7 +56,7 @@ class DashboardEquipmentSupportMixin:
             return
 
         if not self.equipment_visible_rows:
-            suffix = f" para a busca \"{search_text}\"" if search_text else ""
+            suffix = f' para a busca "{search_text}"' if search_text else ""
             self._set_equipment_operational_status(
                 f"Nenhum equipamento encontrado{suffix}. Ajuste a busca ou cadastre novo item.",
                 "warning",
@@ -164,6 +168,95 @@ class DashboardEquipmentSupportMixin:
             minimum=table.minimumHeight(),
             maximum=self._equipment_table_maximum_height(table),
         )
+        self._set_equipment_list_count(table, len(rows))
+        table.blockSignals(False)
+
+    def _set_equipment_list_count(self, table: QTableWidget, count: int) -> None:
+        if table is self.equipment_table:
+            badge = self.equipment_count_badge
+        elif table is self.equipment_boards_table:
+            badge = self.board_count_badge
+        else:
+            badge = self.component_count_badge
+        label = "item" if count == 1 else "itens"
+        badge.setText(f"{count} {label}")
+
+    def _clear_equipment_selection_from_table(self, table: QTableWidget) -> None:
+        if table is self.equipment_table:
+            self._clear_equipment_selection()
+        elif table is self.equipment_boards_table:
+            self._clear_equipment_board_selection()
+        elif table is self.equipment_components_table:
+            self._clear_equipment_component_selection()
+
+    def _clear_equipment_selection(self) -> None:
+        self._clear_table_selection(self.equipment_table)
+        self._clear_table_selection(self.equipment_boards_table)
+        self._clear_table_selection(self.equipment_components_table)
+        self.selected_equipment_id = None
+        self.selected_equipment_board_id = None
+        self.selected_equipment_component_id = None
+        self.current_selected_record = None
+        self.current_selected_summary = "Nenhum item selecionado."
+        self.equipment_board_visible_rows = []
+        self.equipment_component_visible_rows = []
+        self.equipment_boards_table.setRowCount(0)
+        self.equipment_components_table.setRowCount(0)
+        self.equipment_full_summary.setPlainText(
+            "SELECIONE UM EQUIPAMENTO PARA VER OS DADOS COMPLETOS."
+        )
+        self.board_full_summary.setPlainText("SELECIONE UM OBJETO PARA VER OS DADOS COMPLETOS.")
+        self.component_full_summary.setPlainText(
+            "SELECIONE UM COMPONENTE PARA VER OS DADOS COMPLETOS."
+        )
+        self.equipment_context_label.setText("Nenhum equipamento selecionado")
+        self.board_context_label.setText("Nenhum objeto vinculado selecionado")
+        self._set_equipment_list_count(self.equipment_boards_table, 0)
+        self._set_equipment_list_count(self.equipment_components_table, 0)
+        self._update_record_summary_panel()
+        self._update_equipment_action_state()
+
+    def _clear_equipment_board_selection(self) -> None:
+        self._clear_table_selection(self.equipment_boards_table)
+        self._clear_table_selection(self.equipment_components_table)
+        self.selected_equipment_board_id = None
+        self.selected_equipment_component_id = None
+        self.current_selected_record = self._selected_equipment()
+        self.current_selected_summary = (
+            self._format_equipment_full_summary(self.current_selected_record)
+            if self.current_selected_record
+            else "Nenhum item selecionado."
+        )
+        self.equipment_component_visible_rows = []
+        self.equipment_components_table.setRowCount(0)
+        self.board_full_summary.setPlainText("SELECIONE UM OBJETO PARA VER OS DADOS COMPLETOS.")
+        self.component_full_summary.setPlainText(
+            "SELECIONE UM COMPONENTE PARA VER OS DADOS COMPLETOS."
+        )
+        self.board_context_label.setText("Nenhum objeto vinculado selecionado")
+        self._set_equipment_list_count(self.equipment_components_table, 0)
+        self._update_record_summary_panel()
+        self._update_equipment_action_state()
+
+    def _clear_equipment_component_selection(self) -> None:
+        self._clear_table_selection(self.equipment_components_table)
+        self.selected_equipment_component_id = None
+        self.current_selected_record = self._selected_equipment_board()
+        self.current_selected_summary = (
+            self._format_equipment_board_summary(self.current_selected_record)
+            if self.current_selected_record
+            else "Nenhum item selecionado."
+        )
+        self.component_full_summary.setPlainText(
+            "SELECIONE UM COMPONENTE PARA VER OS DADOS COMPLETOS."
+        )
+        self._update_record_summary_panel()
+        self._update_equipment_action_state()
+
+    @staticmethod
+    def _clear_table_selection(table: QTableWidget) -> None:
+        table.blockSignals(True)
+        table.clearSelection()
         table.blockSignals(False)
 
     def _equipment_table_maximum_height(self, table: QTableWidget) -> int:
@@ -224,97 +317,3 @@ class DashboardEquipmentSupportMixin:
     @staticmethod
     def _board_label(board: dict[str, Any]) -> str:
         return str(board.get("name") or board.get("model") or "Objeto vinculado")
-
-    @staticmethod
-    def _equipment_dialog_fields() -> list[dict[str, Any]]:
-        return [
-            {
-                "key": "category",
-                "label": "Tipo:",
-                "placeholder": "Tipo do equipamento",
-                "required": True,
-            },
-            {"key": "brand", "label": "Marca:", "placeholder": "Marca do equipamento"},
-            {"key": "model", "label": "Modelo:", "placeholder": "Modelo do equipamento"},
-            {
-                "key": "special_number",
-                "label": "No Especial:",
-                "placeholder": "Ex.: A5E02814482, S120-CU320",
-            },
-            {
-                "key": "unit_price",
-                "label": "Valor Unitario (R$):",
-                "placeholder": "Ex.: 1499,90",
-                "money": True,
-            },
-            {
-                "key": "description",
-                "label": "Notas:",
-                "placeholder": "Observacoes gerais (opcional)",
-                "multiline": True,
-            },
-        ]
-
-    @staticmethod
-    def _board_dialog_fields() -> list[dict[str, Any]]:
-        return [
-            {
-                "key": "name",
-                "label": "Nome:",
-                "placeholder": "Nome do objeto vinculado",
-                "required": True,
-            },
-            {
-                "key": "special_number",
-                "label": "No Especial:",
-                "placeholder": "Ex.: A5E02814482, numero de inventario",
-            },
-            {"key": "model", "label": "Modelo / Tipo:", "placeholder": "Modelo / tipo da placa"},
-            {"key": "revision", "label": "Revisao:", "placeholder": "Ex.: A01, B02, Rev.C"},
-            {
-                "key": "unit_price",
-                "label": "Valor Unitario (R$):",
-                "placeholder": "Ex.: 980,00",
-                "money": True,
-            },
-            {
-                "key": "notes",
-                "label": "Notas:",
-                "placeholder": "Observacoes (opcional)",
-                "multiline": True,
-            },
-        ]
-
-    @staticmethod
-    def _component_dialog_fields() -> list[dict[str, Any]]:
-        return [
-            {
-                "key": "name",
-                "label": "Dados:",
-                "placeholder": "Dados do componente",
-                "required": True,
-            },
-            {"key": "category", "label": "Categoria:", "placeholder": "Categoria do componente"},
-            {
-                "key": "part_number",
-                "label": "Modelo / Part Number:",
-                "placeholder": "Ex.: BC547B, IRFZ44N",
-            },
-            {
-                "key": "location",
-                "label": "Localizacao:",
-                "placeholder": "Ex.: Gaveta A3, Bandeja 2",
-            },
-            {
-                "key": "unit_price",
-                "label": "Valor Unitario (R$):",
-                "placeholder": "Ex.: 12,50",
-                "money": True,
-            },
-            {
-                "key": "notes",
-                "label": "Observacoes:",
-                "placeholder": "Observacoes",
-                "multiline": True,
-            },
-        ]

@@ -2,16 +2,15 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
-import webbrowser
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from PySide6.QtCore import QSettings, QTimer
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import QSettings, Qt, QTimer
+from PySide6.QtWidgets import QApplication
 
 from frontend.app.core.api_client import ApiClient, ApiError
 from frontend.app.core.backend_health import BackendHealthProbe
@@ -23,13 +22,21 @@ from frontend.app.core.settings import get_frontend_settings
 from frontend.app.main_appearance import ProCoreAppearanceMixin
 from frontend.app.main_data import ProCoreDataMixin
 from frontend.app.main_handlers import ProCoreHandlersMixin
+from frontend.app.main_runtime import ProCoreMainRuntimeMixin
+from frontend.app.main_signals import ProCoreMainSignalsMixin
 from frontend.app.screens.dashboard import DashboardWindow
 from frontend.app.screens.login import LoginWindow
 from frontend.app.screens.password_change import PasswordChangeWindow
 from frontend.app.screens.splash import SplashScreen
 
 
-class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDataMixin):
+class ProCoreApplication(
+    ProCoreMainSignalsMixin,
+    ProCoreMainRuntimeMixin,
+    ProCoreHandlersMixin,
+    ProCoreAppearanceMixin,
+    ProCoreDataMixin,
+):
     def __init__(self) -> None:
         self._restart_requested = False
         self._set_windows_app_id()
@@ -69,108 +76,7 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         self._apply_local_theme()
         self.active_module = "dashboard"
 
-        self.splash.finished.connect(self.show_login)
-        self.login_window.login_requested.connect(self.handle_login)
-        self.login_window.password_reset_requested.connect(self.handle_password_reset_request)
-        self.login_window.backend_reconnect_requested.connect(self.handle_login_backend_reconnect)
-        self.password_window.password_change_requested.connect(self.handle_password_change)
-        self.dashboard_window.logout_requested.connect(self.handle_logout)
-        self.dashboard_window.exit_requested.connect(self.qt_app.quit)
-        self.dashboard_window.module_selected.connect(self.load_module)
-        self.dashboard_window.refresh_requested.connect(self.refresh_active_module)
-        self.dashboard_window.customer_create_requested.connect(self.handle_customer_create)
-        self.dashboard_window.customer_update_requested.connect(self.handle_customer_update)
-        self.dashboard_window.customer_delete_requested.connect(self.handle_customer_delete)
-        self.dashboard_window.customer_document_upload_requested.connect(
-            self.handle_customer_document_upload
-        )
-        self.dashboard_window.equipment_create_requested.connect(self.handle_equipment_create)
-        self.dashboard_window.equipment_update_requested.connect(self.handle_equipment_update)
-        self.dashboard_window.equipment_delete_requested.connect(self.handle_equipment_delete)
-        self.dashboard_window.equipment_board_create_requested.connect(
-            self.handle_equipment_board_create
-        )
-        self.dashboard_window.equipment_board_update_requested.connect(
-            self.handle_equipment_board_update
-        )
-        self.dashboard_window.equipment_board_delete_requested.connect(
-            self.handle_equipment_board_delete
-        )
-        self.dashboard_window.equipment_component_create_requested.connect(
-            self.handle_equipment_component_create
-        )
-        self.dashboard_window.equipment_component_update_requested.connect(
-            self.handle_equipment_component_update
-        )
-        self.dashboard_window.equipment_component_delete_requested.connect(
-            self.handle_equipment_component_delete
-        )
-        self.dashboard_window.equipment_defect_cases_requested.connect(
-            self.handle_equipment_defect_cases
-        )
-        self.dashboard_window.equipment_import_requested.connect(self.handle_equipment_import)
-        self.dashboard_window.equipment_export_requested.connect(self.handle_equipment_export)
-        self.dashboard_window.inventory_create_requested.connect(self.handle_inventory_create)
-        self.dashboard_window.inventory_update_requested.connect(self.handle_inventory_update)
-        self.dashboard_window.inventory_delete_requested.connect(self.handle_inventory_delete)
-        self.dashboard_window.inventory_document_download_requested.connect(
-            self.handle_inventory_document_download
-        )
-        self.dashboard_window.sector_create_requested.connect(self.handle_sector_create)
-        self.dashboard_window.sector_update_requested.connect(self.handle_sector_update)
-        self.dashboard_window.sector_delete_requested.connect(self.handle_sector_delete)
-        self.dashboard_window.service_order_create_requested.connect(
-            self.handle_service_order_create
-        )
-        self.dashboard_window.service_order_update_requested.connect(
-            self.handle_service_order_update
-        )
-        self.dashboard_window.service_order_delete_requested.connect(
-            self.handle_service_order_delete
-        )
-        self.dashboard_window.service_order_diagnosis_requested.connect(
-            self.handle_service_order_diagnosis
-        )
-        self.dashboard_window.service_order_budget_item_requested.connect(
-            self.handle_service_order_budget_item
-        )
-        self.dashboard_window.service_order_submit_quote_requested.connect(
-            self.handle_service_order_submit_quote
-        )
-        self.dashboard_window.service_order_approve_requested.connect(
-            self.handle_service_order_approve
-        )
-        self.dashboard_window.service_order_reject_requested.connect(
-            self.handle_service_order_reject
-        )
-        self.dashboard_window.service_order_start_requested.connect(self.handle_service_order_start)
-        self.dashboard_window.service_order_complete_requested.connect(
-            self.handle_service_order_complete
-        )
-        self.dashboard_window.service_order_document_upload_requested.connect(
-            self.handle_service_order_document_upload
-        )
-        self.dashboard_window.user_create_requested.connect(self.handle_user_create)
-        self.dashboard_window.user_update_requested.connect(self.handle_user_update)
-        self.dashboard_window.user_delete_requested.connect(self.handle_user_delete)
-        self.dashboard_window.user_password_reset_requested.connect(self.handle_user_password_reset)
-        self.dashboard_window.user_resource_access_update_requested.connect(
-            self.handle_user_resource_access_update
-        )
-        self.dashboard_window.password_reset_resolve_requested.connect(
-            self.handle_password_reset_resolve
-        )
-        self.dashboard_window.password_reset_cancel_requested.connect(
-            self.handle_password_reset_cancel
-        )
-        self.dashboard_window.settings_update_requested.connect(self.handle_settings_update)
-        self.dashboard_window.ui_scale_changed.connect(self.handle_ui_scale_changed)
-        self.dashboard_window.backup_run_requested.connect(self.handle_backup_run)
-        self.dashboard_window.backend_restart_requested.connect(self.handle_backend_restart)
-        self.dashboard_window.customer_portal_open_requested.connect(
-            self.handle_open_customer_portal
-        )
-        self.dashboard_window.audit_delete_requested.connect(self.handle_audit_log_delete)
+        self._connect_application_signals()
         self._sync_backend_restart_status()
         self.backend_health_timer = QTimer()
         self.backend_health_timer.setInterval(3000)
@@ -228,6 +134,7 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
             access_token=auth_response["access_token"],
             user=auth_response["user"],
         )
+        self._prime_backend_restart_notice_cursor()
         self.login_window.persist_remembered_user(email.strip().lower())
         self.login_window.hide()
         self.login_window.set_loading(False)
@@ -283,8 +190,30 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
         profile = build_display_profile(profile.width, profile.height, self._local_ui_scale())
         self.dashboard_window.apply_display_profile(profile)
         self._apply_runtime_language()
-        self.dashboard_window.showMaximized()
+        self._show_dashboard_maximized()
         self.load_module(self.active_module)
+
+    def _show_dashboard_maximized(self) -> None:
+        self.dashboard_window.showMaximized()
+        self.dashboard_window.raise_()
+        self.dashboard_window.activateWindow()
+        QTimer.singleShot(0, self._enforce_dashboard_maximized_geometry)
+        QTimer.singleShot(250, self._enforce_dashboard_maximized_geometry)
+
+    def _enforce_dashboard_maximized_geometry(self) -> None:
+        screen = self.dashboard_window.screen() or QApplication.primaryScreen()
+        if screen is not None:
+            geometry = screen.availableGeometry()
+            profile = build_display_profile(
+                geometry.width(),
+                geometry.height(),
+                self._local_ui_scale(),
+            )
+            self.dashboard_window.apply_display_profile(profile)
+        self.dashboard_window.setWindowState(
+            self.dashboard_window.windowState() | Qt.WindowState.WindowMaximized
+        )
+        self.dashboard_window.showMaximized()
 
     @staticmethod
     def _set_windows_app_id() -> None:
@@ -299,224 +228,48 @@ class ProCoreApplication(ProCoreHandlersMixin, ProCoreAppearanceMixin, ProCoreDa
             return
 
     def handle_logout(self) -> None:
+        self._last_backend_restart_notice_id = ""
         self.session.clear()
         self.show_login()
 
     def refresh_active_module(self) -> None:
         self.load_module(self.active_module)
 
-    def handle_open_customer_portal(self) -> None:
-        if str(self.session.user.get("role") or "") != "admin":
-            self.dashboard_window._set_footer_message(
-                "Acesso ao portal do cliente disponivel apenas para administradores.",
-                "error",
-            )
-            return
 
-        parsed = urlsplit(str(self.api_client._client.base_url))
-        if not parsed.scheme or not parsed.netloc:
-            self.dashboard_window._set_footer_message(
-                "URL base do backend invalida para abrir o portal do cliente.",
-                "error",
-            )
-            return
-        path = parsed.path.rstrip("/")
-        for suffix in ("/api/v1", "/api"):
-            if path.endswith(suffix):
-                path = path[: -len(suffix)]
-                break
-        portal_url = urlunsplit((parsed.scheme, parsed.netloc, f"{path}/customer-portal", "", ""))
-        try:
-            opened = webbrowser.open(portal_url)
-        except Exception as exc:
-            self.dashboard_window._set_footer_message(
-                f"Falha ao acionar navegador para o portal do cliente: {exc}",
-                "error",
-            )
-            return
-        if opened:
-            self.dashboard_window._set_footer_message(
-                f"Portal do cliente aberto no navegador: {portal_url}",
-                "success",
-            )
-            return
-        self.dashboard_window._set_footer_message(
-            "Nao foi possivel abrir o navegador para o portal do cliente.",
-            "error",
+def _build_restart_command(argv: list[str] | None = None) -> list[str]:
+    active_argv = list(argv or sys.argv)
+    entrypoint = (
+        active_argv[0] if active_argv else str(PROJECT_ROOT / "frontend" / "app" / "main.py")
+    )
+    if entrypoint.endswith((".py", ".pyw")):
+        entrypoint = str(Path(entrypoint).resolve())
+    return [sys.executable, entrypoint, *active_argv[1:]]
+
+
+def _restart_frontend_process(argv: list[str] | None = None) -> None:
+    command = _build_restart_command(argv)
+    if os.name == "nt":
+        creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+            subprocess,
+            "DETACHED_PROCESS",
+            0,
         )
-
-    def _sync_backend_restart_status(self) -> None:
-        if self.backend_process.is_managed:
-            if self.backend_process.is_running:
-                if self.backend_health_connected:
-                    self.dashboard_window.set_internal_server_status(
-                        "success",
-                        "Servidor interno: gerenciado",
-                    )
-                else:
-                    self.dashboard_window.set_internal_server_status(
-                        "error",
-                        "Servidor interno: sem resposta",
-                    )
-                self.dashboard_window.set_backend_restart_available(
-                    True,
-                    "Reinicio seguro disponivel: backend gerenciado pelo app.",
-                )
-                return
-            self.dashboard_window.set_internal_server_status("warning", "Servidor interno: parado")
-            self.dashboard_window.set_backend_restart_available(
-                True,
-                "Backend gerenciado pelo app esta parado; reinicio iniciara novo processo.",
+        if creationflags:
+            subprocess.Popen(
+                command,
+                cwd=str(PROJECT_ROOT),
+                creationflags=creationflags,
             )
             return
-
-        if self.backend_process_start_error:
-            self.dashboard_window.set_internal_server_status("error", "Servidor interno: falhou")
-            self.dashboard_window.set_backend_restart_available(
-                False,
-                self.backend_process_start_error,
-            )
-            return
-
-        self.dashboard_window.set_internal_server_status("warning", "Servidor interno: externo")
-        self.dashboard_window.set_backend_restart_available(
-            False,
-            "Reinicio seguro indisponivel: backend atual nao foi iniciado pelo app.",
-        )
-
-    def refresh_backend_health_status(self) -> None:
-        status = self.backend_health_probe.check()
-        self.backend_health_connected = status.is_connected
-        self.login_window.set_backend_connection_status(
-            status.is_connected,
-            status.message.replace("Backend: ", "Backend "),
-        )
-        self.dashboard_window.set_backend_connection_status(status.is_connected, status.message)
-        self._sync_backend_restart_status()
-        self._poll_backend_restart_notice()
-
-    def _poll_backend_restart_notice(self) -> None:
-        if not self.session.access_token:
-            return
-        try:
-            response = self.api_client.poll_backend_restart_notice(
-                self.session.access_token,
-                last_notice_id=self._last_backend_restart_notice_id or None,
-            )
-        except ApiError:
-            return
-
-        if not bool(response.get("has_notice")):
-            return
-        notice = response.get("notice") or {}
-        notice_id = str(notice.get("id") or "").strip()
-        reason = str(notice.get("reason") or "").strip() or "Reinicio solicitado"
-        if not notice_id:
-            return
-        self._last_backend_restart_notice_id = notice_id
-
-        message = (
-            "O sistema esta sendo reiniciado. "
-            f"Motivo informado: {reason}. "
-            "Salve seu trabalho e aguarde a reconexao."
-        )
-        parent = self.dashboard_window if self.dashboard_window.isVisible() else self.login_window
-        QMessageBox.warning(parent, "Reinicio do sistema", message)
-
-    def load_module(self, module_key: str) -> None:
-        if not self.session.access_token:
-            self.show_login()
-            return
-
-        if not self._module_allowed(module_key):
-            self.dashboard_window.render_error(
-                "Acesso negado",
-                "Seu perfil nao possui acesso a este modulo.",
-                self.active_module or "dashboard",
-            )
-            return
-
-        self.active_module = module_key
-        title, columns = self._module_columns(module_key)
-        self.dashboard_window.render_loading(title, module_key)
-
-        try:
-            if module_key == "admin_area":
-                self.dashboard_window.render_admin_area()
-                self._apply_runtime_language()
-                return
-            if module_key == "dashboard":
-                self.dashboard_window.set_backend_connection_status(True)
-                self.dashboard_window.render_dashboard(
-                    self._build_dashboard_summary(self.session.access_token)
-                )
-                self._apply_runtime_language()
-                return
-            if module_key == "settings":
-                settings = self.api_client.get_settings(self.session.access_token)
-                self.dashboard_window.set_backend_connection_status(True)
-                self.dashboard_window.render_settings(settings)
-                self._apply_runtime_language(settings.get("language"))
-                return
-            if module_key == "tools":
-                tools = self.api_client.list_tools(self.session.access_token)
-                allowed_specialties = [
-                    str(item).strip().lower()
-                    for item in (self.session.user.get("tools_specialties") or [])
-                    if str(item).strip()
-                ]
-                self.dashboard_window.set_backend_connection_status(True)
-                self.dashboard_window.render_tools(tools, allowed_specialties=allowed_specialties)
-                self._apply_runtime_language()
-                return
-            if module_key == "audit_logs":
-                rows = self._load_module_rows(module_key, self.session.access_token)
-                self.dashboard_window.set_backend_connection_status(True)
-                self.dashboard_window.render_rows(title, rows, columns, module_key)
-                self._apply_runtime_language()
-                return
-
-            user_sectors = (
-                self.api_client.list_sectors(self.session.access_token)
-                if module_key == "users"
-                else None
-            )
-            rows = self._load_module_rows(module_key, self.session.access_token)
-            service_order_dependencies = None
-            if module_key == "service_orders":
-                if str(self.session.user.get("role") or "") in {"admin", "manager"}:
-                    service_order_dependencies = (
-                        self.api_client.list_customers(self.session.access_token),
-                        self.api_client.list_equipment(self.session.access_token),
-                        self.api_client.list_technicians(self.session.access_token),
-                    )
-                else:
-                    service_order_dependencies = self._dependencies_from_service_orders(rows)
-        except ApiError as exc:
-            self.dashboard_window.set_backend_connection_status(exc.status_code is not None)
-            self.dashboard_window.render_error(title, exc.display_message, module_key)
-            return
-
-        self.dashboard_window.set_backend_connection_status(True)
-        if user_sectors is not None:
-            sector_names = {
-                str(sector["id"]): str(sector.get("name") or "") for sector in user_sectors
-            }
-            for row in rows:
-                row["sector_name"] = sector_names.get(str(row.get("sector_id")), "")
-            self.dashboard_window.set_user_sectors(user_sectors)
-        if service_order_dependencies is not None:
-            self.dashboard_window.set_service_order_dependencies(*service_order_dependencies)
-
-        self.dashboard_window.render_rows(title, rows, columns, module_key)
-        self._apply_runtime_language()
+    subprocess.Popen(command, cwd=str(PROJECT_ROOT))
 
 
 def main() -> int:
     app = ProCoreApplication()
     exit_code = app.run()
     if app._restart_requested:
-        os.execl(sys.executable, sys.executable, *sys.argv)
+        _restart_frontend_process()
+        return 0
     return exit_code
 
 

@@ -56,7 +56,7 @@ class ProCoreAppearanceMixin:
             "appearance/language",
             str(settings.get("language") or "pt-BR"),
         )
-        self.login_window.apply_branding(settings)
+        self.login_window.apply_branding(settings, backend_connected=True)
         self._apply_runtime_language(settings.get("language"))
 
     def _apply_cached_login_branding(self) -> None:
@@ -64,7 +64,8 @@ class ProCoreAppearanceMixin:
             {
                 "brand_name": self.local_settings.value("appearance/brand_name", ""),
                 "brand_subtitle": self.local_settings.value("appearance/brand_subtitle", ""),
-            }
+            },
+            backend_connected=False,
         )
 
     def _refresh_login_branding(self) -> None:

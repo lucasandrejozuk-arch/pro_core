@@ -24,10 +24,12 @@ from backend.app.schemas.customer_portal import (
 from backend.app.schemas.service_order import RejectServiceOrderRequest
 from backend.app.services.configuration import get_appearance_settings
 from backend.app.services.service_orders import (
-    approve_service_order,
-    build_quote_pdf,
     get_service_order,
     get_service_order_for_customer_portal,
+)
+from backend.app.services.service_orders_workflow import (
+    approve_service_order,
+    build_quote_pdf,
     reject_service_order,
 )
 

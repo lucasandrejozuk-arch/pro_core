@@ -89,5 +89,6 @@ def test_top_command_bar_uses_binder_tab_style() -> None:
 
     assert "QLabel#topCommandContextTab" in stylesheet
     assert "QPushButton#topCommandButton" in stylesheet
+    assert "QLabel#listCountBadge" in stylesheet
     assert "border-top: 3px solid" in stylesheet
     assert "border-bottom: 0;" in stylesheet

@@ -21,18 +21,20 @@ from backend.app.schemas.service_order import (
 )
 from backend.app.services.service_orders import (
     add_budget_item,
-    approve_service_order,
-    build_quote_pdf,
-    complete_service_order,
     create_service_order,
     delete_service_order,
     get_service_order,
     list_service_orders,
+    update_service_order,
+)
+from backend.app.services.service_orders_workflow import (
+    approve_service_order,
+    build_quote_pdf,
+    complete_service_order,
     register_diagnosis,
     reject_service_order,
     start_service_order,
     submit_quote,
-    update_service_order,
 )
 from backend.app.services.users import list_users_by_role
 

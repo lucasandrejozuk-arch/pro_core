@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import base64
+import binascii
+
 from PySide6.QtCore import QPointF, QSettings, Qt, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -22,6 +25,30 @@ class LoginBrandPanel(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("brandPanel")
+        self._cover_preset = "original"
+        self._cover_pixmap: QPixmap | None = None
+
+    def apply_cover(self, settings: dict, *, backend_connected: bool) -> None:
+        if not backend_connected:
+            self._cover_preset = "original"
+            self._cover_pixmap = None
+            self.update()
+            return
+
+        preset = str(settings.get("login_cover_preset") or "original")
+        self._cover_preset = (
+            preset
+            if preset in {"original", "circuit_board", "service_bench", "precision_grid", "custom"}
+            else "original"
+        )
+        self._cover_pixmap = self._decode_cover_pixmap(
+            str(settings.get("login_cover_image_data_url") or "")
+            if self._cover_preset == "custom"
+            else ""
+        )
+        if self._cover_preset == "custom" and self._cover_pixmap is None:
+            self._cover_preset = "original"
+        self.update()
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
         super().paintEvent(event)
@@ -29,10 +56,31 @@ class LoginBrandPanel(QFrame):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         rect = self.rect()
+        if self._cover_pixmap is not None:
+            scaled = self._cover_pixmap.scaled(
+                rect.size(),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            painter.drawPixmap(
+                (rect.width() - scaled.width()) // 2,
+                (rect.height() - scaled.height()) // 2,
+                scaled,
+            )
+            painter.fillRect(rect, QColor(1, 13, 24, 118))
+            self._paint_precision_overlay(painter, rect, QColor(125, 211, 252, 44))
+            return
+
         background = QLinearGradient(rect.topLeft(), rect.bottomRight())
-        background.setColorAt(0.0, QColor("#063b63"))
-        background.setColorAt(0.55, QColor("#0a5a86"))
-        background.setColorAt(1.0, QColor("#042338"))
+        colors = {
+            "original": ("#063b63", "#0a5a86", "#042338"),
+            "circuit_board": ("#05352f", "#0f766e", "#05251f"),
+            "service_bench": ("#1f2937", "#0f766e", "#111827"),
+            "precision_grid": ("#0f172a", "#164e63", "#020617"),
+        }.get(self._cover_preset, ("#063b63", "#0a5a86", "#042338"))
+        background.setColorAt(0.0, QColor(colors[0]))
+        background.setColorAt(0.55, QColor(colors[1]))
+        background.setColorAt(1.0, QColor(colors[2]))
         painter.fillRect(rect, background)
 
         painter.setPen(Qt.PenStyle.NoPen)
@@ -54,16 +102,19 @@ class LoginBrandPanel(QFrame):
             painter.drawLine(0, int(y), rect.width(), int(y + offset * 10))
 
         painter.setPen(Qt.PenStyle.NoPen)
-        for column in range(9):
-            x = rect.width() * (0.08 + column * 0.105)
-            width = rect.width() * (0.045 + (column % 3) * 0.01)
-            height = rect.height() * (0.22 + (column % 4) * 0.05)
-            top = horizon - height
-            panel_color = QColor(2, 18, 34, 98)
-            painter.setBrush(panel_color)
-            painter.drawRoundedRect(int(x), int(top), int(width), int(height), 7, 7)
-            painter.setBrush(QColor(125, 211, 252, 32))
-            painter.drawRoundedRect(int(x + 7), int(top + 12), int(width - 14), 5, 2, 2)
+        if self._cover_preset == "circuit_board":
+            self._paint_circuit_overlay(painter, rect)
+        else:
+            for column in range(9):
+                x = rect.width() * (0.08 + column * 0.105)
+                width = rect.width() * (0.045 + (column % 3) * 0.01)
+                height = rect.height() * (0.22 + (column % 4) * 0.05)
+                top = horizon - height
+                panel_color = QColor(2, 18, 34, 98)
+                painter.setBrush(panel_color)
+                painter.drawRoundedRect(int(x), int(top), int(width), int(height), 7, 7)
+                painter.setBrush(QColor(125, 211, 252, 32))
+                painter.drawRoundedRect(int(x + 7), int(top + 12), int(width - 14), 5, 2, 2)
 
         bench_path = QPainterPath()
         bench_path.moveTo(rect.width() * 0.06, rect.height() * 0.66)
@@ -85,6 +136,51 @@ class LoginBrandPanel(QFrame):
             )
 
         painter.fillRect(rect, QColor(1, 13, 24, 86))
+
+        if self._cover_preset == "precision_grid":
+            self._paint_precision_overlay(painter, rect, QColor(255, 255, 255, 34))
+
+    @staticmethod
+    def _decode_cover_pixmap(data_url: str) -> QPixmap | None:
+        if not data_url:
+            return None
+        lowered = data_url.lower()
+        prefixes = (
+            "data:image/png;base64,",
+            "data:image/jpeg;base64,",
+            "data:image/jpg;base64,",
+        )
+        prefix = next((candidate for candidate in prefixes if lowered.startswith(candidate)), None)
+        if prefix is None:
+            return None
+        try:
+            decoded = base64.b64decode(data_url[len(prefix) :], validate=True)
+        except (binascii.Error, ValueError):
+            return None
+        pixmap = QPixmap()
+        if not pixmap.loadFromData(decoded):
+            return None
+        return pixmap
+
+    @staticmethod
+    def _paint_circuit_overlay(painter: QPainter, rect) -> None:
+        painter.setPen(QPen(QColor(125, 211, 252, 64), 2))
+        for row in range(6):
+            y = int(rect.height() * (0.18 + row * 0.11))
+            painter.drawLine(int(rect.width() * 0.10), y, int(rect.width() * 0.88), y)
+            for node in range(4):
+                x = int(rect.width() * (0.18 + node * 0.18))
+                painter.drawEllipse(QPointF(x, y), 4, 4)
+                painter.drawLine(x, y, x, int(y + rect.height() * 0.07))
+
+    @staticmethod
+    def _paint_precision_overlay(painter: QPainter, rect, color: QColor) -> None:
+        painter.setPen(QPen(color, 1))
+        step = max(28, rect.width() // 14)
+        for x in range(0, rect.width(), step):
+            painter.drawLine(x, 0, x, rect.height())
+        for y in range(0, rect.height(), step):
+            painter.drawLine(0, y, rect.width(), y)
 
 
 class LoginWindow(QWidget):
@@ -108,8 +204,8 @@ class LoginWindow(QWidget):
         self.tagline_label.setWordWrap(True)
         self.tagline_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        brand_panel = LoginBrandPanel()
-        brand_layout = QVBoxLayout(brand_panel)
+        self.brand_panel = LoginBrandPanel()
+        brand_layout = QVBoxLayout(self.brand_panel)
         brand_margin = round(22 * profile.ui_scale)
         brand_layout.setContentsMargins(brand_margin, brand_margin, brand_margin, brand_margin)
         brand_layout.setSpacing(round(10 * profile.ui_scale))
@@ -162,7 +258,7 @@ class LoginWindow(QWidget):
         self.submit_button.clicked.connect(self._request_login)
 
         self.forgot_password_button = QPushButton("Esqueci minha senha")
-        self.forgot_password_button.setObjectName("secondaryButton")
+        self.forgot_password_button.setObjectName("forgotPasswordButton")
         self.forgot_password_button.clicked.connect(self._request_password_reset)
 
         self.backend_reconnect_button = QPushButton("Conectar/Reiniciar backend")
@@ -190,7 +286,7 @@ class LoginWindow(QWidget):
 
         layout = create_grid()
         self.setLayout(layout)
-        add_widget(layout, brand_panel, 0, 0, 7)
+        add_widget(layout, self.brand_panel, 0, 0, 7)
         add_widget(layout, form_panel, 0, 7, 5)
         layout.setRowStretch(0, 1)
         self._load_remembered_user()
@@ -232,7 +328,7 @@ class LoginWindow(QWidget):
         self.error_label.style().unpolish(self.error_label)
         self.error_label.style().polish(self.error_label)
 
-    def apply_branding(self, settings: dict) -> None:
+    def apply_branding(self, settings: dict, *, backend_connected: bool = True) -> None:
         brand_name = str(settings.get("brand_name") or "PRO CORE")
         brand_subtitle = str(
             settings.get("brand_subtitle") or "Gestao completa para assistencias tecnicas"
@@ -240,6 +336,7 @@ class LoginWindow(QWidget):
         self.brand_label.setText(brand_name)
         self.tagline_label.setText(brand_subtitle)
         self.setWindowTitle(brand_name)
+        self.brand_panel.apply_cover(settings, backend_connected=backend_connected)
 
     def set_backend_connection_status(self, is_connected: bool, message: str | None = None) -> None:
         self.backend_status_label.setProperty("level", "" if is_connected else "error")

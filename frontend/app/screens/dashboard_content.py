@@ -291,6 +291,7 @@ def build_dashboard_content(self) -> QScrollArea:
     self.record_toggle_button.clicked.connect(self._open_record_editor)
     rail_layout.addWidget(self.record_toggle_button)
     rail_layout.addStretch()
+    self.record_toggle_rail.setParent(self)
     self.record_toggle_rail.hide()
 
     self.generic_record_container = QFrame()
@@ -302,10 +303,9 @@ def build_dashboard_content(self) -> QScrollArea:
     generic_record_layout = QHBoxLayout(self.generic_record_container)
     generic_record_layout.setContentsMargins(0, 0, 0, 0)
     generic_record_layout.setSpacing(8)
-    self.generic_form_column.setParent(self.generic_record_container)
+    self.generic_form_column.setParent(self)
     self.generic_form_column.hide()
     generic_record_layout.addWidget(self.record_list_panel, 1)
-    generic_record_layout.addWidget(self.record_toggle_rail)
     self.generic_record_container.hide()
 
     add_widget(self.content_layout, header_bar, 0)

@@ -4,9 +4,10 @@ from datetime import datetime
 
 from frontend.app.core.api_client import ApiError
 from frontend.app.core.id_system import professional_record_id
+from frontend.app.main_data_helpers import ProCoreDataHelpersMixin
 
 
-class ProCoreDataMixin:
+class ProCoreDataMixin(ProCoreDataHelpersMixin):
     def _decorate_rows_with_display_id(self, module_key: str, rows: list[dict]) -> list[dict]:
         for row in rows:
             if not isinstance(row, dict):
@@ -20,9 +21,8 @@ class ProCoreDataMixin:
             str(item) for item in (self.session.user.get("resource_access") or []) if str(item)
         }
 
-        if resource_access:
-            if module_key not in resource_access:
-                return False
+        if resource_access and module_key not in resource_access:
+            return False
 
         if module_key == "customers":
             return role in {"admin", "manager"}
@@ -33,32 +33,6 @@ class ProCoreDataMixin:
         if module_key in {"sectors", "users", "resource_access", "password_resets"}:
             return role in {"admin", "manager"}
         return True
-
-    @staticmethod
-    def _dependencies_from_service_orders(
-        rows: list[dict],
-    ) -> tuple[list[dict], list[dict], list[dict]]:
-        customers: dict[str, dict] = {}
-        equipment: dict[str, dict] = {}
-        for row in rows:
-            customer_id = str(row.get("customer_id") or "")
-            if customer_id:
-                customers[customer_id] = {
-                    "id": customer_id,
-                    "name": row.get("customer_name") or customer_id,
-                    "email": row.get("customer_email") or "",
-                }
-            equipment_id = str(row.get("equipment_id") or "")
-            if equipment_id:
-                equipment[equipment_id] = {
-                    "id": equipment_id,
-                    "category": row.get("equipment_label") or equipment_id,
-                    "brand": "",
-                    "model": "",
-                    "special_number": "",
-                    "serial_number": "",
-                }
-        return list(customers.values()), list(equipment.values()), []
 
     def _load_module_rows(self, module_key: str, access_token: str) -> list[dict]:
         if module_key == "customers":
@@ -241,19 +215,6 @@ class ProCoreDataMixin:
             },
             "alerts": alerts,
         }
-
-    def _dashboard_greeting(self) -> str:
-        full_name = str(self.session.user.get("full_name") or "usuario")
-        hour = datetime.now().hour
-        greeting = "Bom dia" if hour < 12 else "Boa tarde" if hour < 18 else "Boa noite"
-        return f"{greeting}, {full_name}. Acompanhe os indicadores operacionais do dia."
-
-    @staticmethod
-    def _to_decimal(value) -> float:
-        try:
-            return float(value or 0)
-        except (TypeError, ValueError):
-            return 0.0
 
     @staticmethod
     def _module_columns(module_key: str) -> tuple[str, list[tuple[str, str]]]:
