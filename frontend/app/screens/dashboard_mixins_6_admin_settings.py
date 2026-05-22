@@ -14,6 +14,36 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 
 
 class DashboardAdminSettingsActionsMixin:
+    @staticmethod
+    def _backup_interval_unit_multiplier(unit_key: str) -> int:
+        return {
+            "hours": 1,
+            "days": 24,
+            "weeks": 168,
+        }.get(unit_key, 1)
+
+    @staticmethod
+    def _backup_interval_parts_from_hours(hours: int | str | None) -> tuple[int, str]:
+        normalized_hours = max(1, int(str(hours or 24)))
+        if normalized_hours % 168 == 0:
+            return normalized_hours // 168, "weeks"
+        if normalized_hours % 24 == 0:
+            return normalized_hours // 24, "days"
+        return normalized_hours, "hours"
+
+    def _backup_interval_hours_from_form(self) -> int:
+        value = int(self.settings_backup_interval_input.value())
+        multiplier = self._backup_interval_unit_multiplier(
+            str(self.settings_backup_interval_unit_combo.currentData() or "hours")
+        )
+        return value * multiplier
+
+    def _backup_destination_path_from_form(self) -> str:
+        mode = str(self.settings_backup_destination_mode_combo.currentData() or "internal")
+        if mode == "internal":
+            return "backups"
+        return self.settings_backup_path_input.text().strip()
+
     def _active_settings_tab_key(self) -> str:
         tab_keys = ("company", "appearance", "interface", "backup")
         index = self.settings_tabs.currentIndex() if hasattr(self, "settings_tabs") else 0
@@ -42,8 +72,8 @@ class DashboardAdminSettingsActionsMixin:
                 getattr(self, "settings_login_cover_image_data_url", "") or ""
             ),
             "backup_enabled": self.settings_backup_enabled_checkbox.isChecked(),
-            "backup_interval_hours": self.settings_backup_interval_input.text().strip(),
-            "backup_storage_path": self.settings_backup_path_input.text().strip(),
+            "backup_interval_hours": self._backup_interval_hours_from_form(),
+            "backup_storage_path": self._backup_destination_path_from_form(),
         }
 
     def _populate_password_reset_form(self, request: dict[str, Any]) -> None:
@@ -160,12 +190,18 @@ class DashboardAdminSettingsActionsMixin:
         )
         self._handle_login_cover_preset_changed()
         self.settings_backup_enabled_checkbox.setChecked(bool(settings.get("backup_enabled", True)))
-        self.settings_backup_interval_input.setText(
-            str(settings.get("backup_interval_hours") or "24")
+        interval_value, interval_unit = self._backup_interval_parts_from_hours(
+            settings.get("backup_interval_hours")
         )
-        self.settings_backup_path_input.setText(
-            str(settings.get("backup_storage_path") or "backups")
+        self.settings_backup_interval_input.setValue(interval_value)
+        self._select_combo_value(self.settings_backup_interval_unit_combo, interval_unit)
+        backup_storage_path = str(settings.get("backup_storage_path") or "backups")
+        self._select_combo_value(
+            self.settings_backup_destination_mode_combo,
+            "internal" if backup_storage_path == "backups" else "custom",
         )
+        self.settings_backup_path_input.setText(backup_storage_path)
+        self._handle_backup_destination_mode_changed()
         last_run = settings.get("backup_last_run_at")
         self.settings_backup_last_run_label.setText(
             f"Ultimo backup: {last_run}" if last_run else "Ultimo backup: nunca"
@@ -276,9 +312,9 @@ class DashboardAdminSettingsActionsMixin:
 
         elif active_tab == "backup":
             backup_enabled = bool(current_form.get("backup_enabled", True))
-            interval_text = _form_text("backup_interval_hours")
-            current_interval = _baseline_text("backup_interval_hours")
-            backup_storage_path = _form_text("backup_storage_path")
+            backup_interval_hours = int(current_form.get("backup_interval_hours") or 24)
+            current_interval = int(baseline_settings.get("backup_interval_hours") or 24)
+            backup_storage_path = str(current_form.get("backup_storage_path") or "").strip()
             current_backup_path = _baseline_text("backup_storage_path")
             backup_changed = (
                 _changed("backup_enabled")
@@ -288,30 +324,22 @@ class DashboardAdminSettingsActionsMixin:
             if backup_changed:
                 if _changed("backup_enabled"):
                     payload["backup_enabled"] = backup_enabled
-                if interval_text:
-                    try:
-                        backup_interval_hours = int(interval_text)
-                    except ValueError:
-                        self.set_settings_form_status(
-                            "Intervalo de backup deve ser inteiro.", is_error=True
-                        )
-                        return
-                    if backup_interval_hours < 1 or backup_interval_hours > 720:
-                        self.set_settings_form_status(
-                            "Intervalo de backup deve ficar entre 1 e 720 horas.",
-                            is_error=True,
-                        )
-                        return
-                    if interval_text != current_interval:
-                        payload["backup_interval_hours"] = backup_interval_hours
-                elif backup_enabled and current_interval:
+                if backup_interval_hours < 1 or backup_interval_hours > 720:
+                    self.set_settings_form_status(
+                        "Intervalo de backup deve ficar entre 1 e 720 horas.",
+                        is_error=True,
+                    )
+                    return
+                if backup_interval_hours != current_interval:
+                    payload["backup_interval_hours"] = backup_interval_hours
+                if backup_enabled and backup_interval_hours < 1:
                     self.set_settings_form_status("Informe o intervalo de backup.", is_error=True)
                     return
 
                 if backup_storage_path:
                     if backup_storage_path != current_backup_path:
                         payload["backup_storage_path"] = backup_storage_path
-                elif backup_enabled and current_backup_path:
+                elif backup_enabled:
                     self.set_settings_form_status("Informe a pasta de backup.", is_error=True)
                     return
 

@@ -20,6 +20,7 @@ def test_translate_ui_text_supports_bidirectional_common_phrases() -> None:
     assert translate_ui_text("Sign In", "pt-BR") == "Entrar"
     assert translate_ui_text("Aparencia", "en-US") == "Appearance"
     assert translate_ui_text("Painel Principal", "en-US") == "Main Panel"
+    assert translate_ui_text("Pasta interna do Pro Core", "en-US") == "Internal Pro Core folder"
     assert translate_ui_text("Selecione um modulo para carregar dados.", "en-US") == (
         "Select a module to load data."
     )

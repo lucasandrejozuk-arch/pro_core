@@ -1,0 +1,67 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" rx="28" fill="#07111F"/>
+  <rect x="24" y="24" width="1232" height="672" rx="24" fill="url(#bg)"/>
+  <circle cx="1110" cy="130" r="180" fill="#0EA5E9" fill-opacity="0.18"/>
+  <circle cx="170" cy="590" r="220" fill="#22C55E" fill-opacity="0.14"/>
+  <rect x="70" y="88" width="460" height="280" rx="22" fill="#0B1728" stroke="#1E3A5F"/>
+  <text x="108" y="156" fill="#8B5CF6" font-size="22" font-family="Segoe UI, Arial, sans-serif" font-weight="700">PRO CORE</text>
+  <text x="108" y="208" fill="#F8FAFC" font-size="46" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Sua assistencia</text>
+  <text x="108" y="258" fill="#F8FAFC" font-size="46" font-family="Segoe UI, Arial, sans-serif" font-weight="800">tecnica em outro nivel</text>
+  <text x="108" y="316" fill="#9FB3C8" font-size="21" font-family="Segoe UI, Arial, sans-serif">Ordens de servico, estoque, usuarios, auditoria e portal</text>
+  <text x="108" y="346" fill="#9FB3C8" font-size="21" font-family="Segoe UI, Arial, sans-serif">do cliente integrados em uma unica operacao.</text>
+  <rect x="108" y="388" width="160" height="44" rx="22" fill="#2563EB"/>
+  <text x="142" y="417" fill="#FFFFFF" font-size="19" font-family="Segoe UI, Arial, sans-serif" font-weight="700">FastAPI</text>
+  <rect x="282" y="388" width="162" height="44" rx="22" fill="#0F766E"/>
+  <text x="312" y="417" fill="#FFFFFF" font-size="19" font-family="Segoe UI, Arial, sans-serif" font-weight="700">PySide6</text>
+  <g filter="url(#shadow)">
+    <rect x="560" y="86" width="630" height="548" rx="28" fill="#E5EEF8"/>
+    <rect x="560" y="86" width="630" height="58" rx="28" fill="#CFE0F3"/>
+    <circle cx="598" cy="116" r="8" fill="#EF4444"/>
+    <circle cx="624" cy="116" r="8" fill="#F59E0B"/>
+    <circle cx="650" cy="116" r="8" fill="#10B981"/>
+    <rect x="588" y="172" width="148" height="430" rx="22" fill="#10233C"/>
+    <text x="620" y="214" fill="#F8FAFC" font-size="17" font-family="Segoe UI, Arial, sans-serif" font-weight="700">PRO CORE</text>
+    <rect x="608" y="242" width="108" height="32" rx="12" fill="#1D4ED8"/>
+    <text x="627" y="263" fill="#FFFFFF" font-size="13" font-family="Segoe UI, Arial, sans-serif">Dashboard</text>
+    <text x="620" y="308" fill="#9FB3C8" font-size="14" font-family="Segoe UI, Arial, sans-serif">Ordens de Servico</text>
+    <text x="620" y="342" fill="#9FB3C8" font-size="14" font-family="Segoe UI, Arial, sans-serif">Clientes</text>
+    <text x="620" y="376" fill="#9FB3C8" font-size="14" font-family="Segoe UI, Arial, sans-serif">Estoque</text>
+    <text x="620" y="410" fill="#9FB3C8" font-size="14" font-family="Segoe UI, Arial, sans-serif">Usuarios</text>
+    <text x="620" y="444" fill="#9FB3C8" font-size="14" font-family="Segoe UI, Arial, sans-serif">Configuracoes</text>
+    <rect x="762" y="172" width="398" height="120" rx="22" fill="#FFFFFF"/>
+    <text x="792" y="210" fill="#0F172A" font-size="22" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Dashboard operacional</text>
+    <rect x="792" y="230" width="86" height="36" rx="14" fill="#DCFCE7"/>
+    <text x="816" y="253" fill="#166534" font-size="13" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Online</text>
+    <rect x="792" y="314" width="112" height="92" rx="18" fill="#DBEAFE"/>
+    <rect x="920" y="314" width="112" height="92" rx="18" fill="#ECFCCB"/>
+    <rect x="1048" y="314" width="112" height="92" rx="18" fill="#FCE7F3"/>
+    <text x="814" y="346" fill="#1D4ED8" font-size="14" font-family="Segoe UI, Arial, sans-serif">OS abertas</text>
+    <text x="952" y="346" fill="#4D7C0F" font-size="14" font-family="Segoe UI, Arial, sans-serif">Estoque</text>
+    <text x="1070" y="346" fill="#BE185D" font-size="14" font-family="Segoe UI, Arial, sans-serif">Clientes</text>
+    <text x="824" y="384" fill="#0F172A" font-size="32" font-family="Segoe UI, Arial, sans-serif" font-weight="800">28</text>
+    <text x="956" y="384" fill="#0F172A" font-size="32" font-family="Segoe UI, Arial, sans-serif" font-weight="800">412</text>
+    <text x="1082" y="384" fill="#0F172A" font-size="32" font-family="Segoe UI, Arial, sans-serif" font-weight="800">96</text>
+    <rect x="762" y="432" width="398" height="170" rx="22" fill="#FFFFFF"/>
+    <text x="792" y="470" fill="#0F172A" font-size="20" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Fluxo centralizado</text>
+    <rect x="792" y="492" width="338" height="18" rx="9" fill="#E2E8F0"/>
+    <rect x="792" y="492" width="270" height="18" rx="9" fill="#2563EB"/>
+    <text x="792" y="542" fill="#334155" font-size="16" font-family="Segoe UI, Arial, sans-serif">Entrada do equipamento</text>
+    <text x="792" y="570" fill="#334155" font-size="16" font-family="Segoe UI, Arial, sans-serif">Diagnostico e orcamento</text>
+    <text x="792" y="598" fill="#334155" font-size="16" font-family="Segoe UI, Arial, sans-serif">Aprovacao do cliente e execucao</text>
+  </g>
+  <defs>
+    <linearGradient id="bg" x1="58" y1="44" x2="1228" y2="658" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1322"/>
+      <stop offset="1" stop-color="#12263F"/>
+    </linearGradient>
+    <filter id="shadow" x="530" y="62" width="690" height="608" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="8"/>
+      <feGaussianBlur stdDeviation="15"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0.0509804 0 0 0 0 0.113725 0 0 0 0.28 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_hero"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_hero" result="shape"/>
+    </filter>
+  </defs>
+</svg>

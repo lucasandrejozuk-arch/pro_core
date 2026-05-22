@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from frontend.app.core.i18n import translate_ui_text
 from frontend.app.themes.styles import DEFAULT_COLOR_PALETTE
 
 
@@ -21,8 +22,10 @@ class DashboardFormStateAdminSettingsAuditMixin:
         if self.settings_language_combo.count() > 0:
             self._select_combo_value(self.settings_language_combo, "en-US")
         self.settings_backup_enabled_checkbox.setChecked(True)
-        self.settings_backup_interval_input.setText("24")
-        self.settings_backup_path_input.setText("backups")
+        self.settings_backup_interval_input.setValue(24)
+        self._select_combo_value(self.settings_backup_interval_unit_combo, "hours")
+        self._select_combo_value(self.settings_backup_destination_mode_combo, "internal")
+        self._handle_backup_destination_mode_changed()
         self.settings_backup_last_run_label.setText("Ultimo backup: nunca")
         self.settings_form_status.setText("")
         if hasattr(self, "_capture_settings_form_snapshot"):
@@ -52,13 +55,20 @@ class DashboardFormStateAdminSettingsAuditMixin:
 
     def _refresh_settings_operational_status(self, settings: dict[str, Any] | None = None) -> None:
         active_settings = settings if settings is not None else self.current_settings
+        language = self._current_ui_language() if hasattr(self, "_current_ui_language") else "pt-BR"
         if not active_settings:
             self._set_settings_operational_status(
-                "Configuracoes ainda nao carregadas. Revise empresa, aparencia e backup.",
+                translate_ui_text(
+                    "Configuracoes ainda nao carregadas. Revise empresa, aparencia e backup.",
+                    language,
+                ),
                 "warning",
             )
             self.settings_backup_status.setText(
-                "Backup: informe intervalo e destino antes de salvar."
+                translate_ui_text(
+                    "Backup: informe intervalo, escala e destino antes de salvar.",
+                    language,
+                )
             )
             return
         company_name = self._format_value(active_settings.get("company_name")) or "-"
@@ -66,8 +76,11 @@ class DashboardFormStateAdminSettingsAuditMixin:
         theme = self._format_value(active_settings.get("theme")) or "light"
         scale = round(self.ui_scale_value * 100)
         self._set_settings_operational_status(
-            f"Identidade: {brand_name} | Empresa: {company_name} | "
-            f"Tema: {theme} | Escala: {scale}%.",
+            translate_ui_text(
+                f"Identidade: {brand_name} | Empresa: {company_name} | "
+                f"Tema: {theme} | Escala: {scale}%.",
+                language,
+            ),
             "info",
         )
         backup_enabled = bool(active_settings.get("backup_enabled", True))
@@ -76,8 +89,11 @@ class DashboardFormStateAdminSettingsAuditMixin:
         last_run = self._format_value(active_settings.get("backup_last_run_at")) or "nunca"
         backup_state = "ativo" if backup_enabled else "inativo"
         self.settings_backup_status.setText(
-            f"Backup: {backup_state} | intervalo {interval}h | "
-            f"destino {destination} | ultimo {last_run}."
+            translate_ui_text(
+                f"Backup: {backup_state} | intervalo {interval}h | "
+                f"destino {destination} | ultimo {last_run}.",
+                language,
+            )
         )
 
     def clear_audit_form(self) -> None:

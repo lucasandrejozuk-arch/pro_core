@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
+    QSpinBox,
     QSlider,
     QTabWidget,
     QVBoxLayout,
@@ -82,10 +83,36 @@ class DashboardSettingsFormMixin:
         self.settings_ui_scale_slider.valueChanged.connect(self._handle_ui_scale_slider_changed)
         self.settings_backup_enabled_checkbox = QCheckBox("Backup automatico ativo")
         self.settings_backup_enabled_checkbox.setChecked(True)
-        self.settings_backup_interval_input = QLineEdit()
-        self.settings_backup_interval_input.setPlaceholderText("Intervalo em horas")
+        self.settings_backup_interval_input = QSpinBox()
+        self.settings_backup_interval_input.setMinimum(1)
+        self.settings_backup_interval_input.setMaximum(720)
+        self.settings_backup_interval_input.setValue(24)
+        self.settings_backup_interval_input.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.settings_backup_interval_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.settings_backup_interval_unit_combo = QComboBox()
+        self.settings_backup_interval_unit_combo.addItem("Horas", "hours")
+        self.settings_backup_interval_unit_combo.addItem("Dias", "days")
+        self.settings_backup_interval_unit_combo.addItem("Semanas", "weeks")
+        self.settings_backup_interval_unit_combo.currentIndexChanged.connect(
+            self._handle_backup_interval_unit_changed
+        )
+        self.settings_backup_destination_mode_combo = QComboBox()
+        self.settings_backup_destination_mode_combo.addItem(
+            "Pasta interna do Pro Core",
+            "internal",
+        )
+        self.settings_backup_destination_mode_combo.addItem(
+            "Local personalizado",
+            "custom",
+        )
+        self.settings_backup_destination_mode_combo.currentIndexChanged.connect(
+            self._handle_backup_destination_mode_changed
+        )
         self.settings_backup_path_input = QLineEdit()
         self.settings_backup_path_input.setPlaceholderText("Pasta de backup")
+        self.settings_backup_browse_button = QPushButton("Selecionar pasta")
+        self.settings_backup_browse_button.setObjectName("secondaryButton")
+        self.settings_backup_browse_button.clicked.connect(self._select_backup_directory)
         self.settings_backup_last_run_label = QLabel("Ultimo backup: nunca")
         self.settings_backup_last_run_label.setObjectName("mutedText")
         company_layout = QFormLayout()
@@ -153,9 +180,18 @@ class DashboardSettingsFormMixin:
         interface_panel_layout.addLayout(interface_layout)
         backup_layout = QFormLayout()
         backup_layout.setSpacing(10)
+        interval_row = QHBoxLayout()
+        interval_row.setSpacing(8)
+        interval_row.addWidget(self.settings_backup_interval_input)
+        interval_row.addWidget(self.settings_backup_interval_unit_combo)
+        path_row = QHBoxLayout()
+        path_row.setSpacing(8)
+        path_row.addWidget(self.settings_backup_path_input, 1)
+        path_row.addWidget(self.settings_backup_browse_button)
         backup_layout.addRow("", self.settings_backup_enabled_checkbox)
-        backup_layout.addRow("Intervalo", self.settings_backup_interval_input)
-        backup_layout.addRow("Destino", self.settings_backup_path_input)
+        backup_layout.addRow("Frequencia", interval_row)
+        backup_layout.addRow("Destino", self.settings_backup_destination_mode_combo)
+        backup_layout.addRow("Caminho", path_row)
         backup_panel = QFrame()
         backup_panel.setObjectName("formSubPanel")
         backup_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
@@ -165,7 +201,7 @@ class DashboardSettingsFormMixin:
         backup_title = QLabel("BACKUP E RETENCAO")
         backup_title.setObjectName("formGroupTitle")
         backup_hint = QLabel(
-            "Mantenha um destino persistente e revise o ultimo backup antes de atualizacoes."
+            "Defina a frequencia, a escala de tempo e onde os arquivos serao gravados."
         )
         backup_hint.setObjectName("mutedText")
         backup_hint.setWordWrap(True)
@@ -212,6 +248,8 @@ class DashboardSettingsFormMixin:
         layout.addWidget(self.settings_form_status)
         layout.addLayout(actions)
         self._handle_login_cover_preset_changed()
+        self._handle_backup_interval_unit_changed()
+        self._handle_backup_destination_mode_changed()
         if hasattr(self, "_capture_settings_form_snapshot"):
             self.settings_form_snapshot = self._capture_settings_form_snapshot()
         return panel
@@ -248,6 +286,35 @@ class DashboardSettingsFormMixin:
         self.settings_login_cover_status_label.setText(
             "Capa original sera usada quando o backend estiver offline."
         )
+
+    def _handle_backup_destination_mode_changed(self) -> None:
+        mode = str(self.settings_backup_destination_mode_combo.currentData() or "internal")
+        is_custom = mode == "custom"
+        self.settings_backup_path_input.setReadOnly(not is_custom)
+        self.settings_backup_browse_button.setEnabled(is_custom)
+        if is_custom:
+            self.settings_backup_path_input.setPlaceholderText("Selecione uma pasta personalizada")
+            return
+        self.settings_backup_path_input.setPlaceholderText("Pasta interna do Pro Core")
+        self.settings_backup_path_input.setText("backups")
+
+    def _handle_backup_interval_unit_changed(self) -> None:
+        unit_key = str(self.settings_backup_interval_unit_combo.currentData() or "hours")
+        maximum_by_unit = {
+            "hours": 720,
+            "days": 30,
+            "weeks": 4,
+        }
+        self.settings_backup_interval_input.setMaximum(maximum_by_unit.get(unit_key, 720))
+
+    def _select_backup_directory(self) -> None:
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Selecionar pasta de backup",
+            self.settings_backup_path_input.text().strip() or "",
+        )
+        if directory:
+            self.settings_backup_path_input.setText(directory)
 
     def _select_login_cover_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(

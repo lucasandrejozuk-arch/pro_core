@@ -1,0 +1,24 @@
+<svg width="1280" height="540" viewBox="0 0 1280 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="540" rx="28" fill="#0B1322"/>
+  <text x="74" y="88" fill="#F8FAFC" font-size="38" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Tudo em uma unica plataforma</text>
+  <text x="74" y="126" fill="#9FB3C8" font-size="20" font-family="Segoe UI, Arial, sans-serif">Fluxo tecnico, estoque, administracao e experiencia do cliente conectados.</text>
+  <rect x="74" y="174" width="250" height="130" rx="24" fill="#13263F" stroke="#1D4ED8"/>
+  <text x="104" y="224" fill="#93C5FD" font-size="24" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Ordens de Servico</text>
+  <text x="104" y="262" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">Entrada, diagnostico, orcamento,</text>
+  <text x="104" y="286" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">aprovacao e conclusao.</text>
+  <rect x="350" y="174" width="250" height="130" rx="24" fill="#102A25" stroke="#22C55E"/>
+  <text x="380" y="224" fill="#86EFAC" font-size="24" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Estoque</text>
+  <text x="380" y="262" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">Componentes, ferramentas,</text>
+  <text x="380" y="286" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">softwares e custo operacional.</text>
+  <rect x="626" y="174" width="250" height="130" rx="24" fill="#2B1B13" stroke="#F59E0B"/>
+  <text x="656" y="224" fill="#FCD34D" font-size="24" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Governanca</text>
+  <text x="656" y="262" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">Usuarios, setores, acessos</text>
+  <text x="656" y="286" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">e auditoria integrada.</text>
+  <rect x="902" y="174" width="304" height="130" rx="24" fill="#2A1734" stroke="#A855F7"/>
+  <text x="932" y="224" fill="#E9D5FF" font-size="24" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Portal do Cliente</text>
+  <text x="932" y="262" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">Consulta e aprovacao de orcamento</text>
+  <text x="932" y="286" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">com experiencia web dedicada.</text>
+  <rect x="74" y="340" width="1132" height="126" rx="26" fill="#111C2C" stroke="#24364E"/>
+  <text x="108" y="392" fill="#F8FAFC" font-size="28" font-family="Segoe UI, Arial, sans-serif" font-weight="800">Pronto para uso real</text>
+  <text x="108" y="430" fill="#CBD5E1" font-size="18" font-family="Segoe UI, Arial, sans-serif">FastAPI no backend, PySide6 no frontend, PostgreSQL na persistencia e cobertura automatizada com Pytest.</text>
+</svg>
