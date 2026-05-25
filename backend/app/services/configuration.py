@@ -25,6 +25,16 @@ DEFAULT_LOGIN_BRAND_NAME = "PRO CORE"
 DEFAULT_LOGIN_BRAND_SUBTITLE = "Gestao completa para assistencias tecnicas"
 DEFAULT_LOGIN_COVER_PRESET = "original"
 LOGIN_COVER_PRESETS = {"original", "circuit_board", "service_bench", "precision_grid", "custom"}
+PUBLIC_LOGIN_APPEARANCE_KEYS = {
+    THEME_SETTING_KEY,
+    BRAND_NAME_SETTING_KEY,
+    BRAND_SUBTITLE_SETTING_KEY,
+    COLOR_PALETTE_SETTING_KEY,
+    PRIMARY_COLOR_SETTING_KEY,
+    LANGUAGE_SETTING_KEY,
+    LOGIN_COVER_PRESET_SETTING_KEY,
+    LOGIN_COVER_IMAGE_SETTING_KEY,
+}
 THEME_PRIMARY_COLORS = {
     "light": {
         "blue": "#25636f",
@@ -204,13 +214,8 @@ def get_appearance_settings(db: Session, company_id: uuid.UUID) -> dict:
 
 
 def get_login_appearance_settings(db: Session) -> dict:
-    statement = (
-        select(Company)
-        .where(Company.is_active.is_(True))
-        .order_by(Company.created_at.asc(), Company.id.asc())
-    )
-    company = db.scalars(statement).first()
-    if company is None:
+    company_id = _company_id_for_public_login_appearance(db)
+    if company_id is None:
         return {
             "brand_name": DEFAULT_LOGIN_BRAND_NAME,
             "brand_subtitle": DEFAULT_LOGIN_BRAND_SUBTITLE,
@@ -222,12 +227,34 @@ def get_login_appearance_settings(db: Session) -> dict:
             "login_cover_image_data_url": None,
         }
 
-    appearance = get_appearance_settings(db, company.id)
+    appearance = get_appearance_settings(db, company_id)
     return {
         **appearance,
         "brand_name": appearance["brand_name"] or DEFAULT_LOGIN_BRAND_NAME,
         "brand_subtitle": appearance["brand_subtitle"] or DEFAULT_LOGIN_BRAND_SUBTITLE,
     }
+
+
+def _company_id_for_public_login_appearance(db: Session) -> uuid.UUID | None:
+    customized_company_id = db.scalar(
+        select(AppSetting.company_id)
+        .join(Company, Company.id == AppSetting.company_id)
+        .where(
+            Company.is_active.is_(True),
+            AppSetting.key.in_(PUBLIC_LOGIN_APPEARANCE_KEYS),
+        )
+        .order_by(AppSetting.updated_at.desc(), AppSetting.created_at.desc())
+        .limit(1)
+    )
+    if customized_company_id is not None:
+        return customized_company_id
+
+    return db.scalar(
+        select(Company.id)
+        .where(Company.is_active.is_(True))
+        .order_by(Company.created_at.asc(), Company.id.asc())
+        .limit(1)
+    )
 
 
 def get_or_create_backup_policy(db: Session, company: Company) -> BackupPolicy:

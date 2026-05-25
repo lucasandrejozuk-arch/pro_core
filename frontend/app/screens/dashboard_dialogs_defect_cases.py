@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -39,10 +40,13 @@ class DefectCaseEditDialog(QDialog):
         self.setObjectName("assetDialog")
         self._payload: dict[str, Any] = {}
         values = values or {}
+        self.setSizeGripEnabled(True)
 
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("Ex.: Falha de comunicacao do modulo")
         self.title_input.setText(str(values.get("title") or ""))
+        self.title_input.setMinimumHeight(36)
+        self.title_input.setClearButtonEnabled(True)
 
         self.board_combo = QComboBox()
         self.board_combo.addItem("(Sem objeto especifico)", None)
@@ -52,6 +56,7 @@ class DefectCaseEditDialog(QDialog):
                 str(board.get("id")),
             )
         self._select_combo_value(self.board_combo, str(values.get("board_id") or ""))
+        self.board_combo.setMinimumHeight(36)
 
         self.symptom_input = self._make_text("Descreva sintomas observados", values.get("symptom"))
         self.root_cause_input = self._make_text("Descreva a causa raiz", values.get("root_cause"))
@@ -59,7 +64,12 @@ class DefectCaseEditDialog(QDialog):
         self.notes_input = self._make_text("Observacoes adicionais (opcional)", values.get("notes"))
 
         form = QFormLayout()
-        form.setSpacing(8)
+        form.setSpacing(10)
+        form.setHorizontalSpacing(14)
+        form.setVerticalSpacing(10)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        form.setFormAlignment(Qt.AlignmentFlag.AlignTop)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         form.addRow("Titulo:", self.title_input)
         form.addRow("Objeto vinculado:", self.board_combo)
         form.addRow("Sintoma:", self.symptom_input)
@@ -69,6 +79,7 @@ class DefectCaseEditDialog(QDialog):
 
         self.error_label = QLabel("")
         self.error_label.setObjectName("errorText")
+        self.error_label.setWordWrap(True)
 
         save_button = QPushButton("Salvar")
         save_button.clicked.connect(self._accept)
@@ -81,12 +92,13 @@ class DefectCaseEditDialog(QDialog):
         actions.addWidget(cancel_button)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
         layout.addLayout(form)
         layout.addWidget(self.error_label)
         layout.addLayout(actions)
-        self.resize(520, 430)
+        self.setMinimumWidth(560)
+        self.resize(620, 500)
         apply_language_to_widgets(current_ui_language(), self)
 
     def payload(self) -> dict[str, Any]:
@@ -112,7 +124,11 @@ class DefectCaseEditDialog(QDialog):
         widget = QTextEdit()
         widget.setPlaceholderText(placeholder)
         widget.setPlainText(str(value or ""))
-        widget.setMinimumHeight(72)
+        widget.setAcceptRichText(False)
+        widget.setTabChangesFocus(True)
+        widget.setMinimumHeight(88)
+        widget.setMaximumHeight(132)
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         return widget
 
     @staticmethod
@@ -153,6 +169,8 @@ class EquipmentDefectCasesDialog(QDialog):
     def _build_ui(self) -> None:
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar casos de defeito...")
+        self.search_input.setMinimumHeight(34)
+        self.search_input.setClearButtonEnabled(True)
         self.search_input.textChanged.connect(self._reload_cases)
 
         self.table = QTableWidget()
@@ -164,9 +182,17 @@ class EquipmentDefectCasesDialog(QDialog):
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setDefaultSectionSize(34)
+        header = self.table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setColumnWidth(1, 180)
         self.table.itemSelectionChanged.connect(self._handle_selection)
 
         self.new_button = QPushButton("+Caso de Defeito")
@@ -196,14 +222,15 @@ class EquipmentDefectCasesDialog(QDialog):
         close_row.addWidget(close_button)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
         layout.addWidget(self.search_input)
         layout.addWidget(self.table, 1)
         layout.addLayout(actions)
         layout.addWidget(QLabel("RESUMO:"))
         layout.addWidget(self.summary)
         layout.addLayout(close_row)
+        self.resize(980, 600)
         apply_language_to_widgets(current_ui_language(), self)
 
     def _reload_cases(self) -> None:

@@ -96,34 +96,62 @@ def test_login_window_updates_backend_connection_status(qtbot) -> None:
 
     assert window.backend_status_label.text() == "Backend conectado."
     assert window.backend_status_label.property("level") == ""
+    assert window.backend_connect_button.isHidden() is False
 
     window.set_backend_connection_status(False)
 
     assert window.backend_status_label.text() == "Backend indisponivel."
     assert window.backend_status_label.property("level") == "error"
+    assert window.backend_connect_button.isHidden() is False
 
 
-def test_login_window_backend_reconnect_button_emits_signal(qtbot) -> None:
+def test_login_window_guides_next_step_from_form_state(qtbot) -> None:
+    window = LoginWindow()
+    qtbot.addWidget(window)
+
+    assert "email" in window.helper_label.text().lower()
+
+    window.email_input.setText("operador@empresa.com")
+
+    assert "senha" in window.helper_label.text().lower()
+
+    window.password_input.setText("segredo123")
+
+    assert "tudo pronto" in window.helper_label.text().lower()
+
+
+def test_login_window_guidance_prioritizes_backend_recovery(qtbot) -> None:
+    window = LoginWindow()
+    qtbot.addWidget(window)
+
+    window.set_backend_connection_status(False)
+
+    assert "inicializar/reinicializar backend" in window.helper_label.text().lower()
+    assert "backend" in window.helper_label.text().lower()
+
+
+def test_login_window_backend_connect_button_emits_signal(qtbot) -> None:
     window = LoginWindow()
     qtbot.addWidget(window)
     emitted: list[bool] = []
-    window.backend_reconnect_requested.connect(lambda: emitted.append(True))
+    window.backend_connect_requested.connect(lambda: emitted.append(True))
+    window.set_backend_connection_status(False)
 
-    window.backend_reconnect_button.click()
+    window.backend_connect_button.click()
 
     assert emitted == [True]
 
 
-def test_login_window_backend_reconnect_loading_state(qtbot) -> None:
+def test_login_window_backend_connect_loading_state(qtbot) -> None:
     window = LoginWindow()
     qtbot.addWidget(window)
 
-    window.set_backend_reconnect_loading(True)
+    window.set_backend_connect_loading(True)
 
-    assert window.backend_reconnect_button.isEnabled() is False
-    assert window.backend_reconnect_button.text() == "Conectando/Reiniciando..."
+    assert window.backend_connect_button.isEnabled() is False
+    assert window.backend_connect_button.text() == "Inicializando/Reiniciando..."
 
-    window.set_backend_reconnect_loading(False)
+    window.set_backend_connect_loading(False)
 
-    assert window.backend_reconnect_button.isEnabled() is True
-    assert window.backend_reconnect_button.text() == "Conectar/Reiniciar backend"
+    assert window.backend_connect_button.isEnabled() is True
+    assert window.backend_connect_button.text() == "Inicializar/Reinicializar Backend"

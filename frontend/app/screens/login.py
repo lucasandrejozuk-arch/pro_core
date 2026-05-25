@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from frontend.app.core.display import detect_display_profile
 from frontend.app.core.grid import add_widget, create_grid
 from frontend.app.core.i18n import normalize_language, translate_ui_text
+from frontend.app.core.i18n_catalog import SOURCE_TEXT_PROP
 
 
 class LoginBrandPanel(QFrame):
@@ -186,11 +187,15 @@ class LoginBrandPanel(QFrame):
 class LoginWindow(QWidget):
     login_requested = Signal(str, str)
     password_reset_requested = Signal(str)
-    backend_reconnect_requested = Signal()
+    backend_connect_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
         profile = detect_display_profile()
+        self._backend_available: bool | None = None
+        self._login_loading = False
+        self._password_reset_loading = False
+        self._backend_connect_loading = False
         self.setWindowTitle("PRO CORE")
         self.setMinimumSize(round(980 * profile.ui_scale), round(620 * profile.ui_scale))
         self.setObjectName("loginWindow")
@@ -217,22 +222,40 @@ class LoginWindow(QWidget):
         heading = QLabel("Entrar")
         heading.setObjectName("formTitle")
 
-        helper = QLabel("Use sua conta PRO CORE para acessar os modulos operacionais.")
-        helper.setObjectName("mutedText")
-        helper.setWordWrap(True)
+        self.helper_label = QLabel("Use sua conta PRO CORE para acessar os modulos operacionais.")
+        self.helper_label.setObjectName("mutedText")
+        self.helper_label.setWordWrap(True)
 
         self.backend_status_label = QLabel("Verificando conexao com o backend...")
         self.backend_status_label.setObjectName("statusBanner")
         self.backend_status_label.setProperty("level", "warning")
         self.backend_status_label.setWordWrap(True)
 
+        self.backend_connect_button = QPushButton("Inicializar/Reinicializar Backend")
+        self.backend_connect_button.setObjectName("loginBackendButton")
+        self.backend_connect_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.backend_connect_button.setToolTip(
+            "Inicia o backend local ou aplica reinicializacao segura quando possivel."
+        )
+        self.backend_connect_button.setMinimumWidth(round(170 * profile.ui_scale))
+        self.backend_connect_button.clicked.connect(self._request_backend_connect)
+
+        backend_status_row = QWidget()
+        backend_status_layout = QHBoxLayout(backend_status_row)
+        backend_status_layout.setContentsMargins(0, 0, 0, 0)
+        backend_status_layout.setSpacing(round(8 * profile.ui_scale))
+        backend_status_layout.addWidget(self.backend_status_label, 1)
+        backend_status_layout.addWidget(self.backend_connect_button, 0, Qt.AlignmentFlag.AlignTop)
+
         self.email_input = QLineEdit()
         self.email_input.setPlaceholderText("Email")
+        self.email_input.textChanged.connect(self._refresh_guided_sign_in_hint)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Senha")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_input.returnPressed.connect(self._request_login)
+        self.password_input.textChanged.connect(self._refresh_guided_sign_in_hint)
 
         self.password_visibility_button = QPushButton("Exibir senha")
         self.password_visibility_button.setObjectName("secondaryButton")
@@ -261,54 +284,44 @@ class LoginWindow(QWidget):
         self.forgot_password_button.setObjectName("forgotPasswordButton")
         self.forgot_password_button.clicked.connect(self._request_password_reset)
 
-        self.backend_reconnect_button = QPushButton("Conectar/Reiniciar backend")
-        self.backend_reconnect_button.setObjectName("secondaryButton")
-        self.backend_reconnect_button.clicked.connect(self._request_backend_reconnect)
-
-        form_panel = QFrame()
-        form_panel.setObjectName("formPanel")
-        form_layout = QVBoxLayout(form_panel)
+        self.form_panel = QFrame()
+        self.form_panel.setObjectName("formPanel")
+        form_layout = QVBoxLayout(self.form_panel)
         form_margin = round(24 * profile.ui_scale)
         form_layout.setContentsMargins(form_margin, form_margin, form_margin, form_margin)
         form_layout.setSpacing(round(8 * profile.ui_scale))
         form_layout.addStretch()
         form_layout.addWidget(heading)
-        form_layout.addWidget(helper)
-        form_layout.addWidget(self.backend_status_label)
+        form_layout.addWidget(self.helper_label)
+        form_layout.addWidget(backend_status_row)
         form_layout.addWidget(self.email_input)
         form_layout.addWidget(password_row)
         form_layout.addWidget(self.remember_user_checkbox)
         form_layout.addWidget(self.error_label)
         form_layout.addWidget(self.submit_button)
         form_layout.addWidget(self.forgot_password_button)
-        form_layout.addWidget(self.backend_reconnect_button)
         form_layout.addStretch()
 
         layout = create_grid()
         self.setLayout(layout)
         add_widget(layout, self.brand_panel, 0, 0, 7)
-        add_widget(layout, form_panel, 0, 7, 5)
+        add_widget(layout, self.form_panel, 0, 7, 5)
         layout.setRowStretch(0, 1)
+        self._refresh_guided_sign_in_hint()
         self._load_remembered_user()
+        self._sync_action_buttons()
 
     def set_loading(self, is_loading: bool) -> None:
-        self.submit_button.setEnabled(not is_loading)
-        self.forgot_password_button.setEnabled(not is_loading)
-        self.backend_reconnect_button.setEnabled(not is_loading)
-        self.password_visibility_button.setEnabled(not is_loading)
-        self.submit_button.setText("Entrando..." if is_loading else "Entrar")
+        self._login_loading = is_loading
+        self._sync_action_buttons()
 
     def set_password_reset_loading(self, is_loading: bool) -> None:
-        self.forgot_password_button.setEnabled(not is_loading)
-        self.submit_button.setEnabled(not is_loading)
-        self.backend_reconnect_button.setEnabled(not is_loading)
-        self.forgot_password_button.setText("Enviando..." if is_loading else "Esqueci minha senha")
+        self._password_reset_loading = is_loading
+        self._sync_action_buttons()
 
-    def set_backend_reconnect_loading(self, is_loading: bool) -> None:
-        self.backend_reconnect_button.setEnabled(not is_loading)
-        self.backend_reconnect_button.setText(
-            "Conectando/Reiniciando..." if is_loading else "Conectar/Reiniciar backend"
-        )
+    def set_backend_connect_loading(self, is_loading: bool) -> None:
+        self._backend_connect_loading = is_loading
+        self._sync_action_buttons()
 
     def set_error(self, message: str) -> None:
         self.error_label.setObjectName("errorText")
@@ -339,19 +352,25 @@ class LoginWindow(QWidget):
         self.brand_panel.apply_cover(settings, backend_connected=backend_connected)
 
     def set_backend_connection_status(self, is_connected: bool, message: str | None = None) -> None:
+        self._backend_available = is_connected
         self.backend_status_label.setProperty("level", "" if is_connected else "error")
         self.backend_status_label.setText(
             message or ("Backend conectado." if is_connected else "Backend indisponivel.")
         )
+        self._sync_action_buttons()
         self.backend_status_label.style().unpolish(self.backend_status_label)
         self.backend_status_label.style().polish(self.backend_status_label)
+        self._refresh_guided_sign_in_hint()
 
     def clear_form(self) -> None:
         self.password_input.clear()
         self.error_label.clear()
-        self.set_loading(False)
-        self.set_password_reset_loading(False)
+        self._login_loading = False
+        self._password_reset_loading = False
+        self._backend_connect_loading = False
         self.password_visibility_button.setChecked(False)
+        self._sync_action_buttons()
+        self._refresh_guided_sign_in_hint()
 
     def persist_remembered_user(self, email: str) -> None:
         settings = QSettings("PRO CORE", "PRO CORE")
@@ -381,9 +400,9 @@ class LoginWindow(QWidget):
         self.set_error("")
         self.password_reset_requested.emit(email)
 
-    def _request_backend_reconnect(self) -> None:
+    def _request_backend_connect(self) -> None:
         self.set_error("")
-        self.backend_reconnect_requested.emit()
+        self.backend_connect_requested.emit()
 
     def _toggle_password_visibility(self, checked: bool) -> None:
         self.password_input.setEchoMode(
@@ -399,3 +418,67 @@ class LoginWindow(QWidget):
 
         self.email_input.setText(remembered_email)
         self.remember_user_checkbox.setChecked(True)
+        self._refresh_guided_sign_in_hint()
+
+    def _set_guidance_message(self, message: str) -> None:
+        language = normalize_language(
+            str(QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR")
+        )
+        self.helper_label.setProperty(SOURCE_TEXT_PROP, message)
+        self.helper_label.setText(translate_ui_text(message, language))
+
+    def _sync_action_buttons(self) -> None:
+        is_busy = (
+            self._login_loading or self._password_reset_loading or self._backend_connect_loading
+        )
+        language = normalize_language(
+            str(QSettings("PRO CORE", "PRO CORE").value("appearance/language", "pt-BR") or "pt-BR")
+        )
+
+        self.submit_button.setEnabled(not is_busy)
+        self.submit_button.setText(
+            translate_ui_text("Entrando..." if self._login_loading else "Entrar", language)
+        )
+
+        self.forgot_password_button.setEnabled(not is_busy)
+        self.forgot_password_button.setText(
+            translate_ui_text(
+                "Enviando..." if self._password_reset_loading else "Esqueci minha senha",
+                language,
+            )
+        )
+
+        self.password_visibility_button.setEnabled(not is_busy)
+
+        self.backend_connect_button.setEnabled(not is_busy)
+        self.backend_connect_button.setText(
+            translate_ui_text(
+                (
+                    "Inicializando/Reiniciando..."
+                    if self._backend_connect_loading
+                    else "Inicializar/Reinicializar Backend"
+                ),
+                language,
+            )
+        )
+
+    def _refresh_guided_sign_in_hint(self) -> None:
+        email = self.email_input.text().strip()
+        password = self.password_input.text()
+
+        if self._backend_available is False:
+            self._set_guidance_message(
+                "O backend esta indisponivel no momento. Use Inicializar/Reinicializar "
+                "Backend para restabelecer o acesso."
+            )
+            return
+
+        if email and password:
+            self._set_guidance_message("Tudo pronto. Pressione Enter ou clique em Entrar.")
+            return
+
+        if email:
+            self._set_guidance_message("Email identificado. Agora informe sua senha para entrar.")
+            return
+
+        self._set_guidance_message("Acesso rapido: informe seu email para continuar.")

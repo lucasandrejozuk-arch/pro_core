@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -8,6 +9,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
 )
 
@@ -25,19 +27,28 @@ class DashboardCustomerFormMixin:
 
         self.customer_name_input = QLineEdit()
         self.customer_name_input.setPlaceholderText("Nome")
+        self.customer_name_input.setClearButtonEnabled(True)
+        self.customer_name_input.setMinimumHeight(36)
 
         self.customer_email_input = QLineEdit()
         self.customer_email_input.setPlaceholderText("Email")
+        self.customer_email_input.setClearButtonEnabled(True)
+        self.customer_email_input.setMinimumHeight(36)
 
         self.customer_phone_input = QLineEdit()
         self.customer_phone_input.setPlaceholderText("(11) 99999-9999")
         self.customer_phone_input.setInputMask("(00) 00000-0000;_")
+        self.customer_phone_input.setMinimumHeight(36)
 
         self.customer_address_input = QLineEdit()
         self.customer_address_input.setPlaceholderText("Endereco")
+        self.customer_address_input.setClearButtonEnabled(True)
+        self.customer_address_input.setMinimumHeight(36)
 
         self.customer_notes_input = QLineEdit()
         self.customer_notes_input.setPlaceholderText("Observacoes")
+        self.customer_notes_input.setClearButtonEnabled(True)
+        self.customer_notes_input.setMinimumHeight(36)
 
         self.customer_active_checkbox = QCheckBox("Cliente ativo")
         self.customer_active_checkbox.setChecked(True)
@@ -54,6 +65,11 @@ class DashboardCustomerFormMixin:
         identity_title.setObjectName("formGroupTitle")
         identity_form_layout = QFormLayout()
         identity_form_layout.setSpacing(10)
+        identity_form_layout.setHorizontalSpacing(14)
+        identity_form_layout.setLabelAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
+        identity_form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         identity_form_layout.addRow("Nome", self.customer_name_input)
         identity_form_layout.addRow("Email", self.customer_email_input)
         identity_form_layout.addRow("Telefone", self.customer_phone_input)
@@ -64,13 +80,20 @@ class DashboardCustomerFormMixin:
         identity_layout = QVBoxLayout(identity_panel)
         identity_layout.setContentsMargins(12, 12, 12, 12)
         identity_layout.setSpacing(8)
+        identity_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         identity_layout.addWidget(identity_title)
         identity_layout.addLayout(identity_form_layout)
+        identity_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
         contact_title = QLabel("ENDERECO E OBSERVACOES")
         contact_title.setObjectName("formGroupTitle")
         contact_form_layout = QFormLayout()
         contact_form_layout.setSpacing(10)
+        contact_form_layout.setHorizontalSpacing(14)
+        contact_form_layout.setLabelAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
+        contact_form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         contact_form_layout.addRow("Endereco", self.customer_address_input)
         contact_form_layout.addRow("Observacoes", self.customer_notes_input)
 
@@ -79,8 +102,10 @@ class DashboardCustomerFormMixin:
         contact_layout = QVBoxLayout(contact_panel)
         contact_layout.setContentsMargins(12, 12, 12, 12)
         contact_layout.setSpacing(8)
+        contact_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         contact_layout.addWidget(contact_title)
         contact_layout.addLayout(contact_form_layout)
+        contact_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
         fields_layout = create_grid(spacing=8)
         add_widget(fields_layout, identity_panel, 0, 0, 6)
@@ -104,6 +129,7 @@ class DashboardCustomerFormMixin:
         self.customer_document_path_input = QLineEdit()
         self.customer_document_path_input.setPlaceholderText("Anexo do cliente")
         self.customer_document_path_input.setReadOnly(True)
+        self.customer_document_path_input.setMinimumHeight(36)
 
         self.customer_document_status = QLabel(
             "Anexos: salve ou selecione um cliente antes de enviar evidencias."
@@ -122,7 +148,17 @@ class DashboardCustomerFormMixin:
         details_title = QLabel("DADOS COMPLETOS")
         details_title.setObjectName("formGroupTitle")
 
-        self.customer_full_summary = create_summary_text()
+        self.customer_full_summary = create_summary_text(110, 180)
+
+        summary_panel = QFrame()
+        summary_panel.setObjectName("formSubPanel")
+        summary_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        summary_layout = QVBoxLayout(summary_panel)
+        summary_layout.setContentsMargins(12, 12, 12, 12)
+        summary_layout.setSpacing(8)
+        summary_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        summary_layout.addWidget(details_title)
+        summary_layout.addWidget(self.customer_full_summary)
 
         actions = QHBoxLayout()
         actions.addStretch()
@@ -135,16 +171,30 @@ class DashboardCustomerFormMixin:
         document_actions.addWidget(self.customer_select_document_button)
         document_actions.addWidget(self.customer_upload_document_button)
 
+        document_panel = QFrame()
+        document_panel.setObjectName("formSubPanel")
+        document_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        document_panel_layout = QVBoxLayout(document_panel)
+        document_panel_layout.setContentsMargins(12, 12, 12, 12)
+        document_panel_layout.setSpacing(8)
+        document_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        document_title = QLabel("ANEXOS")
+        document_title.setObjectName("formGroupTitle")
+        document_panel_layout.addWidget(document_title)
+        document_panel_layout.addWidget(self.customer_document_status)
+        document_panel_layout.addLayout(document_actions)
+
+        bottom_layout = create_grid(spacing=8)
+        add_widget(bottom_layout, summary_panel, 0, 0, 8)
+        add_widget(bottom_layout, document_panel, 0, 8, 4)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(self.customer_operational_status)
         layout.addLayout(fields_layout)
-        layout.addWidget(details_title)
-        layout.addWidget(self.customer_full_summary)
-        layout.addWidget(self.customer_document_status)
-        layout.addLayout(document_actions)
+        layout.addLayout(bottom_layout)
         layout.addWidget(self.customer_form_status)
         layout.addLayout(actions)
 

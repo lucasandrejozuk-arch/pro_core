@@ -36,7 +36,7 @@ def initialize_dashboard_state(self) -> None:
     self.record_details_dialog: QDialog | None = None
     self.record_editor_popup_layout: QVBoxLayout | None = None
     self.ui_scale_min = 0.82
-    self.ui_scale_max = 1.18
+    self.ui_scale_max = 1.50
     self.ui_scale_value = 1.0
     self.current_user_role = ""
     self.equipment_customers: list[dict[str, Any]] = []

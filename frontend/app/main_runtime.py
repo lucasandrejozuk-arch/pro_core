@@ -3,12 +3,61 @@ from __future__ import annotations
 import webbrowser
 from urllib.parse import urlsplit, urlunsplit
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QMessageBox
 
 from frontend.app.core.api_client import ApiError
+from frontend.app.core.backend_process import ManagedBackendError
 
 
 class ProCoreMainRuntimeMixin:
+    def handle_login_backend_connect(self) -> None:
+        self.login_window.set_backend_connect_loading(True)
+        self.login_window.set_info("Tentando inicializar/reinicializar backend...")
+        self.backend_process_start_error = ""
+
+        try:
+            if self.backend_process.is_running and self.backend_process.is_managed:
+                self.backend_process.restart(apply_migrations=False)
+            else:
+                self.backend_process.start()
+        except ManagedBackendError as exc:
+            self.backend_process_start_error = str(exc)
+            self.refresh_backend_health_status()
+            self.login_window.set_backend_connect_loading(False)
+            self.login_window.set_error(str(exc))
+            return
+
+        self.refresh_backend_health_status()
+        if self.backend_health_connected:
+            self.login_window.set_backend_connect_loading(False)
+            self.login_window.set_info("Backend conectado.")
+            return
+
+        QTimer.singleShot(1200, self._complete_login_backend_connect)
+
+    def _complete_login_backend_connect(self) -> None:
+        self.refresh_backend_health_status()
+        self.login_window.set_backend_connect_loading(False)
+
+        if self.backend_health_connected:
+            self.login_window.set_info("Backend conectado.")
+            return
+
+        if self.backend_process_start_error:
+            self.login_window.set_error(self.backend_process_start_error)
+            return
+
+        if self.backend_process.is_running:
+            self.login_window.set_info(
+                "Backend iniciado/reiniciado. Aguarde alguns instantes para concluir a conexao."
+            )
+            return
+
+        self.login_window.set_error(
+            "Nao foi possivel conectar ao backend. Tente novamente em instantes."
+        )
+
     def handle_open_customer_portal(self) -> None:
         if str(self.session.user.get("role") or "") != "admin":
             self.dashboard_window._set_footer_message(

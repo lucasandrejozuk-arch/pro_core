@@ -155,6 +155,8 @@ class DashboardEquipmentFormMixin:
         layout.setSpacing(8)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        layout.addWidget(self.equipment_operational_status)
+        layout.addWidget(self.equipment_hierarchy_status)
         layout.addWidget(
             self._build_equipment_section(
                 "EQUIPAMENTOS",

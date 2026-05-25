@@ -18,8 +18,8 @@ class PasswordChangeWindow(QWidget):
         self.setMinimumSize(round(620 * profile.ui_scale), round(460 * profile.ui_scale))
         self.setObjectName("passwordWindow")
 
-        panel = QFrame()
-        panel.setObjectName("formPanel")
+        self.form_panel = QFrame()
+        self.form_panel.setObjectName("formPanel")
 
         title = QLabel("Alterar senha")
         title.setObjectName("formTitle")
@@ -48,7 +48,7 @@ class PasswordChangeWindow(QWidget):
         self.submit_button = QPushButton("Salvar senha")
         self.submit_button.clicked.connect(self._request_change)
 
-        panel_layout = QVBoxLayout(panel)
+        panel_layout = QVBoxLayout(self.form_panel)
         panel_margin = round(44 * profile.ui_scale)
         panel_layout.setContentsMargins(panel_margin, panel_margin, panel_margin, panel_margin)
         panel_layout.setSpacing(round(16 * profile.ui_scale))
@@ -67,7 +67,7 @@ class PasswordChangeWindow(QWidget):
             margins=(margin_x, margin_y, margin_x, margin_y),
         )
         self.setLayout(layout)
-        add_widget(layout, panel, 0, 3, 6)
+        add_widget(layout, self.form_panel, 0, 3, 6)
         layout.setRowStretch(0, 1)
 
     def set_loading(self, is_loading: bool) -> None:

@@ -25,8 +25,10 @@ class DashboardServiceOrderFormBuilderMixin(DashboardServiceOrderFormSectionsMix
     @staticmethod
     def _configure_multiline_editor(widget: QTextEdit, placeholder: str) -> None:
         widget.setPlaceholderText(placeholder)
-        widget.setMinimumHeight(92)
-        widget.setMaximumHeight(128)
+        widget.setAcceptRichText(False)
+        widget.setTabChangesFocus(True)
+        widget.setMinimumHeight(84)
+        widget.setMaximumHeight(112)
         widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
     def _build_service_order_form(self) -> QFrame:
@@ -44,6 +46,7 @@ class DashboardServiceOrderFormBuilderMixin(DashboardServiceOrderFormSectionsMix
             "ENTRADA LOGÍSTICA -> DIAGNÓSTICO TÉCNICO -> ORÇAMENTO -> LOGÍSTICA E FECHAMENTO"
         )
         self.service_order_workflow_hint.setObjectName("mutedText")
+        self.service_order_workflow_hint.setWordWrap(True)
 
         workflow_panel = self._build_service_order_workflow_panel()
 
@@ -199,6 +202,33 @@ class DashboardServiceOrderFormBuilderMixin(DashboardServiceOrderFormSectionsMix
         self.service_order_document_path_input.setPlaceholderText("Arquivo selecionado")
         self.service_order_document_path_input.setReadOnly(True)
 
+        for field in (
+            self.service_order_customer_combo,
+            self.service_order_custom_id_input,
+            self.service_order_equipment_combo,
+            self.service_order_equipment_type_combo,
+            self.service_order_technician_combo,
+            self.service_order_service_type_combo,
+            self.service_order_special_number_input,
+            self.service_order_serial_number_input,
+            self.service_order_status_combo,
+            self.service_order_customer_approval_combo,
+            self.service_order_entry_date_input,
+            self.service_order_budget_sent_at_input,
+            self.service_order_priority_combo,
+            self.service_order_sla_input,
+            self.service_order_problem_input,
+            self.service_order_diagnosis_input,
+            self.service_order_rejection_input,
+            self.service_order_budget_type_combo,
+            self.service_order_budget_description_input,
+            self.service_order_budget_quantity_input,
+            self.service_order_budget_unit_price_input,
+            self.service_order_document_type_combo,
+            self.service_order_document_path_input,
+        ):
+            field.setMinimumHeight(36)
+
         fields_layout = self._build_service_order_fields_grid()
 
         self.service_order_form_status = QLabel("")
@@ -218,7 +248,7 @@ class DashboardServiceOrderFormBuilderMixin(DashboardServiceOrderFormSectionsMix
         details_title = QLabel("DADOS COMPLETOS")
         details_title.setObjectName("formGroupTitle")
 
-        self.service_order_full_summary = create_summary_text(96, 130)
+        self.service_order_full_summary = create_summary_text(110, 176)
 
         self.service_order_new_button = QPushButton("Nova")
         self.service_order_new_button.setObjectName("secondaryButton")

@@ -6,6 +6,27 @@ from frontend.app.themes.styles import DEFAULT_COLOR_PALETTE, apply_theme, build
 
 
 class ProCoreAppearanceMixin:
+    def _cached_login_branding_settings(self) -> dict[str, str]:
+        return {
+            "brand_name": str(self.local_settings.value("appearance/brand_name", "") or ""),
+            "brand_subtitle": str(self.local_settings.value("appearance/brand_subtitle", "") or ""),
+            "login_cover_preset": str(
+                self.local_settings.value("appearance/login_cover_preset", "original") or "original"
+            ),
+            "login_cover_image_data_url": str(
+                self.local_settings.value("appearance/login_cover_image_data_url", "") or ""
+            ),
+        }
+
+    def _has_cached_login_branding(self) -> bool:
+        cached = self._cached_login_branding_settings()
+        return bool(
+            cached["brand_name"].strip()
+            or cached["brand_subtitle"].strip()
+            or cached["login_cover_image_data_url"].strip()
+            or cached["login_cover_preset"] != "original"
+        )
+
     def _apply_saved_theme(self) -> None:
         if not self.session.access_token:
             return
@@ -56,16 +77,25 @@ class ProCoreAppearanceMixin:
             "appearance/language",
             str(settings.get("language") or "pt-BR"),
         )
+        self.local_settings.setValue(
+            "appearance/login_cover_preset",
+            str(settings.get("login_cover_preset") or "original"),
+        )
+        login_cover_image_data_url = str(settings.get("login_cover_image_data_url") or "")
+        if login_cover_image_data_url:
+            self.local_settings.setValue(
+                "appearance/login_cover_image_data_url",
+                login_cover_image_data_url,
+            )
+        else:
+            self.local_settings.remove("appearance/login_cover_image_data_url")
         self.login_window.apply_branding(settings, backend_connected=True)
         self._apply_runtime_language(settings.get("language"))
 
     def _apply_cached_login_branding(self) -> None:
         self.login_window.apply_branding(
-            {
-                "brand_name": self.local_settings.value("appearance/brand_name", ""),
-                "brand_subtitle": self.local_settings.value("appearance/brand_subtitle", ""),
-            },
-            backend_connected=False,
+            self._cached_login_branding_settings(),
+            backend_connected=bool(getattr(self, "backend_health_connected", False)),
         )
 
     def _refresh_login_branding(self) -> None:

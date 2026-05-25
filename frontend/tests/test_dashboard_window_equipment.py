@@ -50,8 +50,6 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
     assert window.equipment_table.rowCount() == 1
     assert window.equipment_boards_table.rowCount() == 1
     assert window.equipment_components_table.rowCount() == 1
-    assert window.equipment_operational_status.isHidden()
-    assert window.equipment_hierarchy_status.isHidden()
     assert window.equipment_count_badge.text() == "1 item"
     assert window.board_count_badge.text() == "1 item"
     assert window.component_count_badge.text() == "1 item"
@@ -61,6 +59,10 @@ def test_equipment_populates_complete_summary_and_tree(qtbot) -> None:
     assert window.board_context_label.text() == "Objeto: Placa Principal"
     assert "Placa Principal" in window.board_full_summary.toPlainText()
     assert "C100" in window.component_full_summary.toPlainText()
+    assert window.equipment_operational_status.isHidden() is False
+    assert "equipamento selecionado" in window.equipment_operational_status.text().lower()
+    assert window.equipment_hierarchy_status.isHidden() is False
+    assert "componente selecionado" in window.equipment_hierarchy_status.text().lower()
     copy_buttons = window.equipment_form_panel.findChildren(QPushButton, "summaryCopyButton")
     assert len(copy_buttons) == 3
     copy_buttons[0].click()
@@ -83,6 +85,25 @@ def test_equipment_search_filters_hierarchy(qtbot) -> None:
     assert window.equipment_table.rowCount() == 1
     assert window.equipment_visible_rows[0]["id"] == "eq-2"
     assert window.equipment_count_badge.text() == "1 item"
+
+
+def test_equipment_resume_restores_last_selected_equipment(qtbot) -> None:
+    rows = [
+        {"id": "eq-1", "category": "Inversor", "brand": "Siemens", "boards": []},
+        {"id": "eq-2", "category": "Fonte", "brand": "WEG", "boards": []},
+    ]
+
+    first_window = DashboardWindow()
+    qtbot.addWidget(first_window)
+    first_window.render_rows("Equipamentos", rows, [], "equipment")
+    first_window.equipment_table.selectRow(1)
+
+    second_window = DashboardWindow()
+    qtbot.addWidget(second_window)
+    second_window.render_rows("Equipamentos", rows, [], "equipment")
+
+    assert second_window.selected_equipment_id == "eq-2"
+    assert "weg" in second_window.equipment_context_label.text().lower()
 
 
 def test_equipment_operational_status_handles_empty_and_filtered_states(qtbot) -> None:
@@ -325,7 +346,7 @@ def test_ui_scale_slider_emits_live_scale(qtbot) -> None:
     qtbot.addWidget(window)
     emitted: list[float] = []
     window.ui_scale_changed.connect(emitted.append)
-    window.configure_ui_scale(0.86, 1.14, 1.0)
+    window.configure_ui_scale(0.86, 1.5, 1.0)
     window.settings_ui_scale_slider.setValue(108)
     assert emitted[-1] == 1.08
     assert window.settings_ui_scale_label.text() == "108%"

@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
-    QSpinBox,
     QSlider,
+    QSpinBox,
     QTabWidget,
     QVBoxLayout,
 )
@@ -81,14 +81,21 @@ class DashboardSettingsFormMixin:
         self.settings_ui_scale_slider.setMaximum(118)
         self.settings_ui_scale_slider.setValue(100)
         self.settings_ui_scale_slider.valueChanged.connect(self._handle_ui_scale_slider_changed)
+        self.settings_ui_scale_slider.setMaximum(150)
+        self.settings_ui_scale_slider.setTickInterval(4)
+        self.settings_ui_scale_slider.setPageStep(4)
+        self.settings_ui_scale_slider.setSingleStep(2)
+        self.settings_ui_scale_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.settings_backup_enabled_checkbox = QCheckBox("Backup automatico ativo")
         self.settings_backup_enabled_checkbox.setChecked(True)
         self.settings_backup_interval_input = QSpinBox()
         self.settings_backup_interval_input.setMinimum(1)
         self.settings_backup_interval_input.setMaximum(720)
         self.settings_backup_interval_input.setValue(24)
-        self.settings_backup_interval_input.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.settings_backup_interval_input.setAccelerated(True)
         self.settings_backup_interval_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.settings_backup_interval_input.setMinimumWidth(96)
+        self.settings_backup_interval_input.setMaximumWidth(120)
         self.settings_backup_interval_unit_combo = QComboBox()
         self.settings_backup_interval_unit_combo.addItem("Horas", "hours")
         self.settings_backup_interval_unit_combo.addItem("Dias", "days")
@@ -183,7 +190,8 @@ class DashboardSettingsFormMixin:
         interval_row = QHBoxLayout()
         interval_row.setSpacing(8)
         interval_row.addWidget(self.settings_backup_interval_input)
-        interval_row.addWidget(self.settings_backup_interval_unit_combo)
+        interval_row.addWidget(self.settings_backup_interval_unit_combo, 0)
+        interval_row.addStretch(1)
         path_row = QHBoxLayout()
         path_row.setSpacing(8)
         path_row.addWidget(self.settings_backup_path_input, 1)
@@ -231,6 +239,7 @@ class DashboardSettingsFormMixin:
         actions.addWidget(self.settings_save_button)
         self.settings_tabs = QTabWidget()
         self.settings_tabs.setObjectName("settingsTabs")
+        self._settings_context_ready = False
         self.settings_tabs.addTab(self._wrap_settings_tab(company_panel), "Empresa")
         self.settings_tabs.addTab(self._wrap_settings_tab(branding_panel), "Aparencia")
         self.settings_tabs.addTab(
@@ -238,6 +247,35 @@ class DashboardSettingsFormMixin:
             "Interface",
         )
         self.settings_tabs.addTab(self._wrap_settings_tab(backup_panel), "Backup")
+        self.settings_tabs.currentChanged.connect(self._handle_settings_context_changed)
+        for widget in (
+            self.settings_company_name_input,
+            self.settings_trade_name_input,
+            self.settings_document_input,
+            self.settings_email_input,
+            self.settings_phone_input,
+            self.settings_brand_name_input,
+            self.settings_brand_subtitle_input,
+            self.settings_backup_path_input,
+        ):
+            widget.textChanged.connect(self._handle_settings_context_changed)
+        for widget in (
+            self.settings_color_palette_combo,
+            self.settings_login_cover_preset_combo,
+            self.settings_theme_combo,
+            self.settings_language_combo,
+            self.settings_backup_interval_unit_combo,
+            self.settings_backup_destination_mode_combo,
+        ):
+            widget.currentIndexChanged.connect(self._handle_settings_context_changed)
+        self.settings_backup_enabled_checkbox.toggled.connect(self._handle_settings_context_changed)
+        self.settings_backup_interval_input.valueChanged.connect(
+            self._handle_settings_context_changed
+        )
+        for form_layout in (company_layout, branding_layout, interface_layout, backup_layout):
+            form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+            form_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+            form_layout.setFormAlignment(Qt.AlignmentFlag.AlignTop)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
@@ -250,8 +288,11 @@ class DashboardSettingsFormMixin:
         self._handle_login_cover_preset_changed()
         self._handle_backup_interval_unit_changed()
         self._handle_backup_destination_mode_changed()
+        if hasattr(self, "_restore_settings_resume_tab"):
+            self._restore_settings_resume_tab()
         if hasattr(self, "_capture_settings_form_snapshot"):
             self.settings_form_snapshot = self._capture_settings_form_snapshot()
+        self._settings_context_ready = True
         return panel
 
     @staticmethod

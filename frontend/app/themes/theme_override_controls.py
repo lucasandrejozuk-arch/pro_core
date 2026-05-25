@@ -156,6 +156,19 @@ def _palette_override_controls(palette: dict[str, str]) -> str:
         QPushButton#secondaryButton:hover {{
             background-color: {palette["primary_subtle"]};
         }}
+        QPushButton#loginBackendButton {{
+            background-color: {palette["primary_subtle"]};
+            border: 1px solid {palette["line"]};
+            border-radius: 14px;
+            color: {palette["primary"]};
+            font-weight: 700;
+            min-height: 24px;
+            padding: 2px 10px;
+        }}
+        QPushButton#loginBackendButton:hover {{
+            background-color: {palette["status_bg"]};
+            border-color: {palette["primary"]};
+        }}
         QPushButton#forgotPasswordButton {{
             background-color: {palette["surface_alt"]};
             border: 1px solid {palette["danger"]};

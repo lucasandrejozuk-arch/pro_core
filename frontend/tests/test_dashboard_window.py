@@ -44,6 +44,7 @@ def test_switching_modules_hides_dashboard_grid_and_marks_nav(qtbot) -> None:
     assert window.module_buttons["customers"].property("active") == "true"
     assert window.dashboard_grid_widget.isHidden()
     assert not window.customer_form_panel.isHidden()
+    assert "primeiro cliente" in window.module_guidance_label.text().lower()
 
 
 def test_sidebar_is_fixed_in_main_layout(qtbot) -> None:
@@ -110,6 +111,22 @@ def test_record_modules_use_protech_split_shell_and_search(qtbot) -> None:
     assert "Bruno Cliente" in window.customer_full_summary.toPlainText()
     assert not window.record_summary_panel.isHidden()
     assert "Bruno Cliente" in window.record_summary_text.toPlainText()
+    assert "cliente em foco" in window.module_guidance_label.text().lower()
+
+
+def test_record_module_guidance_returns_to_browse_after_clear_selection(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window.render_rows(
+        "Clientes",
+        [{"id": "customer-1", "name": "Ana Cliente", "email": "ana@example.com"}],
+        [("Nome", "name"), ("Email", "email")],
+        "customers",
+    )
+
+    window._clear_current_selection()
+
+    assert "selecione um cliente" in window.module_guidance_label.text().lower()
 
 
 def test_record_editor_button_opens_floating_side_panel(qtbot) -> None:

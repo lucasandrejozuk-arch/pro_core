@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSettings, Qt
 from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
@@ -20,6 +20,25 @@ def confirm_destructive_action(*args: Any, **kwargs: Any) -> bool:
 
 
 class DashboardEquipmentSupportMixin(DashboardEquipmentFieldsMixin):
+    def _remember_equipment_resume_selection(self) -> None:
+        settings = QSettings("PRO CORE", "PRO CORE")
+        settings.setValue("guided/equipment_id", self.selected_equipment_id or "")
+        settings.setValue("guided/equipment_board_id", self.selected_equipment_board_id or "")
+        settings.setValue(
+            "guided/equipment_component_id",
+            self.selected_equipment_component_id or "",
+        )
+
+    def _restore_equipment_resume_selection(self) -> None:
+        settings = QSettings("PRO CORE", "PRO CORE")
+        self.selected_equipment_id = str(settings.value("guided/equipment_id", "") or "") or None
+        self.selected_equipment_board_id = (
+            str(settings.value("guided/equipment_board_id", "") or "") or None
+        )
+        self.selected_equipment_component_id = (
+            str(settings.value("guided/equipment_component_id", "") or "") or None
+        )
+
     def _update_equipment_action_state(self) -> None:
         has_equipment = bool(self.selected_equipment_id)
         has_board = bool(self.selected_equipment_board_id)
@@ -112,12 +131,14 @@ class DashboardEquipmentSupportMixin(DashboardEquipmentFieldsMixin):
     def _set_equipment_operational_status(self, message: str, level: str) -> None:
         self.equipment_operational_status.setText(message)
         self.equipment_operational_status.setProperty("level", level)
+        self.equipment_operational_status.setVisible(bool(message))
         self.equipment_operational_status.style().unpolish(self.equipment_operational_status)
         self.equipment_operational_status.style().polish(self.equipment_operational_status)
 
     def _set_equipment_hierarchy_status(self, message: str, level: str) -> None:
         self.equipment_hierarchy_status.setText(message)
         self.equipment_hierarchy_status.setProperty("level", level)
+        self.equipment_hierarchy_status.setVisible(bool(message))
         self.equipment_hierarchy_status.style().unpolish(self.equipment_hierarchy_status)
         self.equipment_hierarchy_status.style().polish(self.equipment_hierarchy_status)
 
@@ -214,6 +235,7 @@ class DashboardEquipmentSupportMixin(DashboardEquipmentFieldsMixin):
         self._set_equipment_list_count(self.equipment_boards_table, 0)
         self._set_equipment_list_count(self.equipment_components_table, 0)
         self._update_record_summary_panel()
+        self._remember_equipment_resume_selection()
         self._update_equipment_action_state()
 
     def _clear_equipment_board_selection(self) -> None:
@@ -236,6 +258,7 @@ class DashboardEquipmentSupportMixin(DashboardEquipmentFieldsMixin):
         self.board_context_label.setText("Nenhum objeto vinculado selecionado")
         self._set_equipment_list_count(self.equipment_components_table, 0)
         self._update_record_summary_panel()
+        self._remember_equipment_resume_selection()
         self._update_equipment_action_state()
 
     def _clear_equipment_component_selection(self) -> None:
@@ -251,6 +274,7 @@ class DashboardEquipmentSupportMixin(DashboardEquipmentFieldsMixin):
             "SELECIONE UM COMPONENTE PARA VER OS DADOS COMPLETOS."
         )
         self._update_record_summary_panel()
+        self._remember_equipment_resume_selection()
         self._update_equipment_action_state()
 
     @staticmethod

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from frontend.app.core.i18n import apply_language_to_widgets, normalize_language, translate_ui_text
+from frontend.app.core.i18n_catalog import SOURCE_TEXT_PROP
 from frontend.app.themes.tokens import (
     EDITOR_DEFAULT_MAX_HEIGHT,
     EDITOR_SERVICE_ORDER_MAX_HEIGHT,
@@ -136,11 +137,99 @@ class DashboardStatusMixin:
 
     def _set_inline_status(self, label: QLabel, message: str, is_error: bool = False) -> None:
         label.setObjectName("errorText" if is_error else "mutedText")
-        label.setText("")
+        translated_message = (
+            translate_ui_text(message, self._current_ui_language()) if message else ""
+        )
+        label.setText(translated_message)
         label.style().unpolish(label)
         label.style().polish(label)
         if message:
             self._set_footer_message(message, "error" if is_error else "success")
+
+    def _set_module_guidance(self, message: str) -> None:
+        if not hasattr(self, "module_guidance_label"):
+            return
+        self.module_guidance_label.setProperty(SOURCE_TEXT_PROP, message)
+        self.module_guidance_label.setText(translate_ui_text(message, self._current_ui_language()))
+        should_show = bool(message) and self.active_module_key in self.searchable_module_keys
+        self.module_guidance_label.setVisible(should_show)
+        self.module_guidance_label.style().unpolish(self.module_guidance_label)
+        self.module_guidance_label.style().polish(self.module_guidance_label)
+
+    def _refresh_module_guidance(self) -> None:
+        self._set_module_guidance(self._module_guidance_message())
+
+    def _module_guidance_message(self) -> str:
+        module_key = getattr(self, "active_module_key", "dashboard")
+        if module_key not in getattr(self, "searchable_module_keys", set()):
+            return ""
+
+        search_term = ""
+        if hasattr(self, "module_search_input"):
+            search_term = self.module_search_input.text().strip()
+        if search_term and not self.current_rows:
+            return (
+                "Nenhum resultado nesta busca. Ajuste os termos ou limpe o filtro "
+                "para voltar ao fluxo."
+            )
+
+        has_selection = bool(self.current_selected_record)
+        if module_key == "customers":
+            if has_selection:
+                return "Cliente em foco. Revise os dados, salve ajustes ou envie um anexo."
+            if not self.all_rows:
+                return (
+                    "Comece pela base de clientes. Abra o Editor para cadastrar o primeiro cliente."
+                )
+            return "Selecione um cliente para revisar dados ou abra o Editor para um novo cadastro."
+
+        if module_key == "inventory":
+            if has_selection:
+                return "Item em foco. Revise saldo, custo e anexos antes de salvar."
+            if not self.all_rows:
+                return "Crie o primeiro item para liberar controles de reposicao e movimentacao."
+            return "Selecione um item para revisar estoque ou crie um novo cadastro."
+
+        if module_key == "service_orders":
+            if has_selection:
+                return "OS em foco. Atualize diagnostico, orcamento e andamento no mesmo fluxo."
+            if not self.all_rows:
+                return "Sem OS no momento. Abra o Editor para registrar uma nova entrada."
+            return (
+                "Selecione uma OS para continuar o fluxo tecnico ou abra o Editor "
+                "para uma nova entrada."
+            )
+
+        if module_key == "sectors":
+            if not self.all_rows:
+                return "Cadastre setores para organizar equipes e permissoes."
+            return "Selecione um setor para revisar estrutura e responsaveis."
+
+        if module_key == "users":
+            if not self.all_rows:
+                return "Cadastre usuarios para distribuir acesso operacional."
+            return "Selecione um usuario para revisar perfil, setor e acesso."
+
+        if module_key == "resource_access":
+            if not self.all_rows:
+                return "Defina acessos por conta para liberar cada modulo."
+            return "Selecione um acesso para revisar permissoes antes de salvar."
+
+        if module_key == "password_resets":
+            if not self.all_rows:
+                return "Nenhuma solicitacao pendente. Quando surgir uma, revise por aqui."
+            return "Selecione uma solicitacao para resolver o acesso com seguranca."
+
+        if module_key == "audit_logs":
+            if not self.all_rows:
+                return "Os registros de auditoria aparecerao aqui conforme o uso do sistema."
+            return "Selecione um evento para revisar contexto, usuario e impacto operacional."
+
+        if has_selection:
+            return "Registro em foco. Revise os detalhes e confirme a proxima acao."
+        if not self.all_rows:
+            return "Nenhum registro carregado ainda. Abra o Editor para iniciar este fluxo."
+        return "Selecione um registro para revisar detalhes ou abra o Editor para uma nova acao."
 
     def _animate_content_transition(self) -> None:
         if not hasattr(self, "main_scroll_area"):
@@ -230,11 +319,13 @@ class DashboardStatusMixin:
         editor_width = self.record_editor_width
         if self.active_module_key == "service_orders":
             editor_width = max(editor_width, 1120)
+        else:
+            editor_width = max(editor_width, 920)
         dialog.resize(editor_width, editor_height)
-        dialog.setMinimumWidth(min(editor_width, 980))
+        dialog.setMinimumWidth(min(editor_width, 860))
         dialog.setMinimumHeight(680)
         layout = QVBoxLayout(dialog)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(0)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.generic_form_column.setParent(dialog)

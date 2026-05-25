@@ -56,6 +56,19 @@ def _light_controls_section() -> str:
         QPushButton#secondaryButton:hover {
             background: #d0d7de;
         }
+        QPushButton#loginBackendButton {
+            background: rgba(9, 105, 218, 0.08);
+            border: 1px solid rgba(9, 105, 218, 0.18);
+            border-radius: 14px;
+            color: #0969da;
+            font-weight: 700;
+            min-height: 28px;
+            padding: 0 12px;
+        }
+        QPushButton#loginBackendButton:hover {
+            background: rgba(9, 105, 218, 0.14);
+            border-color: rgba(9, 105, 218, 0.26);
+        }
         QPushButton#forgotPasswordButton {
             background: #eaeef2;
             border: 1px solid #cf222e;

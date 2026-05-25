@@ -58,6 +58,19 @@ def _dark_controls_section() -> str:
         QPushButton#secondaryButton:hover {
             background: #30363d;
         }
+        QPushButton#loginBackendButton {
+            background: rgba(56, 189, 248, 0.10);
+            border: 1px solid rgba(56, 189, 248, 0.24);
+            border-radius: 14px;
+            color: #8ae8ff;
+            font-weight: 700;
+            min-height: 30px;
+            padding: 0 12px;
+        }
+        QPushButton#loginBackendButton:hover {
+            background: rgba(56, 189, 248, 0.16);
+            border-color: rgba(56, 189, 248, 0.32);
+        }
         QPushButton#forgotPasswordButton {
             background: #21262d;
             border: 1px solid #ff7b72;

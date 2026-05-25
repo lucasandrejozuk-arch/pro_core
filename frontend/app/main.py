@@ -102,7 +102,10 @@ class ProCoreApplication(
         self.splash.close()
         self.password_window.hide()
         self.dashboard_window.hide()
-        self._refresh_login_branding()
+        if self._has_cached_login_branding():
+            self._apply_cached_login_branding()
+        else:
+            self._refresh_login_branding()
         self._apply_runtime_language()
         self.login_window.clear_form()
         profile = prepare_window_for_display(

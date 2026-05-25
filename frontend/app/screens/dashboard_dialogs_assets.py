@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -50,39 +51,55 @@ class EquipmentAssetDialog(QDialog):
         self.setWindowTitle(title)
         self.setModal(True)
         self.setObjectName("assetDialog")
+        self.setSizeGripEnabled(True)
         self.fields = fields
         self.inputs: dict[str, QLineEdit | QTextEdit] = {}
         self._payload: dict[str, Any] = {}
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(4)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
 
         form_layout = QFormLayout()
-        form_layout.setSpacing(4)
-        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        form_layout.setSpacing(10)
+        form_layout.setHorizontalSpacing(14)
+        form_layout.setVerticalSpacing(10)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        form_layout.setFormAlignment(Qt.AlignmentFlag.AlignTop)
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         values = values or {}
+        multiline_fields = 0
         for field in fields:
             key = str(field["key"])
             if field.get("multiline"):
+                multiline_fields += 1
                 input_widget = QTextEdit()
                 input_widget.setPlaceholderText(str(field.get("placeholder") or ""))
                 input_widget.setPlainText(str(values.get(key) or ""))
-                input_widget.setMinimumHeight(72)
-                input_widget.setMaximumHeight(96)
+                input_widget.setAcceptRichText(False)
+                input_widget.setTabChangesFocus(True)
+                input_widget.setMinimumHeight(92)
+                input_widget.setMaximumHeight(124)
+                input_widget.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Fixed,
+                )
             else:
                 input_widget = QLineEdit()
                 input_widget.setPlaceholderText(str(field.get("placeholder") or ""))
                 input_widget.setText(str(values.get(key) or ""))
+                input_widget.setClearButtonEnabled(True)
+                input_widget.setMinimumHeight(36)
             self.inputs[key] = input_widget
             form_layout.addRow(str(field["label"]), input_widget)
 
         self.error_label = QLabel("")
         self.error_label.setObjectName("errorText")
+        self.error_label.setWordWrap(True)
 
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(6)
+        button_layout.setSpacing(8)
         button_layout.addStretch()
         save_button = QPushButton("Salvar")
         save_button.clicked.connect(self._accept)
@@ -95,7 +112,10 @@ class EquipmentAssetDialog(QDialog):
         layout.addLayout(form_layout)
         layout.addWidget(self.error_label)
         layout.addLayout(button_layout)
-        self.resize(420, 280)
+        base_width = 560 if multiline_fields else 500
+        base_height = 260 + (multiline_fields * 34)
+        self.setMinimumWidth(base_width - 20)
+        self.resize(base_width, max(320, min(base_height, 420)))
         apply_language_to_widgets(current_ui_language(), self)
 
     def payload(self) -> dict[str, Any]:

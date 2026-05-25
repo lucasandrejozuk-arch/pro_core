@@ -6,7 +6,7 @@ class ProCoreMainSignalsMixin:
         self.splash.finished.connect(self.show_login)
         self.login_window.login_requested.connect(self.handle_login)
         self.login_window.password_reset_requested.connect(self.handle_password_reset_request)
-        self.login_window.backend_reconnect_requested.connect(self.handle_login_backend_reconnect)
+        self.login_window.backend_connect_requested.connect(self.handle_login_backend_connect)
         self.password_window.password_change_requested.connect(self.handle_password_change)
         self.dashboard_window.logout_requested.connect(self.handle_logout)
         self.dashboard_window.exit_requested.connect(self.qt_app.quit)

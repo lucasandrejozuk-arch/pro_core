@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
+from backend.app.models.company import Company
 from backend.app.models.user import User
 from backend.app.services.configuration import set_setting_value
 
@@ -126,6 +127,33 @@ def test_login_appearance_is_public_and_uses_admin_branding(
     assert body["language"] == "pt-BR"
     assert body["login_cover_preset"] == "original"
     assert body["login_cover_image_data_url"] is None
+
+
+def test_login_appearance_prefers_most_recently_customized_active_company(
+    client: TestClient,
+    db_session,
+    company,
+) -> None:
+    older_company = company
+    newer_company = Company(name="PRO CORE Branch")
+    db_session.add(newer_company)
+    db_session.commit()
+    db_session.refresh(newer_company)
+
+    set_setting_value(db_session, older_company.id, "ui.brand_name", "Marca Antiga")
+    set_setting_value(db_session, older_company.id, "ui.brand_subtitle", "Laboratorio antigo")
+    db_session.commit()
+
+    set_setting_value(db_session, newer_company.id, "ui.brand_name", "Marca Atual")
+    set_setting_value(db_session, newer_company.id, "ui.brand_subtitle", "Laboratorio atual")
+    db_session.commit()
+
+    response = client.get("/api/v1/settings/login-appearance")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["brand_name"] == "Marca Atual"
+    assert body["brand_subtitle"] == "Laboratorio atual"
 
 
 def test_admin_can_store_custom_login_cover(

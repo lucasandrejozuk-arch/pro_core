@@ -2,11 +2,74 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import QSettings
+
 from frontend.app.core.i18n import translate_ui_text
 from frontend.app.themes.styles import DEFAULT_COLOR_PALETTE
 
 
 class DashboardFormStateAdminSettingsAuditMixin:
+    def _remember_settings_resume_tab(self) -> None:
+        if not hasattr(self, "settings_tabs"):
+            return
+        settings = QSettings("PRO CORE", "PRO CORE")
+        settings.setValue(
+            "guided/settings_tab",
+            self._active_settings_tab_key(),
+        )
+        settings.sync()
+
+    def _restore_settings_resume_tab(self) -> None:
+        if not hasattr(self, "settings_tabs"):
+            return
+        tab_key = str(QSettings("PRO CORE", "PRO CORE").value("guided/settings_tab", "") or "")
+        index_by_key = {
+            "company": 0,
+            "appearance": 1,
+            "interface": 2,
+            "backup": 3,
+        }
+        if tab_key not in index_by_key:
+            return
+        self.settings_tabs.blockSignals(True)
+        self.settings_tabs.setCurrentIndex(index_by_key[tab_key])
+        self.settings_tabs.blockSignals(False)
+
+    def _handle_settings_context_changed(self, *_args) -> None:
+        if not getattr(self, "_settings_context_ready", False):
+            return
+        self._remember_settings_resume_tab()
+        if hasattr(self, "settings_operational_status"):
+            self._refresh_settings_operational_status()
+
+    def _settings_tab_guidance_message(self) -> str:
+        tab_key = (
+            self._active_settings_tab_key()
+            if hasattr(self, "_active_settings_tab_key")
+            else "company"
+        )
+        return {
+            "company": "Empresa em foco: revise cadastro, documento e canais de contato.",
+            "appearance": "Aparencia em foco: ajuste marca, paleta e capa do login.",
+            "interface": "Interface em foco: confirme idioma e escala antes de aplicar.",
+            "backup": "Backup em foco: valide frequencia, destino e ultimo ciclo.",
+        }.get(tab_key, "Configuracoes em foco: revise os dados antes de salvar.")
+
+    def prepare_settings_form_loading(self) -> None:
+        language = self._current_ui_language() if hasattr(self, "_current_ui_language") else "pt-BR"
+        self.settings_form_status.setText("")
+        self._set_settings_operational_status(
+            translate_ui_text(
+                "Carregando configuracoes da empresa e preferencias visuais.", language
+            ),
+            "info",
+        )
+        self.settings_backup_status.setText(
+            translate_ui_text(
+                "Backup: carregando intervalo, escala e destino configurados.", language
+            )
+        )
+
     def clear_settings_form(self) -> None:
         self.current_settings = {}
         self.settings_company_name_input.clear()
@@ -56,6 +119,7 @@ class DashboardFormStateAdminSettingsAuditMixin:
     def _refresh_settings_operational_status(self, settings: dict[str, Any] | None = None) -> None:
         active_settings = settings if settings is not None else self.current_settings
         language = self._current_ui_language() if hasattr(self, "_current_ui_language") else "pt-BR"
+        guidance = translate_ui_text(self._settings_tab_guidance_message(), language)
         if not active_settings:
             self._set_settings_operational_status(
                 translate_ui_text(
@@ -70,13 +134,16 @@ class DashboardFormStateAdminSettingsAuditMixin:
                     language,
                 )
             )
+            self._remember_settings_resume_tab()
             return
         company_name = self._format_value(active_settings.get("company_name")) or "-"
         brand_name = self._format_value(active_settings.get("brand_name")) or company_name
         theme = self._format_value(active_settings.get("theme")) or "light"
         scale = round(self.ui_scale_value * 100)
         self._set_settings_operational_status(
-            translate_ui_text(
+            guidance
+            + " | "
+            + translate_ui_text(
                 f"Identidade: {brand_name} | Empresa: {company_name} | "
                 f"Tema: {theme} | Escala: {scale}%.",
                 language,
@@ -88,13 +155,27 @@ class DashboardFormStateAdminSettingsAuditMixin:
         destination = self._format_value(active_settings.get("backup_storage_path")) or "backups"
         last_run = self._format_value(active_settings.get("backup_last_run_at")) or "nunca"
         backup_state = "ativo" if backup_enabled else "inativo"
+        backup_prefix = ""
+        if (
+            hasattr(self, "_active_settings_tab_key")
+            and self._active_settings_tab_key() == "backup"
+        ):
+            backup_prefix = (
+                translate_ui_text(
+                    "Retome o backup: confirme a agenda e o destino antes de salvar.",
+                    language,
+                )
+                + " | "
+            )
         self.settings_backup_status.setText(
-            translate_ui_text(
+            backup_prefix
+            + translate_ui_text(
                 f"Backup: {backup_state} | intervalo {interval}h | "
                 f"destino {destination} | ultimo {last_run}.",
                 language,
             )
         )
+        self._remember_settings_resume_tab()
 
     def clear_audit_form(self) -> None:
         self.audit_full_summary.setPlainText("Selecione um log para ver os detalhes.")

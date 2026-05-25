@@ -7,6 +7,8 @@ class DashboardEquipmentTablesMixin:
     def _render_equipment_rows(self, title: str, rows: list[dict[str, Any]]) -> None:
         self._set_active_module("equipment")
         self.current_rows = rows
+        if hasattr(self, "_restore_equipment_resume_selection"):
+            self._restore_equipment_resume_selection()
         self.data_title.setText(title)
         self.empty_label.hide()
         self.table.hide()
@@ -148,6 +150,8 @@ class DashboardEquipmentTablesMixin:
         self.selected_equipment_component_id = None
         self.equipment_full_summary.setPlainText(self._format_equipment_full_summary(equipment))
         self.equipment_context_label.setText(f"Equipamento: {self._equipment_label(equipment)}")
+        if hasattr(self, "_remember_equipment_resume_selection"):
+            self._remember_equipment_resume_selection()
         self._refresh_equipment_boards_table()
         self._update_equipment_action_state()
 
@@ -165,6 +169,8 @@ class DashboardEquipmentTablesMixin:
         self.selected_equipment_component_id = None
         self.board_full_summary.setPlainText(self._format_equipment_board_summary(board))
         self.board_context_label.setText(f"Objeto: {self._board_label(board)}")
+        if hasattr(self, "_remember_equipment_resume_selection"):
+            self._remember_equipment_resume_selection()
         self._refresh_equipment_components_table()
         self._update_equipment_action_state()
 
@@ -182,4 +188,6 @@ class DashboardEquipmentTablesMixin:
         self.component_full_summary.setPlainText(
             self._format_equipment_component_summary(component)
         )
+        if hasattr(self, "_remember_equipment_resume_selection"):
+            self._remember_equipment_resume_selection()
         self._update_equipment_action_state()

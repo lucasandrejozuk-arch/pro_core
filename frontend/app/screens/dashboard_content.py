@@ -126,6 +126,10 @@ def build_dashboard_content(self) -> QScrollArea:
     self.data_description = QLabel("")
     self.data_description.setObjectName("mutedText")
     self.data_description.setWordWrap(True)
+    self.module_guidance_label = QLabel("")
+    self.module_guidance_label.setObjectName("mutedText")
+    self.module_guidance_label.setWordWrap(True)
+    self.module_guidance_label.hide()
     self.record_count_label = QLabel("")
     self.record_count_label.setObjectName("mutedText")
 
@@ -210,6 +214,7 @@ def build_dashboard_content(self) -> QScrollArea:
     record_list_layout.setSpacing(7)
     record_list_layout.addWidget(self.data_title)
     record_list_layout.addWidget(self.data_description)
+    record_list_layout.addWidget(self.module_guidance_label)
     record_list_layout.addWidget(self.record_count_label)
     record_list_layout.addWidget(self.module_search_input)
     record_list_layout.addWidget(self.empty_label)

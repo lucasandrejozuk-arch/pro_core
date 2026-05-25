@@ -9,6 +9,10 @@ from frontend.app.core.grid import add_widget, create_grid
 class DashboardServiceOrderFormSectionsMixin:
     @staticmethod
     def _build_service_order_section_panel(title: str, form_layout: QFormLayout) -> QFrame:
+        form_layout.setHorizontalSpacing(14)
+        form_layout.setVerticalSpacing(10)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         title_label = QLabel(title)
         title_label.setObjectName("formGroupTitle")
         section = QFrame()
@@ -16,6 +20,7 @@ class DashboardServiceOrderFormSectionsMixin:
         section_layout = QVBoxLayout(section)
         section_layout.setContentsMargins(12, 12, 12, 12)
         section_layout.setSpacing(8)
+        section_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         section_layout.addWidget(title_label)
         section_layout.addLayout(form_layout)
         return section
@@ -80,28 +85,36 @@ class DashboardServiceOrderFormSectionsMixin:
             fields_layout,
             self._build_service_order_section_panel("ENTRADA LOGÍSTICA", record_form_layout),
             0,
+            0,
+            6,
         )
         add_widget(
             fields_layout,
             self._build_service_order_section_panel("DIAGNÓSTICO TÉCNICO", technical_form_layout),
-            1,
+            0,
+            6,
+            6,
         )
         add_widget(
             fields_layout,
             self._build_service_order_section_panel("ORÇAMENTO", budget_form_layout),
-            2,
+            1,
+            0,
+            6,
         )
         add_widget(
             fields_layout,
             self._build_service_order_section_panel(
                 "LOGÍSTICA E FECHAMENTO", logistics_form_layout
             ),
-            3,
+            1,
+            6,
+            6,
         )
         add_widget(
             fields_layout,
             self._build_service_order_section_panel("GERAL", general_form_layout),
-            4,
+            2,
         )
         return fields_layout
 

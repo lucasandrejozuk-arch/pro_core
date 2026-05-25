@@ -39,9 +39,13 @@ def test_settings_menu_keeps_all_configuration_groups_visible(qtbot) -> None:
 
 
 def test_settings_operational_status_tracks_identity_interface_and_backup(qtbot) -> None:
+    QSettings("PRO CORE", "PRO CORE").setValue("appearance/language", "pt-BR")
     window = DashboardWindow()
     qtbot.addWidget(window)
     window.configure_ui_scale(0.82, 1.18, 1.08)
+    window.configure_ui_scale(0.82, 1.5, 1.08)
+    assert window.settings_ui_scale_slider.maximum() == 150
+    window.settings_tabs.setCurrentIndex(1)
 
     window._populate_settings_form(
         {
@@ -62,6 +66,7 @@ def test_settings_operational_status_tracks_identity_interface_and_backup(qtbot)
     )
 
     assert window.settings_operational_status.property("level") == "info"
+    assert "aparencia em foco" in window.settings_operational_status.text().lower()
     assert "Pro Assist" in window.settings_operational_status.text()
     assert "PRO CORE Lab" in window.settings_operational_status.text()
     assert "Escala: 108%" in window.settings_operational_status.text()
@@ -72,6 +77,41 @@ def test_settings_operational_status_tracks_identity_interface_and_backup(qtbot)
     window.settings_ui_scale_slider.setValue(112)
 
     assert "Escala: 112%" in window.settings_operational_status.text()
+
+
+def test_settings_restore_last_open_tab_across_windows(qtbot) -> None:
+    settings = QSettings("PRO CORE", "PRO CORE")
+    settings.setValue("guided/settings_tab", "company")
+    settings.sync()
+    first_window = DashboardWindow()
+    qtbot.addWidget(first_window)
+    first_window.settings_tabs.setCurrentIndex(3)
+
+    second_window = DashboardWindow()
+    qtbot.addWidget(second_window)
+
+    assert second_window.settings_tabs.currentIndex() == 3
+
+
+def test_settings_backup_guidance_prioritizes_backup_tab(qtbot) -> None:
+    QSettings("PRO CORE", "PRO CORE").setValue("appearance/language", "pt-BR")
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+    window._populate_settings_form(
+        {
+            "company_name": "PRO CORE Lab",
+            "brand_name": "Pro Assist",
+            "theme": "dark",
+            "backup_enabled": True,
+            "backup_interval_hours": 24,
+            "backup_storage_path": "backups",
+        }
+    )
+
+    window.settings_tabs.setCurrentIndex(3)
+
+    assert "backup em foco" in window.settings_operational_status.text().lower()
+    assert "retome o backup" in window.settings_backup_status.text().lower()
 
 
 def test_settings_save_emits_branding_payload(qtbot) -> None:
@@ -174,6 +214,60 @@ def test_render_settings_preserves_existing_fields_on_partial_update(qtbot) -> N
     assert window.settings_brand_name_input.text() == "Pro Assist"
     assert window.settings_theme_combo.currentData() == "dark"
     assert window.settings_color_palette_combo.currentData() == "green"
+
+
+def test_settings_loading_state_does_not_show_false_not_loaded_warning(qtbot) -> None:
+    QSettings("PRO CORE", "PRO CORE").setValue("appearance/language", "pt-BR")
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_loading("Configuracoes", "settings")
+
+    assert "ainda nao carregadas" not in window.settings_operational_status.text().lower()
+    assert "carregando configuracoes" in window.settings_operational_status.text().lower()
+
+
+def test_settings_loading_state_preserves_existing_company_fields(qtbot) -> None:
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.render_settings(
+        {
+            "company_name": "PRO CORE Lab",
+            "trade_name": "Assistencia Teste",
+            "document_number": "12.345.678/0001-90",
+            "email": "contato@procore.test",
+            "phone": "(11) 99999-0000",
+            "brand_name": "Pro Assist",
+            "brand_subtitle": "Laboratorio tecnico",
+            "color_palette": "blue",
+            "theme": "light",
+            "language": "pt-BR",
+            "login_cover_preset": "precision_grid",
+            "login_cover_image_data_url": None,
+            "backup_enabled": True,
+            "backup_interval_hours": 12,
+            "backup_storage_path": "D:/backups",
+            "backup_last_run_at": "2026-05-14T10:00:00",
+        }
+    )
+
+    window.render_loading("Configuracoes", "settings")
+
+    assert window.settings_company_name_input.text() == "PRO CORE Lab"
+    assert window.settings_email_input.text() == "contato@procore.test"
+    assert "carregando configuracoes" in window.settings_operational_status.text().lower()
+
+
+def test_settings_form_status_is_visible_in_the_panel(qtbot) -> None:
+    QSettings("PRO CORE", "PRO CORE").setValue("appearance/language", "pt-BR")
+    window = DashboardWindow()
+    qtbot.addWidget(window)
+
+    window.set_settings_form_status("Configuracoes salvas.")
+
+    assert window.settings_form_status.text() == "Configuracoes salvas."
+    assert window.footer_message_label.text() == "Configuracoes salvas."
 
 
 def test_settings_save_requires_image_for_custom_login_cover(qtbot) -> None:

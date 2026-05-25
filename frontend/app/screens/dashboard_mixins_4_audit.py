@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
 
 from frontend.app.widgets import create_summary_text
 
@@ -25,6 +26,17 @@ class DashboardAuditMixin:
         self.audit_retention_status.setWordWrap(True)
         self.audit_form_status = QLabel("")
         self.audit_form_status.setObjectName("mutedText")
+        summary_panel = QFrame()
+        summary_panel.setObjectName("formSubPanel")
+        summary_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        summary_layout = QVBoxLayout(summary_panel)
+        summary_layout.setContentsMargins(12, 12, 12, 12)
+        summary_layout.setSpacing(8)
+        summary_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        summary_title = QLabel("DADOS COMPLETOS")
+        summary_title.setObjectName("formGroupTitle")
+        summary_layout.addWidget(summary_title)
+        summary_layout.addWidget(self.audit_full_summary)
         self.audit_delete_button = QPushButton("Excluir log")
         self.audit_delete_button.setObjectName("dangerButton")
         self.audit_delete_button.setEnabled(False)
@@ -38,7 +50,7 @@ class DashboardAuditMixin:
         layout.addWidget(title)
         layout.addWidget(self.audit_operational_status)
         layout.addWidget(self.audit_retention_status)
-        layout.addWidget(self.audit_full_summary)
+        layout.addWidget(summary_panel)
         layout.addWidget(self.audit_form_status)
         layout.addLayout(actions)
         return panel

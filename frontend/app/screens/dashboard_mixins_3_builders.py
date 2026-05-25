@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QFrame,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -19,33 +20,60 @@ from frontend.app.widgets import create_summary_text
 
 
 class DashboardToolBuilderMixin:
+    @staticmethod
+    def _configure_tool_form(form: QFormLayout) -> None:
+        form.setSpacing(10)
+        form.setHorizontalSpacing(14)
+        form.setVerticalSpacing(10)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        form.setFormAlignment(Qt.AlignmentFlag.AlignTop)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+    @staticmethod
+    def _build_tool_shell(widget: QWidget, panel: QFrame) -> None:
+        panel.setMaximumWidth(1180)
+        shell = QWidget()
+        shell_layout = QHBoxLayout(shell)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
+        shell_layout.addWidget(panel, 1)
+        shell_layout.addStretch(1)
+
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(shell)
+        layout.addStretch(1)
+
     def _build_ohm_tool(self) -> QWidget:
         widget = QWidget()
         form_panel = QFrame()
         form_panel.setObjectName("toolPanel")
-        form_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(form_panel)
+        form_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        self._build_tool_shell(widget, form_panel)
 
         self.ohm_target_combo = QComboBox()
         self.ohm_target_combo.addItem("Tensao", "voltage")
         self.ohm_target_combo.addItem("Corrente", "current")
         self.ohm_target_combo.addItem("Resistencia", "resistance")
+        self.ohm_target_combo.setMinimumHeight(36)
         self.ohm_voltage_input = QLineEdit()
         self.ohm_voltage_input.setPlaceholderText("Tensao (V)")
+        self.ohm_voltage_input.setMinimumHeight(36)
         self.ohm_current_input = QLineEdit()
         self.ohm_current_input.setPlaceholderText("Corrente (A)")
+        self.ohm_current_input.setMinimumHeight(36)
         self.ohm_resistance_input = QLineEdit()
         self.ohm_resistance_input.setPlaceholderText("Resistencia (ohm)")
+        self.ohm_resistance_input.setMinimumHeight(36)
         self.ohm_result = create_summary_text(58, 86)
         self.ohm_result.setPlainText("")
         result_title = QLabel("Resultado")
         result_title.setObjectName("formGroupTitle")
 
         form = QFormLayout()
-        form.setSpacing(8)
+        self._configure_tool_form(form)
         form.addRow("Calcular:", self.ohm_target_combo)
         form.addRow("Tensao (V):", self.ohm_voltage_input)
         form.addRow("Corrente (A):", self.ohm_current_input)
@@ -101,13 +129,16 @@ class DashboardToolBuilderMixin:
         widget = QWidget()
         panel = QFrame()
         panel.setObjectName("toolPanel")
-        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        self._build_tool_shell(widget, panel)
         inputs: dict[str, QLineEdit] = {}
         form = QFormLayout()
-        form.setSpacing(8)
+        self._configure_tool_form(form)
         for label, key in fields:
             input_widget = QLineEdit()
             input_widget.setPlaceholderText(label)
+            input_widget.setMinimumHeight(36)
+            input_widget.setClearButtonEnabled(True)
             inputs[key] = input_widget
             form.addRow(f"{label}:", input_widget)
         result = create_summary_text(58, 92)
@@ -147,11 +178,6 @@ class DashboardToolBuilderMixin:
         input_layout.addStretch(1)
         input_layout.addWidget(calculate_button, 0, Qt.AlignmentFlag.AlignLeft)
         panel_layout.addLayout(input_layout)
-
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(panel)
         widget.parent_specialty_text = None
         return widget
 

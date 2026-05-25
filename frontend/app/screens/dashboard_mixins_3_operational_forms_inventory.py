@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -8,6 +9,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
@@ -31,6 +33,12 @@ class DashboardInventoryFormBuilderMixin:
 
         self.inventory_group_tabs = QTabWidget()
         self.inventory_group_tabs.setObjectName("settingsTabs")
+        self.inventory_group_tabs.setDocumentMode(True)
+        self.inventory_group_tabs.setUsesScrollButtons(True)
+        self.inventory_group_tabs.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
         self.inventory_stock_group_keys: list[str] = []
         for stock_group_key, stock_group_label in STOCK_GROUP_OPTIONS:
             placeholder = QWidget()
@@ -38,22 +46,38 @@ class DashboardInventoryFormBuilderMixin:
             self.inventory_group_tabs.addTab(placeholder, stock_group_label)
             self.inventory_stock_group_keys.append(stock_group_key)
         self.inventory_group_tabs.currentChanged.connect(self._handle_inventory_stock_group_changed)
+        self.inventory_group_tabs.setMaximumHeight(
+            self.inventory_group_tabs.tabBar().sizeHint().height() + 8
+        )
 
         self.inventory_category_input = QComboBox()
+        self.inventory_category_input.setMinimumHeight(36)
         self.inventory_category_input.currentIndexChanged.connect(
             self._handle_inventory_category_changed
         )
 
-        step_1_layout = QFormLayout()
+        step_1_layout = QVBoxLayout()
+        step_1_layout.setContentsMargins(0, 0, 0, 0)
         step_1_layout.setSpacing(10)
-        step_1_layout.addRow("Submodulo", self.inventory_group_tabs)
-        step_1_layout.addRow("Categoria", self.inventory_category_input)
+        step_1_tabs_label = QLabel("SUBMODULO")
+        step_1_tabs_label.setObjectName("formGroupTitle")
+        step_1_layout.addWidget(step_1_tabs_label)
+        step_1_layout.addWidget(self.inventory_group_tabs)
+        step_1_form = QFormLayout()
+        step_1_form.setSpacing(10)
+        step_1_form.setHorizontalSpacing(14)
+        step_1_form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        step_1_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        step_1_form.addRow("Categoria", self.inventory_category_input)
+        step_1_layout.addLayout(step_1_form)
 
         step_1_panel = QFrame()
         step_1_panel.setObjectName("formSubPanel")
+        step_1_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         step_1_panel_layout = QVBoxLayout(step_1_panel)
         step_1_panel_layout.setContentsMargins(12, 12, 12, 12)
         step_1_panel_layout.setSpacing(8)
+        step_1_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         step_1_panel_layout.addLayout(step_1_layout)
 
         self.inventory_step_1_panel = step_1_panel
@@ -61,6 +85,7 @@ class DashboardInventoryFormBuilderMixin:
         self.inventory_sku_input = QLineEdit()
         self.inventory_sku_input.setPlaceholderText("ID gerado automaticamente")
         self.inventory_sku_input.setReadOnly(True)
+        self.inventory_sku_input.setMinimumHeight(36)
 
         self.inventory_generate_id_button = QPushButton("Gerar ID")
         self.inventory_generate_id_button.setObjectName("secondaryButton")
@@ -74,18 +99,25 @@ class DashboardInventoryFormBuilderMixin:
 
         self.inventory_name_input = QLineEdit()
         self.inventory_name_input.setPlaceholderText("Nome descritivo do item")
+        self.inventory_name_input.setClearButtonEnabled(True)
+        self.inventory_name_input.setMinimumHeight(36)
 
         self.inventory_quantity_input = QLineEdit()
         self.inventory_quantity_input.setPlaceholderText("Quantidade")
+        self.inventory_quantity_input.setMinimumHeight(36)
 
         self.inventory_minimum_quantity_input = QLineEdit()
         self.inventory_minimum_quantity_input.setPlaceholderText("Quantidade minima")
+        self.inventory_minimum_quantity_input.setMinimumHeight(36)
 
         self.inventory_location_input = QLineEdit()
         self.inventory_location_input.setPlaceholderText("Digite ou selecione localizacao")
+        self.inventory_location_input.setClearButtonEnabled(True)
+        self.inventory_location_input.setMinimumHeight(36)
 
         self.inventory_unit_cost_input = QLineEdit()
         self.inventory_unit_cost_input.setPlaceholderText("Custo unitario")
+        self.inventory_unit_cost_input.setMinimumHeight(36)
 
         self.inventory_dynamic_specs_title = QLabel("ESPECIFICACOES TECNICAS POR CATEGORIA")
         self.inventory_dynamic_specs_title.setObjectName("formGroupTitle")
@@ -97,6 +129,9 @@ class DashboardInventoryFormBuilderMixin:
 
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
+        form_layout.setHorizontalSpacing(14)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         form_layout.addRow("ID", sku_row)
         form_layout.addRow("Nome", self.inventory_name_input)
         form_layout.addRow("Quantidade", self.inventory_quantity_input)
@@ -110,9 +145,13 @@ class DashboardInventoryFormBuilderMixin:
         inventory_fields_title.setObjectName("formGroupTitle")
         inventory_fields_panel = QFrame()
         inventory_fields_panel.setObjectName("formSubPanel")
+        inventory_fields_panel.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum
+        )
         inventory_fields_panel_layout = QVBoxLayout(inventory_fields_panel)
         inventory_fields_panel_layout.setContentsMargins(12, 12, 12, 12)
         inventory_fields_panel_layout.setSpacing(8)
+        inventory_fields_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         inventory_fields_panel_layout.addWidget(inventory_fields_title)
         inventory_fields_panel_layout.addLayout(form_layout)
 
@@ -136,23 +175,31 @@ class DashboardInventoryFormBuilderMixin:
 
         self.inventory_notes_input = QTextEdit()
         self.inventory_notes_input.setPlaceholderText("Observacoes extras (opcional)")
+        self.inventory_notes_input.setAcceptRichText(False)
+        self.inventory_notes_input.setTabChangesFocus(True)
         self.inventory_notes_input.setMinimumHeight(88)
         self.inventory_notes_input.setMaximumHeight(132)
 
         self.inventory_document_path_input = QLineEdit()
         self.inventory_document_path_input.setPlaceholderText("Nenhum arquivo")
         self.inventory_document_path_input.setReadOnly(True)
+        self.inventory_document_path_input.setMinimumHeight(36)
 
         self.inventory_documents_summary = create_summary_text(70, 120)
         self.inventory_documents_summary.setPlainText("Nenhum anexo vinculado ao item.")
 
         self.inventory_documents_buttons_frame = QFrame()
         self.inventory_documents_buttons_frame.setObjectName("formSubPanel")
+        self.inventory_documents_buttons_frame.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Maximum,
+        )
         self.inventory_documents_buttons_layout = QVBoxLayout(
             self.inventory_documents_buttons_frame
         )
         self.inventory_documents_buttons_layout.setContentsMargins(8, 8, 8, 8)
         self.inventory_documents_buttons_layout.setSpacing(6)
+        self.inventory_documents_buttons_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.inventory_documents_buttons_layout.addWidget(
             QLabel("Selecione um item para habilitar downloads por anexo.")
         )
@@ -174,9 +221,13 @@ class DashboardInventoryFormBuilderMixin:
 
         step_3_panel = QFrame()
         step_3_panel.setObjectName("formSubPanel")
+        step_3_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         step_3_layout = QFormLayout(step_3_panel)
         step_3_layout.setContentsMargins(12, 12, 12, 12)
         step_3_layout.setSpacing(10)
+        step_3_layout.setHorizontalSpacing(14)
+        step_3_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        step_3_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         step_3_title = QLabel("ETAPA 3/3 - CONFIGURACOES FINAIS")
         step_3_title.setObjectName("formGroupTitle")
         step_3_layout.addRow(step_3_title)

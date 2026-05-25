@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
     QPushButton,
+    QSizePolicy,
     QTableWidget,
 )
 
@@ -19,6 +20,24 @@ from frontend.app.themes.tokens import EQUIPMENT_SCROLL_MIN_HEIGHT
 
 
 class DashboardLayoutMixin:
+    def _recommended_dashboard_columns(self, width: int | None = None) -> int:
+        active_width = width if width is not None else self.width()
+        if active_width < 1500 or self.ui_scale_value >= 1.22:
+            return 2
+        return 4
+
+    def _apply_responsive_form_guards(self) -> None:
+        wrap_rows = self.width() < 1500 or self.ui_scale_value >= 1.22
+        row_policy = (
+            QFormLayout.RowWrapPolicy.WrapLongRows
+            if wrap_rows
+            else QFormLayout.RowWrapPolicy.DontWrapRows
+        )
+        for form_layout in self.findChildren(QFormLayout):
+            form_layout.setRowWrapPolicy(row_policy)
+            form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+            form_layout.setFormAlignment(Qt.AlignmentFlag.AlignTop)
+
     def _configure_sidebar_button(self, button: QPushButton, icon_name: str, tooltip: str) -> None:
         button.setText("")
         button.setToolTip(tooltip)
@@ -40,6 +59,13 @@ class DashboardLayoutMixin:
             elif object_name in {"formSubPanel", "workflowPanel", "equipmentSection"}:
                 layout.setContentsMargins(8, 8, 8, 8)
                 layout.setSpacing(6)
+
+            if object_name in {"formSubPanel", "toolPanel", "toolResultPanel", "adminDetailsPanel"}:
+                frame.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Maximum,
+                )
+                layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         for form_layout in self.findChildren(QFormLayout):
             form_layout.setHorizontalSpacing(8)
@@ -67,24 +93,30 @@ class DashboardLayoutMixin:
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.Wheel and isinstance(watched, (QComboBox, QAbstractSpinBox)):
             return True
-        if (
-            watched is self.table.viewport()
-            and event.type() == QEvent.Type.MouseButtonPress
-            and self.table.itemAt(event.position().toPoint()) is None
-        ):
-            self._clear_current_selection()
+        try:
+            if (
+                watched is self.table.viewport()
+                and event.type() == QEvent.Type.MouseButtonPress
+                and self.table.itemAt(event.position().toPoint()) is None
+            ):
+                self._clear_current_selection()
+        except RuntimeError:
+            return False
         for equipment_table in (
             getattr(self, "equipment_table", None),
             getattr(self, "equipment_boards_table", None),
             getattr(self, "equipment_components_table", None),
         ):
-            if (
-                equipment_table is not None
-                and watched is equipment_table.viewport()
-                and event.type() == QEvent.Type.MouseButtonPress
-                and equipment_table.itemAt(event.position().toPoint()) is None
-            ):
-                self._clear_equipment_selection_from_table(equipment_table)
+            try:
+                if (
+                    equipment_table is not None
+                    and watched is equipment_table.viewport()
+                    and event.type() == QEvent.Type.MouseButtonPress
+                    and equipment_table.itemAt(event.position().toPoint()) is None
+                ):
+                    self._clear_equipment_selection_from_table(equipment_table)
+            except RuntimeError:
+                continue
 
         return super().eventFilter(watched, event)
 
@@ -92,10 +124,8 @@ class DashboardLayoutMixin:
         super().resizeEvent(event)
         if not hasattr(self, "dashboard_grid_layout"):
             return
-        if self.width() < 1320:
-            self._set_dashboard_grid_columns(2)
-        elif self.width() >= 1500:
-            self._set_dashboard_grid_columns(4)
+        self._set_dashboard_grid_columns(self._recommended_dashboard_columns())
+        self._apply_responsive_form_guards()
         self._sync_scroll_policy(self.active_module_key)
         self._position_record_editor()
 
@@ -125,6 +155,7 @@ class DashboardLayoutMixin:
         self.dashboard_grid_layout.setSpacing(max(6, active_profile.section_spacing // 2))
         self.record_editor_width = int(max(860, min(round(920 * active_profile.ui_scale), 1080)))
         self._set_dashboard_grid_columns(active_profile.dashboard_columns)
+        self._apply_responsive_form_guards()
         self._sync_active_module_space(self.active_module_key)
         self._position_sidebar()
         self._position_record_editor()
@@ -172,7 +203,7 @@ class DashboardLayoutMixin:
         top = self.command_bar.height() + 14 if hasattr(self, "command_bar") else 14
         bottom = self.session_footer.height() + 14 if hasattr(self, "session_footer") else 14
         overlay_height = max(420, self.height() - top - bottom)
-        right_margin = 16
+        right_margin = 12
         rail_width = self.record_toggle_rail.width()
         rail_x = max(0, self.width() - rail_width - right_margin)
         self.record_toggle_rail.setGeometry(rail_x, top, rail_width, overlay_height)
@@ -183,8 +214,10 @@ class DashboardLayoutMixin:
             return
 
         content_width = max(860, self.width() - self.sidebar.width() - 80)
-        width = max(760, min(round(content_width * 0.4), 900, content_width))
-        panel_gap = 10
+        max_width = max(760, content_width - 48)
+        width = min(max_width, max(820, min(round(content_width * 0.48), 980)))
+        width = max(760, width)
+        panel_gap = 12
         panel_x = max(0, rail_x - panel_gap - width)
         self.generic_form_column.setParent(self)
         self.generic_form_column.setFixedWidth(width)

@@ -42,19 +42,20 @@ def build_display_profile(
     aspect_ratio = safe_width / safe_height
     compact = safe_width < 1360 or safe_height < 820 or aspect_ratio < 1.45
     if compact:
-        ui_scale_min, ui_scale_max = 0.82, 1.04
+        ui_scale_min = 0.82
     elif safe_width >= 1900 and safe_height >= 1000:
-        ui_scale_min, ui_scale_max = 0.88, 1.22
+        ui_scale_min = 0.88
     else:
-        ui_scale_min, ui_scale_max = 0.86, 1.14
+        ui_scale_min = 0.86
+    ui_scale_max = 1.50
     detected_scale = min(safe_width / 1600, safe_height / 900)
     ui_scale = _clamp(
         ui_scale_override if ui_scale_override is not None else detected_scale,
         ui_scale_min,
         ui_scale_max,
     )
-    should_maximize = safe_width < 1440 or safe_height < 840
-    dashboard_columns = 2 if compact or safe_width < 1500 else 4
+    should_maximize = safe_width < 1440 or safe_height < 840 or ui_scale >= 1.22
+    dashboard_columns = 2 if compact or safe_width < 1500 or ui_scale >= 1.22 else 4
 
     return DisplayProfile(
         width=safe_width,

@@ -19,6 +19,8 @@ class DashboardMixin5:
         previous_module_key = self.active_module_key
         self.active_module_key = module_key
         self.current_rows = []
+        self.current_selected_record = None
+        self.current_selected_summary = "Nenhum item selecionado."
         self.title_label.setText(self.module_labels.get(module_key, "Dashboard"))
         if hasattr(self, "data_description"):
             self.data_description.setText(self.module_descriptions.get(module_key, ""))
@@ -58,6 +60,8 @@ class DashboardMixin5:
         self.module_search_input.setVisible(module_key in self.searchable_module_keys)
         self.table.setVisible(module_key in self.searchable_module_keys)
         self.record_summary_panel.setVisible(module_key in self.searchable_module_keys)
+        if hasattr(self, "module_guidance_label"):
+            self.module_guidance_label.setVisible(module_key in self.searchable_module_keys)
         if hasattr(self, "command_editor_button"):
             is_record_module = module_key in self.record_module_keys
             self.command_editor_button.setVisible(is_record_module)
@@ -102,11 +106,13 @@ class DashboardMixin5:
         elif module_key == "password_resets":
             self.clear_password_reset_form()
         elif module_key == "settings":
-            self.clear_settings_form()
+            self.prepare_settings_form_loading()
         elif module_key == "admin_area":
             self._clear_current_selection()
         elif module_key == "audit_logs":
             self.clear_audit_form()
+        self._update_record_summary_panel()
+        self._refresh_module_guidance()
         self._position_record_editor()
 
     def _handle_table_selection(self) -> None:
@@ -177,6 +183,7 @@ class DashboardMixin5:
             self.record_summary_text.setPlainText(
                 self.current_selected_summary or "Nenhum item selecionado."
             )
+        self._refresh_module_guidance()
 
     def _populate_customer_form(self, customer: dict[str, Any]) -> None:
         self.selected_customer_id = str(customer["id"])
@@ -223,23 +230,25 @@ class DashboardMixin5:
         name = self.customer_name_input.text().strip()
         email = self.customer_email_input.text().strip().lower()
         phone = self.customer_phone_input.text().strip()
+
+        def show_validation_error(message: str) -> None:
+            self.customer_form_status.clear()
+            self._set_footer_message(message, "error")
+
         if not name:
-            self.set_customer_form_status("Informe o nome do cliente.", is_error=True)
+            show_validation_error("Informe o nome do cliente.")
             return
 
         if not email:
-            self.set_customer_form_status("Informe o email do cliente.", is_error=True)
+            show_validation_error("Informe o email do cliente.")
             return
 
         if not self._is_valid_email(email):
-            self.set_customer_form_status("Informe um email valido.", is_error=True)
+            show_validation_error("Informe um email valido.")
             return
 
         if not self._is_complete_phone(phone):
-            self.set_customer_form_status(
-                "Informe o telefone no formato (DD) 99999-9999.",
-                is_error=True,
-            )
+            show_validation_error("Informe o telefone no formato (DD) 99999-9999.")
             return
 
         payload = {

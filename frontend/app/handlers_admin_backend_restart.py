@@ -20,38 +20,6 @@ class AdminBackendRestartHandlersMixin:
     def _start_backend_restart_cooldown(self) -> None:
         self.backend_restart_cooldown_until = monotonic() + 3.0
 
-    def _recover_login_backend_connection(self) -> bool:
-        self.login_window.set_info(
-            "Backend indisponivel. Tentando iniciar/reiniciar servidor interno."
-        )
-        QApplication.processEvents()
-        try:
-            self.backend_process.restart(apply_migrations=True)
-        except ManagedBackendUnavailable:
-            try:
-                self.backend_process.start()
-            except ManagedBackendError as exc:
-                self.refresh_backend_health_status()
-                self._sync_backend_restart_status()
-                self.login_window.set_error(str(exc))
-                return False
-        except ManagedBackendError as exc:
-            self.refresh_backend_health_status()
-            self._sync_backend_restart_status()
-            self.login_window.set_error(str(exc))
-            return False
-
-        self.refresh_backend_health_status()
-        self._sync_backend_restart_status()
-        if self.backend_health_connected:
-            self.login_window.set_info("Backend conectado. Validando autorizacao de reinicio.")
-            return True
-
-        self.login_window.set_error(
-            "Nao foi possivel reconectar ao backend apos tentativa de inicializacao."
-        )
-        return False
-
     def _request_backend_restart_authorization(
         self,
         operator_email: str,
@@ -146,59 +114,6 @@ class AdminBackendRestartHandlersMixin:
 
         self._start_backend_restart_cooldown()
         return response
-
-    def handle_login_backend_reconnect(self) -> None:
-        operator_email = self.login_window.email_input.text().strip().lower()
-        self.login_window.set_backend_reconnect_loading(True)
-        was_connected = bool(self.backend_health_connected)
-        try:
-            if not was_connected and not self._recover_login_backend_connection():
-                return
-
-            authorization = self._request_backend_restart_authorization(
-                operator_email,
-                parent=self.login_window,
-                show_status=self.login_window.set_error,
-            )
-            if authorization is None:
-                return
-
-            reason = str(authorization.get("reason") or "Reinicio solicitado")
-            if not was_connected:
-                self.login_window.set_info(
-                    f"Backend conectado e aviso global registrado. Motivo: {reason}."
-                )
-                return
-
-            self.login_window.set_info(f"Tentando conectar/reiniciar backend. Motivo: {reason}.")
-            QApplication.processEvents()
-            try:
-                self.backend_process.restart(apply_migrations=True)
-            except ManagedBackendUnavailable as exc:
-                self.refresh_backend_health_status()
-                self._sync_backend_restart_status()
-                if self.backend_health_connected:
-                    self.login_window.set_info("Backend conectado.")
-                else:
-                    self.login_window.set_error(str(exc))
-                return
-            except ManagedBackendError as exc:
-                self.refresh_backend_health_status()
-                self._sync_backend_restart_status()
-                self.login_window.set_error(str(exc))
-                return
-
-            self.refresh_backend_health_status()
-            self._sync_backend_restart_status()
-            if self.backend_health_connected:
-                self.login_window.set_info("Backend conectado e reiniciado com sucesso.")
-            else:
-                self.login_window.set_error(
-                    "Reinicio concluido, mas o backend ainda nao respondeu. "
-                    "Tente novamente em instantes."
-                )
-        finally:
-            self.login_window.set_backend_reconnect_loading(False)
 
     def handle_backend_restart(self) -> None:
         if not self.session.access_token:

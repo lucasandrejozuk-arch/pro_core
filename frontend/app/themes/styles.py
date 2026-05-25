@@ -216,6 +216,8 @@ THEME_COLOR_PALETTES: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
+
+
 def apply_theme(
     app: QApplication,
     theme: str = "light",
@@ -229,6 +231,8 @@ def apply_theme(
     accent_color = palette["primary"]
     stylesheet = _dark_stylesheet() if is_dark else _light_stylesheet()
     app.setStyleSheet(stylesheet.replace(default_color, accent_color) + _palette_overrides(palette))
+
+
 def build_theme_palette(theme: str = "light", color_palette: str | None = None) -> dict[str, str]:
     theme_key = "dark" if theme == "dark" else "light"
     palette_id = resolve_color_palette(theme_key, color_palette)
@@ -249,6 +253,8 @@ def build_theme_palette(theme: str = "light", color_palette: str | None = None) 
         "danger": "#ff7b72" if theme_key == "dark" else "#cf222e",
         "danger_bg": "#2d1115" if theme_key == "dark" else "#ffebe9",
     }
+
+
 def resolve_color_palette(theme: str = "light", color_palette: str | None = None) -> str:
     theme_key = "dark" if theme == "dark" else "light"
     value = (color_palette or "").strip().lower()
@@ -258,6 +264,8 @@ def resolve_color_palette(theme: str = "light", color_palette: str | None = None
     if legacy_color:
         return _nearest_palette(theme_key, legacy_color)
     return DEFAULT_COLOR_PALETTE
+
+
 def _nearest_palette(theme: str, color: str) -> str:
     target = _hex_to_rgb(color)
     distances = {
@@ -272,11 +280,15 @@ def _nearest_palette(theme: str, color: str) -> str:
         for palette_id, palette in THEME_COLOR_PALETTES[theme].items()
     }
     return min(distances, key=distances.get)
+
+
 def _best_icon_library(background: str) -> tuple[str, str, str]:
     return max(
         ICON_COLOR_LIBRARIES,
         key=lambda icon_library: _contrast_ratio(icon_library[2], background),
     )
+
+
 def _safe_hex_color(value: str | None, fallback: str) -> str:
     if not value:
         return fallback
@@ -286,10 +298,16 @@ def _safe_hex_color(value: str | None, fallback: str) -> str:
     if any(character not in "0123456789abcdefABCDEF" for character in color[1:]):
         return fallback
     return color
+
+
 def _hex_to_rgb(value: str) -> Rgb:
     return int(value[1:3], 16), int(value[3:5], 16), int(value[5:7], 16)
+
+
 def _rgb_to_hex(color: Rgb) -> str:
     return "#{:02x}{:02x}{:02x}".format(*(_clamp_channel(channel) for channel in color))
+
+
 def _mix(first: str, second: str, second_weight: float) -> str:
     first_rgb = _hex_to_rgb(first)
     second_rgb = _hex_to_rgb(second)
@@ -300,14 +318,20 @@ def _mix(first: str, second: str, second_weight: float) -> str:
             for first_channel, second_channel in zip(first_rgb, second_rgb, strict=True)
         )
     )
+
+
 def _contrast_text(background: str) -> str:
     return "#111827" if _contrast_ratio(background, "#111827") >= 4.5 else "#ffffff"
+
+
 def _contrast_ratio(first: str, second: str) -> float:
     first_luminance = _relative_luminance(_hex_to_rgb(first))
     second_luminance = _relative_luminance(_hex_to_rgb(second))
     lighter = max(first_luminance, second_luminance)
     darker = min(first_luminance, second_luminance)
     return (lighter + 0.05) / (darker + 0.05)
+
+
 def _relative_luminance(color: Rgb) -> float:
     channels = []
     for channel in color:
@@ -317,5 +341,7 @@ def _relative_luminance(color: Rgb) -> float:
         )
     red, green, blue = channels
     return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+
+
 def _clamp_channel(value: int | float) -> int:
     return max(0, min(round(value), 255))

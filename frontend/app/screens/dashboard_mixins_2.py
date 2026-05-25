@@ -122,6 +122,7 @@ class DashboardMixin2:
                 message = "Nenhum registro encontrado para a busca."
             self.empty_label.setText(message)
             self.empty_label.show()
+            self._refresh_module_guidance()
             return
 
         self.empty_label.hide()
